@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Free Athlete Assessment | Valor Sports Academy — Richland, WA</title>
+<meta name="description" content="Take Valor's quick athlete assessment to see where your game stacks up, then book your free in-person evaluation with our coaches in Richland, WA.">
+<link rel="canonical" href="https://www.valorsportsacademywa.com/assessment">
+<meta name="robots" content="index, follow">
+<link rel="icon" href="https://static.wixstatic.com/media/d3f3c0_92dffbed5bcc499e8f337c41fe7544fd~mv2.png">
+<meta property="og:title" content="Free Athlete Assessment | Valor Sports Academy">
+<meta property="og:description" content="See where your game stacks up in 60 seconds, then book your free in-person assessment in Richland, WA.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.valorsportsacademywa.com/assessment">
+<meta property="og:image" content="https://static.wixstatic.com/media/d3f3c0_a88dce9bcb784c85a8515985f6e2f575~mv2.jpeg">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="header" id="header">
+  <div class="container header__bar">
+    <a href="/" class="brand" aria-label="Valor Sports Academy, home">
+      <img src="https://static.wixstatic.com/media/d3f3c0_92dffbed5bcc499e8f337c41fe7544fd~mv2.png" alt="Valor Sports Academy emblem" onerror="this.style.display='none'">
+      <span class="brand__name">Valor<small>Sports Academy</small></span>
+    </a>
+    <nav class="nav" aria-label="Primary"><a href="/">Home</a><a href="/coaches">Coaches</a><a href="/programs">Programs</a><a href="/contact">Contact</a></nav>
+    <div class="header__cta">
+      <a href="tel:+15099874612" class="header__phone"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>509-987-4612</a>
+      <a href="https://app.upperhand.io/customers/2781-valor-sports-academy/events" class="btn">Book a Class</a>
+    </div>
+    <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false"><span></span><span></span><span></span></button>
+  </div>
+  <nav class="header__menu" aria-label="Mobile"><a href="/">Home</a><a href="/coaches">Coaches</a><a href="/programs">Programs</a><a href="/contact">Contact</a><a href="https://app.upperhand.io/customers/2781-valor-sports-academy/events">Book a Class</a></nav>
+</header>
+
+<main>
+<section class="pagehead">
+  <div class="bgimg"><img src="https://static.wixstatic.com/media/d3f3c0_a88dce9bcb784c85a8515985f6e2f575~mv2.jpeg" alt="" aria-hidden="true" onerror="this.style.display='none'"></div>
+  <div class="container">
+    <p class="crumbs"><a href="/">Home</a><span>/</span>Free Assessment</p>
+    <h1>Where does your game stack up?</h1>
+    <p>Answer five quick questions to see your level, then book a free in-person assessment with our coaches in Richland.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container quiz">
+    <form class="quiz-card" id="quizForm" name="assessment" method="POST" data-netlify="true" netlify-honeypot="bot-field" action="/assessment?sent=true">
+      <input type="hidden" name="form-name" value="assessment">
+      <input type="hidden" name="result-level" id="leadLevel" value="">
+      <p hidden><label>Leave this empty: <input name="bot-field"></label></p>
+
+      <p class="quiz-intro">Tell us where to send the results, then answer five quick questions. Takes about a minute.</p>
+
+      <!-- CONTACT UP FRONT -->
+      <div class="qblock" style="border-top:0;padding-top:0">
+        <p class="qtitle"><span class="qnum">i</span> Athlete &amp; contact info</p>
+        <div class="field-row">
+          <div><label for="aname">Athlete first name</label><input id="aname" name="athlete-first-name" type="text" autocomplete="off"></div>
+          <div><label for="aage">Age</label><input id="aage" name="athlete-age" type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 13"></div>
+        </div>
+        <div class="field-row">
+          <div><label for="asport">Primary sport</label><input id="asport" name="primary-sport" type="text" autocomplete="off" placeholder="e.g. Football"></div>
+          <div><label for="acity">City, State</label><input id="acity" name="city-state" type="text" autocomplete="off" placeholder="e.g. Richland, WA"></div>
+        </div>
+        <div class="field-row">
+          <div><label for="pname">Parent / guardian name *</label><input id="pname" name="parent-name" type="text" required autocomplete="name"></div>
+          <div><label for="pphone">Parent / guardian phone *</label><input id="pphone" name="parent-phone" type="tel" required autocomplete="tel" placeholder="(509) 000-0000"></div>
+        </div>
+        <label for="pemail">Parent / guardian email *</label>
+        <input id="pemail" name="parent-email" type="email" required autocomplete="email" placeholder="you@email.com">
+        <label for="hear">How did you hear about us?</label>
+        <select id="hear" name="how-did-you-hear" style="width:100%;padding:15px 16px;border:1px solid var(--glass-stroke);border-radius:var(--r-sm);font-family:var(--body);font-size:1rem;color:var(--ink);background:var(--glass-strong)">
+          <option value="">Select one</option>
+          <option>Google search</option>
+          <option>Instagram or Facebook</option>
+          <option>Friend or family referral</option>
+          <option>Coach or school</option>
+          <option>Saw a flyer or event</option>
+          <option>Other</option>
+        </select>
+      </div>
+
+      <div class="qblock">
+        <p class="qtitle"><span class="qnum">1</span> How many years have you trained in your sport?</p>
+        <div class="qopts" data-q="q1">
+          <label class="qopt"><input type="radio" name="q1" value="0"> Less than 1 year</label>
+          <label class="qopt"><input type="radio" name="q1" value="1"> 1 – 2 years</label>
+          <label class="qopt"><input type="radio" name="q1" value="2"> 3 – 5 years</label>
+          <label class="qopt"><input type="radio" name="q1" value="3"> 6+ years</label>
+        </div>
+      </div>
+
+      <div class="qblock">
+        <p class="qtitle"><span class="qnum">2</span> What's the highest level you currently compete at?</p>
+        <div class="qopts" data-q="q2">
+          <label class="qopt"><input type="radio" name="q2" value="0"> Recreational / not on a team</label>
+          <label class="qopt"><input type="radio" name="q2" value="1"> School team or rec league</label>
+          <label class="qopt"><input type="radio" name="q2" value="2"> Travel, club, or select team</label>
+          <label class="qopt"><input type="radio" name="q2" value="3"> Varsity, showcase, or national-level</label>
+        </div>
+      </div>
+
+      <div class="qblock">
+        <p class="qtitle"><span class="qnum">3</span> How many days a week do you train (practice + workouts)?</p>
+        <div class="qopts" data-q="q3">
+          <label class="qopt"><input type="radio" name="q3" value="0"> 0 – 1 days</label>
+          <label class="qopt"><input type="radio" name="q3" value="1"> 2 – 3 days</label>
+          <label class="qopt"><input type="radio" name="q3" value="2"> 4 – 5 days</label>
+          <label class="qopt"><input type="radio" name="q3" value="3"> 6 – 7 days</label>
+        </div>
+      </div>
+
+      <div class="qblock">
+        <p class="qtitle"><span class="qnum">4</span> Do you follow a structured strength &amp; conditioning program?</p>
+        <div class="qopts" data-q="q4">
+          <label class="qopt"><input type="radio" name="q4" value="0"> No structured program</label>
+          <label class="qopt"><input type="radio" name="q4" value="1"> Sometimes, on my own</label>
+          <label class="qopt"><input type="radio" name="q4" value="2"> Yes, with my team</label>
+          <label class="qopt"><input type="radio" name="q4" value="3"> Yes, with a dedicated coach</label>
+        </div>
+      </div>
+
+      <div class="qblock">
+        <p class="qtitle"><span class="qnum">5</span> Have you been recognized for any of these? (pick the highest)</p>
+        <div class="qopts" data-q="q5">
+          <label class="qopt"><input type="radio" name="q5" value="0"> None yet</label>
+          <label class="qopt"><input type="radio" name="q5" value="1"> Team MVP, All-League, or All-Star</label>
+          <label class="qopt"><input type="radio" name="q5" value="2"> All-State, All-Region, or showcase invite</label>
+          <label class="qopt"><input type="radio" name="q5" value="3"> National team / college interest / elite camp</label>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn--lg quiz-submit">See my result <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      <p class="quiz-err" id="quizErr">Please fill in the required contact fields and answer all five questions.</p>
+    </form>
+
+    <!-- RESULT -->
+    <div class="quiz-card result" id="quizResult" style="margin-top:24px" aria-live="polite">
+      <span class="result__badge">Your result</span>
+      <p class="result__level" id="resLevel">—</p>
+      <div class="result__scale" id="resScale"><span></span><span></span><span></span><span></span></div>
+      <p class="result__text" id="resText"></p>
+      <p style="font-weight:700;color:var(--ink);margin-bottom:18px">Your recommended next step is a free in-person assessment with our coaches.</p>
+      <div class="result__cta">
+        <a href="https://app.upperhand.io/customers/2781-valor-sports-academy/events" class="btn btn--lg">Book My Free Assessment <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <a href="tel:+15099874612" class="btn btn--glass btn--lg">Call 509-987-4612</a>
+      </div>
+      <p style="color:var(--muted);margin-top:20px;font-size:.95rem">Thanks! We've got your info and a Valor coach will follow up to lock in your in-person assessment.</p>
+    </div>
+
+    <p style="text-align:center;color:var(--muted);font-weight:600;margin-top:24px;font-size:.9rem">Valor Sports Academy · Free Athlete Assessment · Questions? <a href="mailto:valorsportsacademywa@gmail.com" style="color:var(--red)">valorsportsacademywa@gmail.com</a></p>
+  </div>
+</section>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer__grid">
+      <div>
+        <div class="footer__brand"><img src="https://static.wixstatic.com/media/d3f3c0_92dffbed5bcc499e8f337c41fe7544fd~mv2.png" alt="Valor Sports Academy emblem" onerror="this.style.display='none'"><span class="brand__name" style="color:#fff">Valor<small>Sports Academy</small></span></div>
+        <p class="footer__blurb">Youth football, all-sport athletic training, and adult personal training in Richland, WA. Coaches who've competed, real results.</p>
+      </div>
+      <div><h4>Site</h4><ul><li><a href="/">Home</a></li><li><a href="/coaches">Coaches</a></li><li><a href="/programs">Programs</a></li><li><a href="/contact">Contact</a></li></ul></div>
+      <div><h4>Train</h4><ul><li><a href="/youth-football-training">Youth Football</a></li><li><a href="/sports-training">Sports Training</a></li><li><a href="/personal-training">Personal Training</a></li><li><a href="https://app.upperhand.io/customers/2781-valor-sports-academy/events">Book a Class</a></li></ul></div>
+      <div><h4>Visit</h4><ul><li>1973 Fowler Street</li><li>Richland, WA 99352</li><li><a href="tel:+15099874612">509-987-4612</a></li><li><a href="mailto:valorsportsacademywa@gmail.com">Email us</a></li><li>Mon–Sat · 11AM–8PM</li></ul></div>
+    </div>
+    <div class="footer__bottom"><span>© 2026 Valor Sports Academy</span><span>Serving Richland, Kennewick, Pasco &amp; the Tri-Cities</span></div>
+  </div>
+</footer>
+
+<script>
+  var header = document.getElementById('header'), burger = document.getElementById('burger');
+  burger.addEventListener('click', function () { var o = header.classList.toggle('open'); burger.setAttribute('aria-expanded', o); });
+  var onScroll = function () { header.classList.toggle('solid', window.scrollY > 24); };
+  onScroll(); window.addEventListener('scroll', onScroll, { passive: true });
+
+  document.querySelectorAll('.qopts').forEach(function (group) {
+    group.addEventListener('change', function () {
+      group.querySelectorAll('.qopt').forEach(function (l) { l.classList.toggle('sel', l.querySelector('input').checked); });
+    });
+  });
+
+  var LEVELS = [
+    { min: 0,  name: "Foundation Athlete", tier: 1, text: "You're early in the journey, and that's the best time to build the right habits. The athletes who start with good movement and structure now are the ones who pull ahead later. The next step is a free in-person assessment so our coaches can map a starting plan built for you." },
+    { min: 5,  name: "Developing Athlete", tier: 2, text: "You've got a real base and a lot of upside. With focused coaching on the gaps holding you back, athletes at this stage tend to climb fast. Come in for a free in-person assessment and we'll show you exactly where to push." },
+    { min: 10, name: "Advanced Athlete",  tier: 3, text: "You're training seriously and it shows. At this level the right tweaks create real separation from the field. A free in-person assessment will pinpoint the details worth sharpening so your work pays off where it counts." },
+    { min: 13, name: "Elite Track",       tier: 4, text: "You're competing at a high level. Now it's about staying healthy, sharp, and ahead of the curve. Book a free in-person assessment and our coaches will fine-tune the edges that keep elite athletes elite." }
+  ];
+  function levelFor(score) { var r = LEVELS[0]; for (var i = 0; i < LEVELS.length; i++) { if (score >= LEVELS[i].min) r = LEVELS[i]; } return r; }
+
+  var form = document.getElementById('quizForm'), err = document.getElementById('quizErr');
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var names = ['q1','q2','q3','q4','q5'], score = 0, answered = 0;
+    names.forEach(function (n) { var sel = document.querySelector('input[name="' + n + '"]:checked'); if (sel) { score += parseInt(sel.value, 10); answered++; } });
+    if (!form.checkValidity()) { err.classList.add('show'); form.reportValidity(); return; }
+    if (answered < 5) { err.classList.add('show'); return; }
+    err.classList.remove('show');
+
+    var lvl = levelFor(score);
+    document.getElementById('leadLevel').value = lvl.name + ' (' + score + '/15)';
+
+    // capture the lead in Netlify (no-op locally), then show the result either way
+    try {
+      var body = new URLSearchParams(new FormData(form)).toString();
+      fetch('/', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body }).catch(function () {});
+    } catch (e2) {}
+
+    var aname = (document.getElementById('aname').value || '').trim();
+    document.getElementById('resLevel').textContent = aname ? (aname + ': ' + lvl.name) : lvl.name;
+    document.getElementById('resText').textContent = lvl.text;
+    document.querySelectorAll('#resScale span').forEach(function (b, i) { b.classList.toggle('on', i < lvl.tier); });
+
+    var res = document.getElementById('quizResult');
+    res.classList.add('show');
+    res.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+</script>
+</body>
+</html>

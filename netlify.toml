@@ -1,0 +1,59 @@
+# ==============================================================================
+# Netlify configuration — Valor Sports Academy
+# Static site (plain HTML/CSS, no build step).
+# ==============================================================================
+
+[build]
+  publish = "."
+
+# ------------------------------------------------------------------------------
+# Security headers (applied to every response)
+# ------------------------------------------------------------------------------
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+    # Optional, stronger lock-down. Test before enabling — it must allow Google
+    # Fonts, the Wix image CDN, and the Google Maps embed used on /contact:
+    # Content-Security-Policy = "default-src 'self'; img-src 'self' https://static.wixstatic.com data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; frame-src https://www.google.com; form-action 'self' https://api.netlify.com"
+
+# ------------------------------------------------------------------------------
+# Caching — HTML always revalidates so edits go live instantly; CSS cached short
+# ------------------------------------------------------------------------------
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/styles.css"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+# ------------------------------------------------------------------------------
+# Redirects — preserve the old Wix Coaches URL so its link equity carries over
+# (Home, /programs, and /contact paths already match the old Wix slugs.)
+# ------------------------------------------------------------------------------
+[[redirects]]
+  from = "/about-2"
+  to = "/coaches"
+  status = 301
+  force = true
+
+# Keep the internal kickoff sheet out of search entirely
+[[headers]]
+  for = "/getting-started.html"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+# ------------------------------------------------------------------------------
+# Duplicate-content note (no code needed):
+# In the Netlify dashboard set the PRIMARY domain to www.valorsportsacademywa.com.
+# Netlify then auto-301s both the apex (valorsportsacademywa.com) and the
+# *.netlify.app subdomain to it — which is the reliable way to avoid the
+# duplicate-content issue. Deploy Previews and branch deploys are noindexed by
+# Netlify automatically.
+# ------------------------------------------------------------------------------
