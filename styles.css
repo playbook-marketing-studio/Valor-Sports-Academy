@@ -491,6 +491,26 @@ textarea { min-height: 140px; resize: vertical; }
 .footer__bottom { border-top:1px solid rgba(255,255,255,.1); margin-top: 46px; padding-top: 24px; display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; font-size:.85rem; }
 
 /* ===================================================================
+   STICKY MOBILE CTA BAR
+   =================================================================== */
+.mcta { display: none; }
+@media (max-width: 820px) {
+  .mcta {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    box-shadow: 0 -10px 30px -12px rgba(0,0,0,.45);
+  }
+  .mcta__btn {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 56px; padding: 14px 10px;
+    font-family: var(--body); font-weight: 800; text-transform: uppercase; letter-spacing: .03em; font-size: .94rem;
+  }
+  .mcta__call { background: var(--ink); color: #fff; }
+  .mcta__book { background: var(--red); color: #fff; }
+  .mcta__btn:active { filter: brightness(.92); }
+  body { padding-bottom: 56px; }
+}
+
+/* ===================================================================
    reveal on scroll
    =================================================================== */
 @media (prefers-reduced-motion: no-preference) {

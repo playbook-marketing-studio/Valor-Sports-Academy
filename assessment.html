@@ -50,7 +50,7 @@
 
 <section class="section">
   <div class="container quiz">
-    <form class="quiz-card" id="quizForm" name="assessment" method="POST" data-netlify="true" netlify-honeypot="bot-field" action="/assessment?sent=true">
+    <form class="quiz-card" id="quizForm" name="assessment" method="POST" data-netlify="true" netlify-honeypot="bot-field" action="/thank-you">
       <input type="hidden" name="form-name" value="assessment">
       <input type="hidden" name="result-level" id="leadLevel" value="">
       <p hidden><label>Leave this empty: <input name="bot-field"></label></p>
@@ -70,7 +70,7 @@
         </div>
         <div class="field-row">
           <div><label for="pname">Parent / guardian name *</label><input id="pname" name="parent-name" type="text" required autocomplete="name"></div>
-          <div><label for="pphone">Parent / guardian phone *</label><input id="pphone" name="parent-phone" type="tel" required autocomplete="tel" placeholder="(509) 000-0000"></div>
+          <div><label for="pphone">Parent / guardian phone</label><input id="pphone" name="parent-phone" type="tel" autocomplete="tel" placeholder="(509) 000-0000"></div>
         </div>
         <label for="pemail">Parent / guardian email *</label>
         <input id="pemail" name="parent-email" type="email" required autocomplete="email" placeholder="you@email.com">
@@ -137,7 +137,8 @@
       </div>
 
       <button type="submit" class="btn btn--lg quiz-submit">See my result <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
-      <p class="quiz-err" id="quizErr">Please fill in the required contact fields and answer all five questions.</p>
+      <p style="text-align:center;color:var(--muted);font-size:.86rem;margin-top:14px">Takes about 60 seconds. We only use your info to send your result. No spam.</p>
+      <p class="quiz-err" id="quizErr">Please add a name and email and answer all five questions.</p>
     </form>
 
     <!-- RESULT -->
@@ -222,5 +223,6 @@
     res.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 </script>
+<script src="/cta.js" defer></script>
 </body>
 </html>
