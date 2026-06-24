@@ -26,3 +26,6 @@ node_modules/
 .env.*
 *.pem
 *.key
+
+# Original full-res photos (optimized copies live in /images)
+Valor-Pictures/

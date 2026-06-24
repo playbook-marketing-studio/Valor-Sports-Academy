@@ -6,6 +6,11 @@
 [build]
   publish = "."
 
+# AI tracker — captures AI crawls + referrals at the edge (see netlify/edge-functions/)
+[[edge_functions]]
+  function = "ai-tracker"
+  path = "/*"
+
 # ------------------------------------------------------------------------------
 # Security headers (applied to every response)
 # ------------------------------------------------------------------------------
