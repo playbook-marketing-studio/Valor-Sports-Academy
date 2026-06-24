@@ -31,7 +31,12 @@
 [[headers]]
   for = "/styles.css"
   [headers.values]
-    Cache-Control = "public, max-age=3600"
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/cta.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
 
 # ------------------------------------------------------------------------------
 # Redirects — preserve the old Wix Coaches URL so its link equity carries over
