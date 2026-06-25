@@ -42,4 +42,38 @@
     document.addEventListener('click', function (e) { if (!wrap.contains(e.target)) { wrap.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); } });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { wrap.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); } });
   }
+
+  // ---- slide-down giveaway promo (shows on first entry, then remembers dismissal) ----
+  (function () {
+    var EXCLUDE = ['/giveaway', '/giveaway-thank-you', '/thank-you', '/getting-started'];
+    var path = location.pathname.replace(/\/+$/, '') || '/';
+    if (EXCLUDE.indexOf(path) !== -1) return;
+    try { if (localStorage.getItem('valor_gv_promo') === 'dismissed') return; } catch (e) {}
+    if (document.getElementById('gvPromo')) return;
+
+    var p = document.createElement('div');
+    p.id = 'gvPromo'; p.className = 'gv-promo';
+    p.setAttribute('role', 'region'); p.setAttribute('aria-label', 'Giveaway announcement');
+    p.innerHTML =
+      '<div class="gv-promo__in">' +
+        '<span class="gv-promo__badge">New</span>' +
+        '<span class="gv-promo__txt">Win a <strong>Summer of Valor</strong>' +
+          '<span class="gv-promo__more"> &mdash; a free week of camp, a 1-on-1 assessment &amp; two personal training sessions</span>' +
+        '</span>' +
+        '<a class="gv-promo__cta" href="/giveaway">Enter free <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>' +
+        '<button class="gv-promo__x" id="gvPromoX" aria-label="Dismiss giveaway banner"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>' +
+      '</div>';
+    document.body.insertBefore(p, document.body.firstChild);
+
+    // double rAF so the max-height transition fires from 0
+    requestAnimationFrame(function () { requestAnimationFrame(function () { p.classList.add('gv-promo--in'); }); });
+
+    var remember = function () { try { localStorage.setItem('valor_gv_promo', 'dismissed'); } catch (e) {} };
+    document.getElementById('gvPromoX').addEventListener('click', function () {
+      remember();
+      p.classList.remove('gv-promo--in');
+      setTimeout(function () { if (p.parentNode) p.parentNode.removeChild(p); }, 600);
+    });
+    p.querySelector('.gv-promo__cta').addEventListener('click', remember);
+  })();
 })();

@@ -546,6 +546,27 @@ textarea { min-height: 140px; resize: vertical; }
 }
 
 /* ===================================================================
+   SLIDE-DOWN GIVEAWAY PROMO (first visit, dismissible)
+   =================================================================== */
+.gv-promo { overflow: hidden; max-height: 0; transition: max-height .55s cubic-bezier(.22,1,.36,1);
+  background: linear-gradient(90deg, var(--red), var(--red-deep)); color: #fff; }
+.gv-promo.gv-promo--in { max-height: 220px; }
+.gv-promo__in { max-width: 1180px; margin: 0 auto; display: flex; align-items: center; gap: 14px; padding: 11px clamp(16px,4vw,28px); }
+.gv-promo__badge { flex: 0 0 auto; background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.4); font-family: var(--display); text-transform: uppercase; letter-spacing: .05em; font-size: .7rem; padding: 3px 10px; border-radius: 999px; }
+.gv-promo__txt { font-weight: 600; font-size: .95rem; line-height: 1.3; }
+.gv-promo__txt strong { font-weight: 800; }
+.gv-promo__cta { margin-left: auto; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; background: #fff; color: var(--ink); font-family: var(--body); font-weight: 800; text-transform: uppercase; letter-spacing: .02em; font-size: .8rem; padding: 9px 16px; border-radius: 999px; transition: background .2s ease; }
+.gv-promo__cta:hover { background: #ffe7eb; }
+.gv-promo__x { flex: 0 0 auto; background: transparent; border: 0; color: #fff; cursor: pointer; opacity: .82; padding: 6px; display: inline-flex; border-radius: 8px; }
+.gv-promo__x:hover { opacity: 1; background: rgba(255,255,255,.14); }
+@media (max-width: 640px) {
+  .gv-promo__more { display: none; }
+  .gv-promo__in { gap: 10px; padding: 10px 14px; }
+  .gv-promo__txt { font-size: .9rem; }
+  .gv-promo__cta { font-size: .76rem; padding: 8px 13px; }
+}
+
+/* ===================================================================
    reveal on scroll
    =================================================================== */
 @media (prefers-reduced-motion: no-preference) {
