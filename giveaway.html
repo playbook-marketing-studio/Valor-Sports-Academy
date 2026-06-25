@@ -41,6 +41,10 @@
   .step p { color:var(--muted); font-size:.98rem; }
   .deadline { display:inline-flex; align-items:center; gap:10px; background:var(--glass-ink-strong); -webkit-backdrop-filter:var(--blur); backdrop-filter:var(--blur); border:1px solid var(--glass-ink-stroke); color:#fff; padding:10px 18px; border-radius:var(--pill); font-weight:700; font-size:.95rem; }
   .fineprint { max-width:760px; margin:22px auto 0; color:var(--muted); font-size:.82rem; line-height:1.6; text-align:center; }
+  .gw-follow { display:flex; flex-wrap:wrap; align-items:center; gap:12px; justify-content:space-between; margin-top:22px; padding:16px; border:2px solid var(--red); border-radius:var(--r-sm); background:#fff; }
+  .gw-check { display:flex; gap:12px; align-items:flex-start; margin:14px 0 0; padding:14px 16px; border:1.5px solid var(--line); border-radius:var(--r-sm); background:var(--bone); text-transform:none; letter-spacing:0; font-weight:600; font-size:.95rem; color:var(--ink); cursor:pointer; }
+  .gw-check input[type=checkbox]{ width:20px; height:20px; flex:0 0 auto; margin:1px 0 0; padding:0; accent-color:var(--red); }
+  .gw-check strong{ font-weight:800; }
   @media (max-width:780px){ .prize, .steps { grid-template-columns:1fr; } }
 </style>
 </head>
@@ -73,7 +77,7 @@
 <main>
 <!-- PAGE HEAD -->
 <section class="pagehead">
-  <div class="bgimg"><img src="/images/hero-coaches.webp" alt="" aria-hidden="true" onerror="this.style.display='none'"></div>
+  <div class="bgimg"><img src="/images/giveaway-hero.webp" alt="" aria-hidden="true" onerror="this.style.display='none'"></div>
   <div class="container">
     <p class="crumbs"><a href="/">Home</a><span>/</span>Giveaway</p>
     <h1>Win a Summer of Valor</h1>
@@ -113,6 +117,16 @@
   </div>
 </section>
 
+<!-- BRAND BAND -->
+<section class="section cta">
+  <div class="cta__bg"><img src="/images/giveaway-brand.webp" alt="Athletes training at Valor Sports Academy" onerror="this.style.display='none'"></div>
+  <div class="container io">
+    <p class="tag-line" style="justify-content:center;color:#ff8d9b">Train with purpose</p>
+    <h2>Rise with Valor</h2>
+    <p>This is the room your athlete steps into. Real coaches, real standards, a place built to help them level up.</p>
+  </div>
+</section>
+
 <!-- HOW IT WORKS -->
 <section class="section" style="background:var(--paper-2)">
   <div class="container">
@@ -123,22 +137,23 @@
     <div class="steps io">
       <div class="step">
         <b>01</b>
-        <h4>Fill out the form</h4>
-        <p>Drop your name, email, and a few details about your athlete. Takes under a minute.</p>
+        <h4>Follow us on Instagram</h4>
+        <!-- EDIT-IG: confirm handle -->
+        <p>Give @valorsportsacademywa a follow. It's required to enter, and it's where we announce the winner.</p>
       </div>
       <div class="step">
         <b>02</b>
-        <!-- EDIT-DATES: winner announcement -->
-        <h4>We draw the winner</h4>
-        <p>One family is picked at random and notified by phone and email on Monday, July 20, 2026.</p>
+        <h4>Fill out the form</h4>
+        <p>Your name, email, and a few details about your athlete. Under a minute.</p>
       </div>
       <div class="step">
         <b>03</b>
-        <!-- EDIT-OFFER: consolation perk for every entrant -->
-        <h4>Everyone wins something</h4>
-        <p>Didn't win the bundle? Every entry gets $10 off your athlete's first week of camp.</p>
+        <!-- EDIT-OFFER: bonus entries -->
+        <h4>Stack bonus entries</h4>
+        <p>Already trained with us? Leave a Google review for 3 extra entries. We'll show you how the second you enter.</p>
       </div>
     </div>
+    <p style="text-align:center;color:var(--muted);margin-top:clamp(22px,3vw,32px);font-weight:600">Plus every entry gets $10 off your athlete's first week of camp, and the winner is drawn Monday, July 20.</p>
   </div>
 </section>
 
@@ -176,17 +191,24 @@
         <option>Saw a flyer or event</option>
         <option>Other</option>
       </select>
+      <!-- EDIT-IG: confirm the Instagram handle + URL -->
+      <div class="gw-follow">
+        <div><strong style="color:var(--ink);font-size:1.02rem">Follow us on Instagram to enter</strong><br><span style="color:var(--muted);font-size:.92rem">@valorsportsacademywa</span></div>
+        <a href="https://www.instagram.com/valorsportsacademywa" target="_blank" rel="noopener" class="btn">Open Instagram</a>
+      </div>
+      <label class="gw-check" for="ig"><input id="ig" name="followed-instagram" type="checkbox" value="yes" required><span>I followed <strong>@valorsportsacademywa</strong> on Instagram <span style="color:var(--red)">*</span></span></label>
+      <label class="gw-check" for="trained"><input id="trained" name="trained-before" type="checkbox" value="yes"><span>I've trained at Valor before, I want to earn bonus entries with a Google review.</span></label>
       <button type="submit" class="btn btn--lg" style="margin-top:24px;width:100%;justify-content:center">Enter the Giveaway</button>
       <p style="text-align:center;color:var(--muted);font-size:.86rem;margin-top:12px">One entry per athlete. We never share or sell your info.</p>
     </form>
     <!-- EDIT-RULES: confirm eligibility + rules -->
-    <p class="fineprint io">No purchase necessary. Open to Tri-Cities residents (Richland, Kennewick, Pasco, West Richland and surrounding areas). Youth camp prize is for athletes ages 8–18; personal training sessions are open to all ages. One entry per athlete. Entries close Friday, July 17, 2026; winner drawn at random and notified by phone and email on Monday, July 20, 2026. Prize has no cash value and is non-transferable. Valor Sports Academy reserves the right to verify eligibility.</p>
+    <p class="fineprint io">No purchase necessary. Following @valorsportsacademywa on Instagram is required to enter. Bonus entries: athletes who have trained at Valor and leave a Google review earn 3 additional entries. Open to Tri-Cities residents (Richland, Kennewick, Pasco, West Richland and surrounding areas). Youth camp prize is for athletes ages 8–18; personal training sessions are open to all ages. One entry per athlete, plus any earned bonus entries. Entries close Friday, July 17, 2026; winner drawn at random and notified by phone and email on Monday, July 20, 2026. Prize has no cash value and is non-transferable. Valor Sports Academy reserves the right to verify eligibility, Instagram follows, and reviews.</p>
   </div>
 </section>
 
 <!-- CTA -->
 <section class="section cta">
-  <div class="cta__bg"><img src="/images/training.webp" alt="" aria-hidden="true" onerror="this.style.display='none'"></div>
+  <div class="cta__bg"><img src="/images/giveaway-action.webp" alt="" aria-hidden="true" onerror="this.style.display='none'"></div>
   <div class="container io">
     <h2>Don't want to wait on the draw?</h2>
     <p>You can start this week. See the camps and lock your athlete's spot.</p>
