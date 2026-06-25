@@ -81,4 +81,21 @@
     });
     p.querySelector('.gv-promo__sub').addEventListener('click', remember);
   })();
+
+  // ---- always-on Giveaway link in the nav (skip on the giveaway page itself) ----
+  (function () {
+    if ((location.pathname.replace(/\/+$/, '') || '/') === '/giveaway') return;
+    var nav = document.querySelector('header .nav');
+    if (nav && !nav.querySelector('a[href="/giveaway"]')) {
+      var a = document.createElement('a');
+      a.href = '/giveaway'; a.className = 'nav-gv'; a.textContent = 'Giveaway';
+      nav.appendChild(a);
+    }
+    var menu = document.querySelector('header .header__menu');
+    if (menu && !menu.querySelector('a[href="/giveaway"]')) {
+      var m = document.createElement('a');
+      m.href = '/giveaway'; m.className = 'menu-gv'; m.textContent = 'Enter our Giveaway';
+      menu.appendChild(m);
+    }
+  })();
 })();

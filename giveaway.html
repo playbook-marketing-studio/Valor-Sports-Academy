@@ -68,11 +68,15 @@
   .form-prize span { color:var(--red); font-weight:800; text-transform:uppercase; letter-spacing:.04em; font-size:.72rem; }
   .form-prize p { color:var(--ink); font-weight:600; font-size:.95rem; margin-top:3px; }
   @media (max-width:820px){ .esteps--row { grid-template-columns:1fr; gap:16px; } }
+  .vibe__hint { display:none; }
+  @keyframes gvSwipe { 0%,100%{ transform:translateX(0); } 50%{ transform:translateX(6px); } }
   @media (max-width:760px){
     .vibe { grid-template-columns:1fr; }
     .vibe__strip { display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
     .vibe__strip::-webkit-scrollbar { display:none; }
     .vibe__strip img { flex:0 0 82%; scroll-snap-align:center; }
+    .vibe__hint { display:block; text-align:center; color:var(--muted); font-weight:700; font-size:.85rem; letter-spacing:.02em; margin-top:14px; }
+    .vibe__hint span { display:inline-block; animation: gvSwipe 1.4s ease-in-out infinite; }
   }
 </style>
 </head>
@@ -116,14 +120,13 @@
   </div>
 </section>
 
-<!-- THE PRIZE -->
-<section class="section">
+<!-- PRIZE + HOW TO ENTER (one section, right after hero) -->
+<section class="section" id="enter" style="background:var(--paper-2)">
   <div class="container">
-    <div class="head io">
-      <p class="tag-line">The prize</p>
-      <h2>What one family takes home</h2>
-      <!-- EDIT-OFFER / value below -->
-      <p>A full summer of training worth about $300, built to move your athlete forward fast.</p>
+    <div class="head io" style="text-align:center">
+      <p class="tag-line" style="justify-content:center">The prize</p>
+      <h2>Win the Summer of Valor</h2>
+      <p style="max-width:60ch;margin-inline:auto">A full summer of training worth about $300, built to move your athlete forward fast.</p>
     </div>
     <div class="prize io">
       <div class="prize__card">
@@ -142,38 +145,12 @@
         <p>Two one-on-one sessions to put the plan into motion with a coach who holds the standard.</p>
       </div>
     </div>
-  </div>
-</section>
 
-<!-- VIBE: staggered text + feature, photo strip (carousel on mobile) -->
-<section class="section">
-  <div class="container">
-    <div class="vibe io">
-      <div class="vibe__head">
-        <p class="tag-line">Train with purpose</p>
-        <h2>Rise with Valor</h2>
-        <p style="color:var(--muted);font-size:1.08rem;margin-top:16px;line-height:1.65">This is the room your athlete steps into. Real coaches, real energy, real standards, the kind of place that makes them want to show up.</p>
-        <a href="#enter" class="btn">Enter the giveaway <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-      </div>
-      <img class="vibe__feat" src="/images/giveaway-hero.webp" alt="Young athlete training at Valor Sports Academy" onerror="this.style.display='none'">
-    </div>
-    <div class="vibe__strip io">
-      <img src="/images/giveaway-brand.webp" alt="Athletes in Valor gear on the training floor" onerror="this.style.display='none'">
-      <img src="/images/giveaway-action.webp" alt="Athlete making a leaping catch at Valor" onerror="this.style.display='none'">
-      <img src="/images/community.webp" alt="Coaches and athletes at the Valor grand opening" onerror="this.style.display='none'">
-    </div>
-  </div>
-</section>
-
-<!-- ENTER: instructions first, then the form -->
-<section class="section" id="enter" style="background:var(--paper-2)">
-  <div class="container">
-    <div class="head io" style="text-align:center;margin-bottom:clamp(26px,4vw,40px)">
+    <div class="head io" style="text-align:center;margin-top:clamp(40px,6vw,72px);margin-bottom:clamp(24px,4vw,38px)">
       <p class="tag-line" style="justify-content:center">Enter free</p>
       <h2>How to enter</h2>
       <p style="max-width:62ch;margin-inline:auto">Three steps, under a minute. No purchase necessary. Every entry gets $10 off your first week of camp, and the winner is drawn Monday, July 20.</p>
     </div>
-
     <ol class="esteps esteps--row io">
       <li><span class="esteps__n">1</span><div><b>Follow us on Instagram</b><p>Give @valorsportsacademy a follow. It's required to enter, and it's where we announce the winner.</p></div></li>
       <li><span class="esteps__n">2</span><div><b>Fill out the form</b><p>Your name, email, and a few quick details about your athlete.</p></div></li>
@@ -181,10 +158,6 @@
     </ol>
 
     <form class="quiz-card io" name="giveaway" method="POST" data-netlify="true" netlify-honeypot="bot-field" action="/giveaway-thank-you" data-playbook-lead="valor" style="max-width:680px;margin:clamp(28px,4vw,40px) auto 0">
-      <div class="form-prize">
-        <span>You're entering to win</span>
-        <p>1 free week of camp, a 1-on-1 assessment, and 2 personal training sessions. About $300 value.</p>
-      </div>
       <input type="hidden" name="form-name" value="giveaway">
       <input type="hidden" name="entry" value="Summer of Valor giveaway">
       <p hidden><label>Leave this empty: <input name="bot-field"></label></p>
@@ -210,10 +183,32 @@
       <button type="submit" class="btn btn--lg" style="margin-top:24px;width:100%;justify-content:center">Enter the Giveaway</button>
       <p style="text-align:center;color:var(--muted);font-size:.86rem;margin-top:12px">One entry per athlete. We never share or sell your info.</p>
     </form>
-    <!-- EDIT-RULES: confirm eligibility + rules -->
     <p class="fineprint io">No purchase necessary. Following @valorsportsacademy on Instagram is required to enter. Bonus entries: athletes who have trained at Valor and leave a Google review earn 3 additional entries. Open to Tri-Cities residents (Richland, Kennewick, Pasco, West Richland and surrounding areas). Youth camp prize is for athletes ages 8 to 18; personal training sessions are open to all ages. One entry per athlete, plus any earned bonus entries. Entries close Friday, July 17, 2026; winner drawn at random and notified by phone and email on Monday, July 20, 2026. Prize has no cash value and is non-transferable. Valor Sports Academy reserves the right to verify eligibility, Instagram follows, and reviews.</p>
   </div>
 </section>
+
+<!-- VIBE: staggered text + feature, photo strip (carousel on mobile) -->
+<section class="section">
+  <div class="container">
+    <div class="vibe io">
+      <div class="vibe__head">
+        <p class="tag-line">Train with purpose</p>
+        <h2>Rise with Valor</h2>
+        <p style="color:var(--muted);font-size:1.08rem;margin-top:16px;line-height:1.65">This is the room your athlete steps into. Real coaches, real energy, real standards, the kind of place that makes them want to show up.</p>
+        <a href="#enter" class="btn">Enter the giveaway <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      </div>
+      <img class="vibe__feat" src="/images/giveaway-hero.webp" alt="Young athlete training at Valor Sports Academy" onerror="this.style.display='none'">
+    </div>
+    <div class="vibe__strip io">
+      <img src="/images/giveaway-brand.webp" alt="Athletes in Valor gear on the training floor" onerror="this.style.display='none'">
+      <img src="/images/giveaway-action.webp" alt="Athlete making a leaping catch at Valor" onerror="this.style.display='none'">
+      <img src="/images/community.webp" alt="Coaches and athletes at the Valor grand opening" onerror="this.style.display='none'">
+    </div>
+    <p class="vibe__hint" aria-hidden="true">Swipe to see more <span>&rarr;</span></p>
+  </div>
+</section>
+
+<!-- entry now lives in the prize section above -->
 
 <!-- CTA -->
 <section class="section cta">
@@ -236,12 +231,19 @@
           <span class="brand__name" style="color:#fff">Valor<small>Sports Academy</small></span>
         </div>
         <p class="footer__blurb">Youth football, all-sport athletic training, and adult personal training in Richland, WA. Coaches who've competed, real results.</p>
+        <div class="socials">
+          <a href="https://www.facebook.com/profile.php?id=61590045033804" aria-label="Facebook"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></a>
+          <a href="https://www.instagram.com/valorsportsacademy" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg></a>
+        </div>
       </div>
-      <div><h4>Site</h4><ul><li><a href="/">Home</a></li><li><a href="/coaches">Coaches</a></li><li><a href="/programs">Programs</a></li><li><a href="/contact">Contact</a></li></ul></div>
+      <div><h4>Site</h4><ul><li><a href="/">Home</a></li><li><a href="/coaches">Coaches</a></li><li><a href="/programs">Programs</a></li><li><a href="/contact">Contact</a></li><li><a href="/giveaway">Giveaway</a></li></ul></div>
       <div><h4>Train</h4><ul><li><a href="/youth-football-training">Youth Football</a></li><li><a href="/sports-training">Sports Training</a></li><li><a href="/personal-training">Personal Training</a></li><li><a href="https://app.upperhand.io/customers/2781-valor-sports-academy/events">Book a Class</a></li></ul></div>
-      <div><h4>Visit</h4><ul><li><a href="https://maps.app.goo.gl/3G2hn786vTxUXi756" target="_blank" rel="noopener">1973 Fowler Street</a></li><li>Richland, WA 99352</li><li><a href="tel:+15099874612">509-987-4612</a></li><li><a href="mailto:valorsportsacademywa@gmail.com">Email us</a></li><li>Mon–Sat · 11AM–8PM</li></ul></div>
+      <div><h4>Visit</h4><ul><li><a href="https://maps.app.goo.gl/3G2hn786vTxUXi756" target="_blank" rel="noopener">1973 Fowler Street</a></li><li>Richland, WA 99352</li><li><a href="tel:+15099874612">509-987-4612</a></li><li><a href="mailto:valorsportsacademywa@gmail.com">Email us</a></li><li>Mon&ndash;Sat &middot; 11AM&ndash;8PM</li></ul></div>
     </div>
-    <div class="footer__bottom"><span>© 2026 Valor Sports Academy</span><span>Serving Richland, Kennewick, Pasco &amp; the Tri-Cities</span></div>
+    <div class="footer__bottom">
+      <span>&copy; 2026 Valor Sports Academy</span>
+      <span>Serving Richland, Kennewick, Pasco &amp; the Tri-Cities</span>
+    </div>
   </div>
 </footer>
 
