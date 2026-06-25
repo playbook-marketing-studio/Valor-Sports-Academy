@@ -52,6 +52,39 @@
     </div>
   </div>
 </footer>
+<!-- ===== CONVERSION TRACKING =====
+     This page only loads after a successful form submit, so it is the single conversion event for ads.
+     Paste your IDs below. Until each is filled in, nothing fires (no errors, no network calls).
+        META       = Meta Pixel ID            e.g. 123456789012345
+        GADS       = Google Ads conversion ID  e.g. AW-123456789
+        GADS_LABEL = Google Ads conv. label    e.g. AbCdEfGhIjk
+        GA4        = GA4 Measurement ID         e.g. G-XXXXXXXXXX
+-->
+<script>
+(function () {
+  var META = "__META_PIXEL_ID__", GADS = "__GADS_ID__", GADS_LABEL = "__GADS_LABEL__", GA4 = "__GA4_ID__";
+  var set = function (v) { return v && v.indexOf("__") !== 0; };
+
+  // Meta Pixel — fires a Lead conversion on this page
+  if (set(META)) {
+    !function (f, b, e, v, n, t, s) {
+      if (f.fbq) return; n = f.fbq = function () { n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments) };
+      if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = '2.0'; n.queue = [];
+      t = b.createElement(e); t.async = !0; t.src = v; s = b.getElementsByTagName(e)[0]; s.parentNode.insertBefore(t, s)
+    }(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', META); fbq('track', 'PageView'); fbq('track', 'Lead');
+  }
+
+  // Google tag — GA4 event + Google Ads conversion
+  if (set(GA4) || set(GADS)) {
+    var first = set(GA4) ? GA4 : GADS;
+    var g = document.createElement('script'); g.async = true; g.src = 'https://www.googletagmanager.com/gtag/js?id=' + first; document.head.appendChild(g);
+    window.dataLayer = window.dataLayer || []; function gtag() { dataLayer.push(arguments); } window.gtag = gtag; gtag('js', new Date());
+    if (set(GA4)) { gtag('config', GA4); gtag('event', 'generate_lead'); }
+    if (set(GADS)) { gtag('config', GADS); if (set(GADS_LABEL)) { gtag('event', 'conversion', { send_to: GADS + '/' + GADS_LABEL }); } }
+  }
+})();
+</script>
 <script src="/cta.js" defer></script>
 </body>
 </html>

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- ===========================================================================
+     GIVEAWAY LANDING PAGE — Valor Sports Academy
+     NOTE FOR OMAR: the promo specifics below are MOCKED as a sensible default
+     (the "Summer of Valor" prize from the kickoff plan). Confirm/adjust:
+       • Prize contents + value
+       • Entry deadline + winner-announcement date  (search: EDIT-DATES)
+       • Consolation offer ($10 off first week)      (search: EDIT-OFFER)
+       • Eligibility / rules                          (search: EDIT-RULES)
+     When the promo ends, set robots to noindex or take the page down.
+=========================================================================== -->
+<title>Win a Summer of Valor | Free Youth Training Giveaway — Richland, WA</title>
+<meta name="description" content="Enter to win the Summer of Valor: a free week of camp, a 1-on-1 athletic assessment, and two personal training sessions at Valor Sports Academy in Richland, WA. Every entry gets a perk.">
+<link rel="canonical" href="https://www.valorsportsacademywa.com/giveaway">
+<meta name="robots" content="index, follow">
+<link rel="icon" href="/images/logo-emblem.png">
+<meta property="og:title" content="Win a Summer of Valor | Youth Training Giveaway">
+<meta property="og:description" content="A free week of camp, a 1-on-1 assessment, and two personal training sessions. Enter free.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.valorsportsacademywa.com/giveaway">
+<meta property="og:image" content="https://www.valorsportsacademywa.com/images/og-image.jpg">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .prize { display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(16px,2.4vw,24px); margin-top:clamp(24px,3vw,36px); }
+  .prize__card { background:var(--bone); border:2px solid var(--ink); border-radius:var(--r); padding:clamp(22px,3vw,30px); }
+  .prize__card h3 { font-family:var(--display); text-transform:uppercase; color:var(--ink); font-size:1.35rem; margin-bottom:8px; }
+  .prize__card p { color:var(--muted); font-size:.98rem; }
+  .prize__tag { font-weight:800; color:var(--red); text-transform:uppercase; letter-spacing:.05em; font-size:.74rem; }
+  .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(18px,3vw,30px); margin-top:clamp(24px,3vw,38px); counter-reset:step; }
+  .step b { font-family:var(--display); color:var(--red); font-size:2rem; display:block; line-height:1; margin-bottom:10px; }
+  .step h4 { font-family:var(--body); font-weight:800; color:var(--ink); font-size:1.12rem; margin-bottom:6px; }
+  .step p { color:var(--muted); font-size:.98rem; }
+  .deadline { display:inline-flex; align-items:center; gap:10px; background:var(--glass-ink-strong); -webkit-backdrop-filter:var(--blur); backdrop-filter:var(--blur); border:1px solid var(--glass-ink-stroke); color:#fff; padding:10px 18px; border-radius:var(--pill); font-weight:700; font-size:.95rem; }
+  .fineprint { max-width:760px; margin:22px auto 0; color:var(--muted); font-size:.82rem; line-height:1.6; text-align:center; }
+  @media (max-width:780px){ .prize, .steps { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header" id="header">
+  <div class="container header__bar">
+    <a href="/" class="brand" aria-label="Valor Sports Academy, home">
+      <img src="/images/logo-emblem.png" alt="Valor Sports Academy emblem" onerror="this.style.display='none'">
+      <span class="brand__name">Valor<small>Sports Academy</small></span>
+    </a>
+    <nav class="nav" aria-label="Primary">
+      <a href="/">Home</a><a href="/coaches">Coaches</a><a href="/programs">Programs</a><a href="/contact">Contact</a>
+    </nav>
+    <div class="header__cta">
+      <a href="tel:+15099874612" class="header__phone">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        509-987-4612
+      </a>
+      <a href="#enter" class="btn">Enter to Win</a>
+    </div>
+    <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false"><span></span><span></span><span></span></button>
+  </div>
+  <nav class="header__menu" aria-label="Mobile">
+    <a href="/">Home</a><a href="/coaches">Coaches</a><a href="/programs">Programs</a><a href="/contact">Contact</a><a href="#enter">Enter to Win</a>
+  </nav>
+</header>
+
+<main>
+<!-- PAGE HEAD -->
+<section class="pagehead">
+  <div class="bgimg"><img src="/images/hero-coaches.webp" alt="" aria-hidden="true" onerror="this.style.display='none'"></div>
+  <div class="container">
+    <p class="crumbs"><a href="/">Home</a><span>/</span>Giveaway</p>
+    <h1>Win a Summer of Valor</h1>
+    <p>One Tri-Cities family wins a full summer head start, a free week of camp, a 1-on-1 athletic assessment, and two personal training sessions. Enter free in under a minute.</p>
+    <!-- EDIT-DATES: confirm the entry deadline below -->
+    <p style="margin-top:18px"><span class="deadline"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Entries close Friday, July 17, 2026</span></p>
+    <p style="margin-top:22px"><a href="#enter" class="btn btn--lg">Enter the Giveaway <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></p>
+  </div>
+</section>
+
+<!-- THE PRIZE -->
+<section class="section">
+  <div class="container">
+    <div class="head io">
+      <p class="tag-line">The prize</p>
+      <h2>What one family takes home</h2>
+      <!-- EDIT-OFFER / value below -->
+      <p>A complete summer of training worth about $300, built to walk your athlete straight into everything Valor does.</p>
+    </div>
+    <div class="prize io">
+      <div class="prize__card">
+        <p class="prize__tag">Camp</p>
+        <h3>One free week of camp</h3>
+        <p>A full week of Summer Development, grouped by age, capped classes, three coaches on the floor.</p>
+      </div>
+      <div class="prize__card">
+        <p class="prize__tag">Assessment</p>
+        <h3>1-on-1 athletic assessment</h3>
+        <p>A private evaluation with our coaches to map exactly where your athlete stands and what to build next.</p>
+      </div>
+      <div class="prize__card">
+        <p class="prize__tag">Personal training</p>
+        <h3>Two personal training sessions</h3>
+        <p>Two one-on-one sessions to put the plan into motion with a coach who holds the standard.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section" style="background:var(--paper-2)">
+  <div class="container">
+    <div class="head io">
+      <p class="tag-line">How it works</p>
+      <h2>Three steps to enter</h2>
+    </div>
+    <div class="steps io">
+      <div class="step">
+        <b>01</b>
+        <h4>Fill out the form</h4>
+        <p>Drop your name, email, and a few details about your athlete. Takes under a minute.</p>
+      </div>
+      <div class="step">
+        <b>02</b>
+        <!-- EDIT-DATES: winner announcement -->
+        <h4>We draw the winner</h4>
+        <p>One family is picked at random and notified by phone and email on Monday, July 20, 2026.</p>
+      </div>
+      <div class="step">
+        <b>03</b>
+        <!-- EDIT-OFFER: consolation perk for every entrant -->
+        <h4>Everyone wins something</h4>
+        <p>Didn't win the bundle? Every entry gets $10 off your athlete's first week of camp.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ENTRY FORM -->
+<section class="section" id="enter">
+  <div class="container quiz">
+    <div class="head io" style="text-align:center">
+      <p class="tag-line" style="justify-content:center">Enter free</p>
+      <h2 style="color:var(--ink)">Claim your entry</h2>
+      <p>No purchase necessary. We only use your info to run the giveaway and follow up about training.</p>
+    </div>
+    <form class="quiz-card io" name="giveaway" method="POST" data-netlify="true" netlify-honeypot="bot-field" action="/thank-you" data-playbook-lead="valor">
+      <input type="hidden" name="form-name" value="giveaway">
+      <input type="hidden" name="entry" value="Summer of Valor giveaway">
+      <p hidden><label>Leave this empty: <input name="bot-field"></label></p>
+      <div class="field-row">
+        <div><label for="name">Parent / guardian name *</label><input id="name" name="name" type="text" required autocomplete="name"></div>
+        <div><label for="phone">Phone</label><input id="phone" name="phone" type="tel" autocomplete="tel" placeholder="(509) 000-0000"></div>
+      </div>
+      <label for="email">Email *</label>
+      <input id="email" name="email" type="email" required autocomplete="email" placeholder="you@email.com">
+      <div class="field-row">
+        <div><label for="aname">Athlete first name</label><input id="aname" name="athlete-first-name" type="text" autocomplete="off"></div>
+        <div><label for="aage">Athlete age</label><input id="aage" name="athlete-age" type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 12"></div>
+      </div>
+      <label for="sport">Primary sport</label>
+      <input id="sport" name="primary-sport" type="text" autocomplete="off" placeholder="e.g. Football, soccer, basketball">
+      <label for="hear">How did you hear about us?</label>
+      <select id="hear" name="how-did-you-hear" style="width:100%;padding:15px 16px;border:1px solid var(--glass-stroke);border-radius:var(--r-sm);font-family:var(--body);font-size:1rem;color:var(--ink);background:var(--glass-strong)">
+        <option value="">Select one</option>
+        <option>Instagram or Facebook</option>
+        <option>Google search</option>
+        <option>Friend or family referral</option>
+        <option>Coach or school</option>
+        <option>Saw a flyer or event</option>
+        <option>Other</option>
+      </select>
+      <button type="submit" class="btn btn--lg" style="margin-top:24px;width:100%;justify-content:center">Enter the Giveaway</button>
+      <p style="text-align:center;color:var(--muted);font-size:.86rem;margin-top:12px">One entry per athlete. We never share or sell your info.</p>
+    </form>
+    <!-- EDIT-RULES: confirm eligibility + rules -->
+    <p class="fineprint io">No purchase necessary. Open to Tri-Cities residents (Richland, Kennewick, Pasco, West Richland and surrounding areas). Youth camp prize is for athletes ages 8–18; personal training sessions are open to all ages. One entry per athlete. Entries close Friday, July 17, 2026; winner drawn at random and notified by phone and email on Monday, July 20, 2026. Prize has no cash value and is non-transferable. Valor Sports Academy reserves the right to verify eligibility.</p>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="section cta">
+  <div class="cta__bg"><img src="/images/training.webp" alt="" aria-hidden="true" onerror="this.style.display='none'"></div>
+  <div class="container io">
+    <h2>Don't want to wait on the draw?</h2>
+    <p>You can start this week. See the camps and lock your athlete's spot.</p>
+    <a href="/programs" class="btn btn--lg">View Programs <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+  </div>
+</section>
+</main>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer__grid">
+      <div>
+        <div class="footer__brand">
+          <img src="/images/logo-emblem.png" alt="Valor Sports Academy emblem" onerror="this.style.display='none'">
+          <span class="brand__name" style="color:#fff">Valor<small>Sports Academy</small></span>
+        </div>
+        <p class="footer__blurb">Youth football, all-sport athletic training, and adult personal training in Richland, WA. Coaches who've competed, real results.</p>
+      </div>
+      <div><h4>Site</h4><ul><li><a href="/">Home</a></li><li><a href="/coaches">Coaches</a></li><li><a href="/programs">Programs</a></li><li><a href="/contact">Contact</a></li></ul></div>
+      <div><h4>Train</h4><ul><li><a href="/youth-football-training">Youth Football</a></li><li><a href="/sports-training">Sports Training</a></li><li><a href="/personal-training">Personal Training</a></li><li><a href="https://app.upperhand.io/customers/2781-valor-sports-academy/events">Book a Class</a></li></ul></div>
+      <div><h4>Visit</h4><ul><li>1973 Fowler Street</li><li>Richland, WA 99352</li><li><a href="tel:+15099874612">509-987-4612</a></li><li><a href="mailto:valorsportsacademywa@gmail.com">Email us</a></li><li>Mon–Sat · 11AM–8PM</li></ul></div>
+    </div>
+    <div class="footer__bottom"><span>© 2026 Valor Sports Academy</span><span>Serving Richland, Kennewick, Pasco &amp; the Tri-Cities</span></div>
+  </div>
+</footer>
+
+<script>
+  var header = document.getElementById('header'), burger = document.getElementById('burger');
+  burger.addEventListener('click', function () { var o = header.classList.toggle('open'); burger.setAttribute('aria-expanded', o); });
+  var onScroll = function () { header.classList.toggle('solid', window.scrollY > 24); };
+  onScroll(); window.addEventListener('scroll', onScroll, { passive: true });
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && 'IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }); }, { threshold: 0.14 });
+    document.querySelectorAll('.io').forEach(function (el) { io.observe(el); });
+  } else { document.querySelectorAll('.io').forEach(function (el) { el.classList.add('in'); }); }
+</script>
+<script>
+(function(){
+  var KEY="__INGEST_KEY__"; /* paste INGEST_KEY from the analytics dashboard .deploy-keys.txt */
+  var EP="https://jggwanbbfaygsjobzjcj.functions.supabase.co/lead-capture?key="+KEY;
+  function qp(n){return new URLSearchParams(location.search).get(n)||"";}
+  document.querySelectorAll("form[data-playbook-lead]").forEach(function(f){
+    f.addEventListener("submit",function(e){
+      var fd=new FormData(f);
+      var nm=(fd.get("name")||"").trim();
+      var body={client:f.getAttribute("data-playbook-lead"),name:nm,
+        email:fd.get("email")||"",phone:fd.get("phone")||"",
+        message:"Giveaway entry · athlete "+(fd.get("athlete-first-name")||"")+" age "+(fd.get("athlete-age")||"")+" · "+(fd.get("primary-sport")||""),
+        company_hp:fd.get("bot-field")||"",
+        page:location.pathname,referrer:document.referrer||"",
+        utm_source:qp("utm_source"),utm_medium:qp("utm_medium"),utm_campaign:qp("utm_campaign"),source:"giveaway_form"};
+      try{navigator.sendBeacon(EP,new Blob([JSON.stringify(body)],{type:"application/json"}));}catch(_){}
+      /* Only short-circuit for local file testing; on any http(s) host let the form post to Netlify and redirect to /thank-you */
+      if(location.protocol==="file:"){e.preventDefault();f.reset();}
+    });
+  });
+})();
+</script>
+<script src="/cta.js" defer></script>
+</body>
+</html>
