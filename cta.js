@@ -98,4 +98,34 @@
       menu.appendChild(m);
     }
   })();
+
+  // ---- nav: Programs hover dropdown + Reviews link ----
+  (function () {
+    var nav = document.querySelector('header .nav');
+    if (nav) {
+      if (!nav.querySelector('a[href="/testimonials"]')) {
+        var contact = nav.querySelector('a[href="/contact"]');
+        var r = document.createElement('a'); r.href = '/testimonials'; r.textContent = 'Reviews';
+        if (contact) nav.insertBefore(r, contact); else nav.appendChild(r);
+      }
+      var p = nav.querySelector('a[href="/programs"]');
+      if (p && p.parentNode === nav) {
+        var wrap = document.createElement('span'); wrap.className = 'nav__has';
+        nav.insertBefore(wrap, p); wrap.appendChild(p);
+        var dd = document.createElement('div'); dd.className = 'nav__menu';
+        dd.innerHTML =
+          '<a href="/programs">All programs &amp; camps</a>' +
+          '<a href="/youth-football-training">Youth Football</a>' +
+          '<a href="/sports-training">Sports Training</a>' +
+          '<a href="/personal-training">Personal Training</a>';
+        wrap.appendChild(dd);
+      }
+    }
+    var mm = document.querySelector('header .header__menu');
+    if (mm && !mm.querySelector('a[href="/testimonials"]')) {
+      var contactM = mm.querySelector('a[href="/contact"]');
+      var rm = document.createElement('a'); rm.href = '/testimonials'; rm.textContent = 'Reviews';
+      if (contactM) mm.insertBefore(rm, contactM.nextSibling); else mm.appendChild(rm);
+    }
+  })();
 })();
