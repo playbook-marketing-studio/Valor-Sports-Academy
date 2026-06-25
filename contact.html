@@ -186,7 +186,8 @@
         page:location.pathname,referrer:document.referrer||"",
         utm_source:qp("utm_source"),utm_medium:qp("utm_medium"),utm_campaign:qp("utm_campaign"),source:"website_form"};
       try{navigator.sendBeacon(EP,new Blob([JSON.stringify(body)],{type:"application/json"}));}catch(_){}
-      if(!f.hasAttribute("data-netlify")){e.preventDefault();var ok=f.querySelector(".ok");if(ok)ok.style.display="block";f.reset();}
+      /* Only short-circuit for local file testing; on any http(s) host let the form post to Netlify and redirect to /thank-you */
+      if(location.protocol==="file:"){e.preventDefault();var ok=f.querySelector(".ok");if(ok)ok.style.display="block";f.reset();}
     });
   });
 })();
