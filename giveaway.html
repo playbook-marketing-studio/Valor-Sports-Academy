@@ -30,7 +30,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <style>
-  .prize { display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(16px,2.4vw,24px); margin-top:clamp(24px,3vw,36px); }
+  .prize { display:flex; gap:18px; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; scrollbar-width:none; margin-top:clamp(22px,3vw,32px); }
+  .prize::-webkit-scrollbar { display:none; }
+  .prize__card { flex:0 0 calc((100% - 36px)/3); scroll-snap-align:start; }
   .prize__card { background:var(--bone); border:2px solid var(--ink); border-radius:var(--r); padding:clamp(22px,3vw,30px); }
   .prize__card h3 { font-family:var(--display); text-transform:uppercase; color:var(--ink); font-size:1.35rem; margin-bottom:8px; }
   .prize__card p { color:var(--muted); font-size:.98rem; }
@@ -45,7 +47,7 @@
   .gw-check { display:flex; gap:12px; align-items:flex-start; margin:14px 0 0; padding:14px 16px; border:1.5px solid var(--line); border-radius:var(--r-sm); background:var(--bone); text-transform:none; letter-spacing:0; font-weight:600; font-size:.95rem; color:var(--ink); cursor:pointer; }
   .gw-check input[type=checkbox]{ width:20px; height:20px; flex:0 0 auto; margin:1px 0 0; padding:0; accent-color:var(--red); }
   .gw-check strong{ font-weight:800; }
-  @media (max-width:780px){ .prize, .steps { grid-template-columns:1fr; } }
+  @media (max-width:780px){ .steps { grid-template-columns:1fr; } .prize__card { flex:0 0 78%; } }
   /* show the real photos — vibe over ghosting */
   .pagehead--photo .bgimg { opacity:.72; }
   .pagehead--photo .bgimg img { object-position: center 26%; }
@@ -63,11 +65,13 @@
   .esteps__n { flex:0 0 auto; width:34px; height:34px; border-radius:999px; background:var(--red); color:#fff; font-family:var(--display); display:grid; place-items:center; font-size:1.05rem; }
   .esteps b { color:var(--ink); font-size:1.06rem; display:block; }
   .esteps p { color:var(--muted); font-size:.95rem; margin-top:3px; }
+  .enter-grid { display:grid; grid-template-columns:0.9fr 1.1fr; gap:clamp(24px,4vw,48px); align-items:start; margin-top:clamp(36px,5vw,56px); }
+  .enter-foot { margin-top:20px; color:var(--muted); font-weight:600; font-size:.95rem; }
   .esteps--row { grid-template-columns:repeat(3,1fr); gap:clamp(20px,3vw,34px); align-items:start; }
   .form-prize { background:var(--bone); border:1px dashed var(--red); border-radius:var(--r-sm); padding:13px 16px; margin-bottom:20px; }
   .form-prize span { color:var(--red); font-weight:800; text-transform:uppercase; letter-spacing:.04em; font-size:.72rem; }
   .form-prize p { color:var(--ink); font-weight:600; font-size:.95rem; margin-top:3px; }
-  @media (max-width:820px){ .esteps--row { grid-template-columns:1fr; gap:16px; } }
+  @media (max-width:820px){ .esteps--row { grid-template-columns:1fr; gap:16px; } .enter-grid { grid-template-columns:1fr; gap:28px; } }
   .vibe__hint { display:none; }
   @keyframes gvSwipe { 0%,100%{ transform:translateX(0); } 50%{ transform:translateX(6px); } }
   @media (max-width:760px){
@@ -123,10 +127,10 @@
 <!-- PRIZE + HOW TO ENTER (one section, right after hero) -->
 <section class="section" id="enter" style="background:var(--paper-2)">
   <div class="container">
-    <div class="head io" style="text-align:center">
-      <p class="tag-line" style="justify-content:center">The prize</p>
+    <div class="head io">
+      <p class="tag-line">The giveaway</p>
       <h2>Win the Summer of Valor</h2>
-      <p style="max-width:60ch;margin-inline:auto">A full summer of training worth about $300, built to move your athlete forward fast.</p>
+      <p style="color:var(--muted);font-size:1.08rem;margin-top:14px;max-width:60ch">About $300 in training, built to move your athlete forward fast. Here's what one family takes home, and how to enter in under a minute.</p>
     </div>
     <div class="prize io">
       <div class="prize__card">
@@ -145,20 +149,21 @@
         <p>Two one-on-one sessions to put the plan into motion with a coach who holds the standard.</p>
       </div>
     </div>
+    <p class="vibe__hint" aria-hidden="true">Swipe the prizes <span>&rarr;</span></p>
 
-    <div class="head io" style="text-align:center;margin-top:clamp(40px,6vw,72px);margin-bottom:clamp(24px,4vw,38px)">
-      <p class="tag-line" style="justify-content:center">Enter free</p>
-      <h2>How to enter</h2>
-      <p style="max-width:62ch;margin-inline:auto">Three steps, under a minute. No purchase necessary. Every entry gets $10 off your first week of camp, and the winner is drawn Monday, July 20.</p>
-    </div>
-    <ol class="esteps esteps--row io">
-      <li><span class="esteps__n">1</span><div><b>Follow us on Instagram</b><p>Give @valorsportsacademy a follow. It's required to enter, and it's where we announce the winner.</p></div></li>
-      <li><span class="esteps__n">2</span><div><b>Fill out the form</b><p>Your name, email, and a few quick details about your athlete.</p></div></li>
-      <li><span class="esteps__n">3</span><div><b>Stack bonus entries</b><p>Trained with us before? Leave a Google review for 3 extra entries. We'll show you how right after you enter.</p></div></li>
-    </ol>
+    <div class="enter-grid io">
+      <div class="enter-steps">
+        <div class="head"><p class="tag-line">Enter free</p><h2>How to enter</h2></div>
+        <ol class="esteps" style="margin-top:22px">
+          <li><span class="esteps__n">1</span><div><b>Follow us on Instagram</b><p>Give @valorsportsacademy a follow. It's required to enter, and it's where we announce the winner.</p></div></li>
+          <li><span class="esteps__n">2</span><div><b>Fill out the form</b><p>Your name, email, and a few quick details about your athlete.</p></div></li>
+          <li><span class="esteps__n">3</span><div><b>Stack bonus entries</b><p>Trained with us before? Leave a Google review for 3 extra entries. We'll show you how right after you enter.</p></div></li>
+        </ol>
+        <p class="enter-foot">Every entry gets $10 off your first week of camp. Winner drawn Monday, July 20.</p>
+      </div>
 
-    <form class="quiz-card io" name="giveaway" method="POST" data-netlify="true" netlify-honeypot="bot-field" action="/giveaway-thank-you" data-playbook-lead="valor" style="max-width:680px;margin:clamp(28px,4vw,40px) auto 0">
-      <input type="hidden" name="form-name" value="giveaway">
+      <form class="quiz-card io" name="giveaway" method="POST" data-netlify="true" netlify-honeypot="bot-field" action="/giveaway-thank-you" data-playbook-lead="valor">
+        <input type="hidden" name="form-name" value="giveaway">
       <input type="hidden" name="entry" value="Summer of Valor giveaway">
       <p hidden><label>Leave this empty: <input name="bot-field"></label></p>
       <div class="field-row">
@@ -182,7 +187,8 @@
       <label class="gw-check" for="trained"><input id="trained" name="trained-before" type="checkbox" value="yes"><span>I've trained at Valor before, I want bonus entries for a Google review.</span></label>
       <button type="submit" class="btn btn--lg" style="margin-top:24px;width:100%;justify-content:center">Enter the Giveaway</button>
       <p style="text-align:center;color:var(--muted);font-size:.86rem;margin-top:12px">One entry per athlete. We never share or sell your info.</p>
-    </form>
+      </form>
+    </div>
     <p class="fineprint io">No purchase necessary. Following @valorsportsacademy on Instagram is required to enter. Bonus entries: athletes who have trained at Valor and leave a Google review earn 3 additional entries. Open to Tri-Cities residents (Richland, Kennewick, Pasco, West Richland and surrounding areas). Youth camp prize is for athletes ages 8 to 18; personal training sessions are open to all ages. One entry per athlete, plus any earned bonus entries. Entries close Friday, July 17, 2026; winner drawn at random and notified by phone and email on Monday, July 20, 2026. Prize has no cash value and is non-transferable. Valor Sports Academy reserves the right to verify eligibility, Instagram follows, and reviews.</p>
   </div>
 </section>
