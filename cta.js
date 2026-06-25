@@ -56,13 +56,17 @@
     p.setAttribute('role', 'region'); p.setAttribute('aria-label', 'Giveaway announcement');
     p.innerHTML =
       '<div class="gv-promo__in">' +
+        '<div class="gv-promo__center">' +
+          '<div class="gv-promo__line">' +
+            '<span class="gv-promo__badge">New</span>' +
+            '<span class="gv-promo__title">Win a Summer of Valor</span>' +
+          '</div>' +
+          '<a class="gv-promo__sub" href="/giveaway">A free week of camp, a 1-on-1 assessment, and two personal training sessions ' +
+            '<span class="gv-promo__arrow"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>' +
+          '</a>' +
+        '</div>' +
         '<img class="gv-promo__pic" src="/images/giveaway-hero.webp" alt="" aria-hidden="true" onerror="this.remove()">' +
-        '<span class="gv-promo__badge">New</span>' +
-        '<span class="gv-promo__txt">Win a <strong>Summer of Valor</strong>' +
-          '<span class="gv-promo__more"> &mdash; a free week of camp, a 1-on-1 assessment &amp; two personal training sessions</span>' +
-        '</span>' +
-        '<a class="gv-promo__cta" href="/giveaway">Enter free <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>' +
-        '<button class="gv-promo__x" id="gvPromoX" aria-label="Dismiss giveaway banner"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>' +
+        '<button class="gv-promo__x" id="gvPromoX" aria-label="Dismiss giveaway banner"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>' +
       '</div>';
     document.body.insertBefore(p, document.body.firstChild);
 
@@ -75,6 +79,6 @@
       p.classList.remove('gv-promo--in');
       setTimeout(function () { if (p.parentNode) p.parentNode.removeChild(p); }, 600);
     });
-    p.querySelector('.gv-promo__cta').addEventListener('click', remember);
+    p.querySelector('.gv-promo__sub').addEventListener('click', remember);
   })();
 })();

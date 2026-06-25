@@ -546,31 +546,33 @@ textarea { min-height: 140px; resize: vertical; }
 }
 
 /* ===================================================================
-   SLIDE-DOWN GIVEAWAY PROMO (first visit, dismissible)
-   Espresso bar that contrasts the red site; pulsing headline + badge.
+   SLIDE-DOWN GIVEAWAY PROMO — Navan format: centered headline, image right
    =================================================================== */
-.gv-promo { overflow: hidden; max-height: 0; transition: max-height .6s cubic-bezier(.22,1,.36,1);
-  background: linear-gradient(100deg, #20160f 0%, #3c2a1d 58%, #281b12 100%); color: #fff;
-  box-shadow: 0 8px 28px -10px rgba(0,0,0,.6); }
-.gv-promo.gv-promo--in { max-height: 240px; }
-.gv-promo__in { max-width: 1180px; margin: 0 auto; display: flex; align-items: center; gap: 14px; padding: 10px clamp(16px,4vw,28px); }
-.gv-promo__pic { width: 42px; height: 42px; border-radius: 10px; object-fit: cover; flex: 0 0 auto; border: 1px solid rgba(255,255,255,.25); }
-.gv-promo__badge { flex: 0 0 auto; background: var(--red); color: #fff; font-family: var(--display); text-transform: uppercase; letter-spacing: .06em; font-size: .7rem; padding: 4px 11px; border-radius: 999px; animation: gvBadge 2.4s ease-in-out infinite; }
-.gv-promo__txt { font-weight: 600; font-size: .96rem; line-height: 1.3; }
-.gv-promo__txt strong { font-weight: 800; display: inline-block; animation: gvPulse 2.4s ease-in-out infinite; }
-.gv-promo__cta { margin-left: auto; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px; background: var(--red); color: #fff; font-family: var(--body); font-weight: 800; text-transform: uppercase; letter-spacing: .03em; font-size: .82rem; padding: 11px 20px; border-radius: 999px; box-shadow: 0 8px 20px -8px rgba(200,16,46,.75); transition: transform .2s ease, background .2s ease; }
-.gv-promo__cta:hover { background: var(--red-deep); transform: translateY(-1px); }
-.gv-promo__x { flex: 0 0 auto; background: transparent; border: 0; color: rgba(255,255,255,.7); cursor: pointer; padding: 6px; display: inline-flex; border-radius: 8px; }
-.gv-promo__x:hover { color: #fff; background: rgba(255,255,255,.12); }
-@keyframes gvPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
-@keyframes gvBadge { 0%, 100% { box-shadow: 0 0 0 0 rgba(200,16,46,.55); } 50% { box-shadow: 0 0 0 7px rgba(200,16,46,0); } }
-@media (prefers-reduced-motion: reduce) { .gv-promo__txt strong, .gv-promo__badge { animation: none; } }
-@media (max-width: 640px) {
+.gv-promo { position: relative; overflow: hidden; max-height: 0; transition: max-height .6s cubic-bezier(.22,1,.36,1);
+  background: #fff; color: var(--ink); border-bottom: 1px solid rgba(22,20,15,.08); box-shadow: 0 12px 34px -16px rgba(0,0,0,.28); }
+.gv-promo.gv-promo--in { max-height: 260px; }
+.gv-promo__in { position: relative; z-index: 1; max-width: 1240px; margin: 0 auto; min-height: 120px; display: flex; align-items: center; justify-content: center; padding: 18px clamp(16px,4vw,40px); }
+.gv-promo__center { text-align: center; }
+.gv-promo__line { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.gv-promo__badge { flex: 0 0 auto; background: var(--red); color: #fff; font-family: var(--body); font-weight: 800; text-transform: uppercase; letter-spacing: .08em; font-size: .72rem; padding: 5px 12px; border-radius: 999px; animation: gvBadge 2.6s ease-in-out infinite; }
+.gv-promo__title { font-family: var(--display); text-transform: uppercase; letter-spacing: .01em; font-size: clamp(1.55rem,3vw,2.3rem); line-height: 1; color: var(--ink); }
+.gv-promo__sub { display: inline-flex; align-items: center; gap: 12px; margin-top: 11px; color: var(--muted); font-weight: 600; font-size: 1rem; transition: color .2s ease; }
+.gv-promo__sub:hover { color: var(--ink); }
+.gv-promo__arrow { flex: 0 0 auto; width: 32px; height: 32px; border-radius: 999px; background: var(--red); color: #fff; display: inline-grid; place-items: center; box-shadow: 0 8px 18px -6px rgba(200,16,46,.6); transition: background .2s ease, transform .2s ease; }
+.gv-promo__sub:hover .gv-promo__arrow { background: var(--red-deep); transform: translateX(3px); }
+.gv-promo__pic { position: absolute; right: 0; top: 0; bottom: 0; width: 300px; max-width: 32%; object-fit: cover;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 34%); mask-image: linear-gradient(90deg, transparent, #000 34%); }
+.gv-promo__x { position: absolute; top: 12px; right: 14px; z-index: 3; background: #fff; box-shadow: 0 2px 10px -2px rgba(0,0,0,.25); border: 0; color: rgba(22,20,15,.6); width: 30px; height: 30px; border-radius: 999px; cursor: pointer; display: grid; place-items: center; }
+.gv-promo__x:hover { color: var(--ink); }
+@keyframes gvBadge { 0%, 100% { box-shadow: 0 0 0 0 rgba(200,16,46,.5); } 50% { box-shadow: 0 0 0 7px rgba(200,16,46,0); } }
+@media (prefers-reduced-motion: reduce) { .gv-promo__badge { animation: none; } }
+@media (max-width: 760px) {
   .gv-promo__pic { display: none; }
-  .gv-promo__more { display: none; }
-  .gv-promo__in { gap: 10px; padding: 9px 14px; }
-  .gv-promo__txt { font-size: .9rem; }
-  .gv-promo__cta { font-size: .78rem; padding: 9px 15px; }
+  .gv-promo__in { min-height: auto; padding: 14px 16px; }
+  .gv-promo__title { font-size: 1.25rem; }
+  .gv-promo__sub { font-size: .85rem; margin-top: 8px; gap: 8px; }
+  .gv-promo__line { gap: 10px; }
+  .gv-promo__arrow { width: 28px; height: 28px; }
 }
 
 /* ===================================================================
