@@ -56,6 +56,7 @@
     p.setAttribute('role', 'region'); p.setAttribute('aria-label', 'Giveaway announcement');
     p.innerHTML =
       '<div class="gv-promo__in">' +
+        '<img class="gv-promo__pic" src="/images/giveaway-hero.webp" alt="" aria-hidden="true" onerror="this.remove()">' +
         '<span class="gv-promo__badge">New</span>' +
         '<span class="gv-promo__txt">Win a <strong>Summer of Valor</strong>' +
           '<span class="gv-promo__more"> &mdash; a free week of camp, a 1-on-1 assessment &amp; two personal training sessions</span>' +

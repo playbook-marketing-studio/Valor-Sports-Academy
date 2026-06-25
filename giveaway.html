@@ -46,6 +46,14 @@
   .gw-check input[type=checkbox]{ width:20px; height:20px; flex:0 0 auto; margin:1px 0 0; padding:0; accent-color:var(--red); }
   .gw-check strong{ font-weight:800; }
   @media (max-width:780px){ .prize, .steps { grid-template-columns:1fr; } }
+  /* show the real photos — vibe over ghosting */
+  .pagehead--photo .bgimg { opacity:.72; }
+  .pagehead--photo .bgimg img { object-position: center 26%; }
+  .pagehead--photo::before { content:""; position:absolute; inset:0; z-index:-1;
+    background: linear-gradient(180deg, rgba(22,20,15,.32) 0%, rgba(22,20,15,.5) 52%, rgba(22,20,15,.84) 100%); }
+  .gallery { display:grid; grid-template-columns: repeat(2,1fr); gap:14px; margin-top: clamp(24px,3vw,36px); }
+  .gallery img { width:100%; aspect-ratio:3/2; object-fit:cover; display:block; border-radius: var(--r); box-shadow: var(--shadow-sm); }
+  @media (max-width:600px){ .gallery { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
@@ -76,7 +84,7 @@
 
 <main>
 <!-- PAGE HEAD -->
-<section class="pagehead">
+<section class="pagehead pagehead--photo">
   <div class="bgimg"><img src="/images/giveaway-hero.webp" alt="" aria-hidden="true" onerror="this.style.display='none'"></div>
   <div class="container">
     <p class="crumbs"><a href="/">Home</a><span>/</span>Giveaway</p>
@@ -117,13 +125,20 @@
   </div>
 </section>
 
-<!-- BRAND BAND -->
-<section class="section cta">
-  <div class="cta__bg"><img src="/images/giveaway-brand.webp" alt="Athletes training at Valor Sports Academy" onerror="this.style.display='none'"></div>
-  <div class="container io">
-    <p class="tag-line" style="justify-content:center;color:#ff8d9b">Train with purpose</p>
-    <h2>Rise with Valor</h2>
-    <p>This is the room your athlete steps into. Real coaches, real standards, a place built to help them level up.</p>
+<!-- VIBE GALLERY -->
+<section class="section">
+  <div class="container">
+    <div class="head io" style="text-align:center">
+      <p class="tag-line" style="justify-content:center">Train with purpose</p>
+      <h2>Rise with Valor</h2>
+      <p style="max-width:54ch;margin-inline:auto">This is the room your athlete steps into. Real coaches, real energy, real standards.</p>
+    </div>
+    <div class="gallery io">
+      <img src="/images/giveaway-hero.webp" alt="Young athlete training at Valor Sports Academy" onerror="this.style.display='none'">
+      <img src="/images/giveaway-brand.webp" alt="Athletes in Valor gear on the training floor" onerror="this.style.display='none'">
+      <img src="/images/giveaway-action.webp" alt="Athlete making a leaping catch at Valor" onerror="this.style.display='none'">
+      <img src="/images/community.webp" alt="Coaches and athletes at the Valor grand opening" onerror="this.style.display='none'">
+    </div>
   </div>
 </section>
 
