@@ -3,6 +3,7 @@
    2) a persistent floating Contact button (call / text / email / message) */
 (function () {
   var TEL = '+15099874612', NUM = '509-987-4612', MAIL = 'valorsportsacademywa@gmail.com';
+  var GIVEAWAY_LIVE = false; // flip to true once the giveaway is approved (re-shows banner + nav link)
 
   // ---- sticky mobile bar (CSS shows it only under 820px) ----
   if (!document.getElementById('mcta')) {
@@ -45,6 +46,7 @@
 
   // ---- slide-down giveaway promo (shows on first entry, then remembers dismissal) ----
   (function () {
+    if (!GIVEAWAY_LIVE) return;
     var EXCLUDE = ['/giveaway', '/giveaway-thank-you', '/thank-you', '/getting-started'];
     var path = location.pathname.replace(/\/+$/, '') || '/';
     if (EXCLUDE.indexOf(path) !== -1) return;
@@ -65,7 +67,7 @@
             '<span class="gv-promo__arrow"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>' +
           '</a>' +
         '</div>' +
-        '<img class="gv-promo__pic" src="/images/giveaway-hero.webp" alt="" aria-hidden="true" onerror="this.remove()">' +
+        '<a class="gv-promo__pic" href="/giveaway" aria-label="Enter the giveaway"><img src="/images/giveaway-hero.webp" alt="" onerror="this.parentNode.remove()"></a>' +
         '<button class="gv-promo__x" id="gvPromoX" aria-label="Dismiss giveaway banner"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>' +
       '</div>';
     document.body.insertBefore(p, document.body.firstChild);
@@ -79,11 +81,12 @@
       p.classList.remove('gv-promo--in');
       setTimeout(function () { if (p.parentNode) p.parentNode.removeChild(p); }, 600);
     });
-    p.querySelector('.gv-promo__sub').addEventListener('click', remember);
+    [].forEach.call(p.querySelectorAll('a[href="/giveaway"]'), function (a) { a.addEventListener('click', remember); });
   })();
 
   // ---- always-on Giveaway link in the nav (skip on the giveaway page itself) ----
   (function () {
+    if (!GIVEAWAY_LIVE) return;
     if ((location.pathname.replace(/\/+$/, '') || '/') === '/giveaway') return;
     var nav = document.querySelector('header .nav');
     if (nav && !nav.querySelector('a[href="/giveaway"]')) {
