@@ -176,6 +176,8 @@
 
       <form class="quiz-card io" name="giveaway" method="POST" data-netlify="true" netlify-honeypot="bot-field" action="/giveaway-thank-you" data-playbook-lead="valor">
         <input type="hidden" name="form-name" value="giveaway">
+        <!-- lead attribution (filled by cta.js so Netlify Forms captures the source) -->
+        <input type="hidden" name="utm_source"><input type="hidden" name="utm_medium"><input type="hidden" name="utm_campaign"><input type="hidden" name="utm_term"><input type="hidden" name="utm_content"><input type="hidden" name="gclid"><input type="hidden" name="fbclid"><input type="hidden" name="referrer"><input type="hidden" name="landing_page">
       <input type="hidden" name="entry" value="Summer of Valor giveaway">
       <p hidden><label>Leave this empty: <input name="bot-field"></label></p>
       <div class="field-row">
@@ -282,14 +284,17 @@
   function qp(n){return new URLSearchParams(location.search).get(n)||"";}
   document.querySelectorAll("form[data-playbook-lead]").forEach(function(f){
     f.addEventListener("submit",function(e){
+      if(window.__pbFillForm)window.__pbFillForm(f); /* stamp hidden fields for Netlify */
+      var a=(window.__pbAttr&&window.__pbAttr())||{};
       var fd=new FormData(f);
       var nm=(fd.get("name")||"").trim();
       var body={client:f.getAttribute("data-playbook-lead"),name:nm,
         email:fd.get("email")||"",phone:fd.get("phone")||"",
         message:"Giveaway entry · athlete "+(fd.get("athlete-first-name")||"")+" age "+(fd.get("athlete-age")||"")+" · "+(fd.get("primary-sport")||""),
         company_hp:fd.get("bot-field")||"",
-        page:location.pathname,referrer:document.referrer||"",
-        utm_source:qp("utm_source"),utm_medium:qp("utm_medium"),utm_campaign:qp("utm_campaign"),source:"giveaway_form"};
+        page:location.pathname,referrer:a.referrer||document.referrer||"",landing_page:a.landing_page||location.pathname,
+        utm_source:a.utm_source||qp("utm_source"),utm_medium:a.utm_medium||qp("utm_medium"),utm_campaign:a.utm_campaign||qp("utm_campaign"),
+        utm_term:a.utm_term||"",utm_content:a.utm_content||"",gclid:a.gclid||"",fbclid:a.fbclid||"",source:"giveaway_form"};
       try{navigator.sendBeacon(EP,new Blob([JSON.stringify(body)],{type:"application/json"}));}catch(_){}
       /* Only short-circuit for local file testing; on any http(s) host let the form post to Netlify and redirect to /thank-you */
       if(location.protocol==="file:"){e.preventDefault();f.reset();}

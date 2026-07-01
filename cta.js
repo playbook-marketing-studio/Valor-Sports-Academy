@@ -131,4 +131,47 @@
       if (contactM) mm.insertBefore(rm, contactM.nextSibling); else mm.appendChild(rm);
     }
   })();
+
+  /* ---- Lead attribution: capture where visitors come from (utm / gclid /
+     referrer / landing page), persist across pages so it survives the walk to
+     the contact form, and expose helpers the form beacons use. ---- */
+  (function () {
+    try {
+      var PARAMS = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','gclid','fbclid'];
+      var qs = new URLSearchParams(location.search);
+      var touch = {}, hasParams = false;
+      PARAMS.forEach(function (k) { var v = qs.get(k); if (v) { touch[k] = v.slice(0, 200); hasParams = true; } });
+      var ref = document.referrer || '';
+      var internal = ref && ref.indexOf(location.hostname) !== -1;
+      var external = ref && !internal;
+
+      var store = {};
+      try { store = JSON.parse(localStorage.getItem('pb_attr') || '{}'); } catch (_) {}
+
+      if (hasParams || external) {
+        var snap = Object.assign({}, touch, {
+          referrer: external ? ref.slice(0, 300) : '',
+          landing_page: location.pathname
+        });
+        if (!store.first) store.first = snap;   // first-touch: set once
+        store.last = snap;                       // last-touch: always freshest
+        localStorage.setItem('pb_attr', JSON.stringify(store));
+      }
+    } catch (_) {}
+  })();
+
+  // Best available attribution (last-touch, falling back to first-touch).
+  window.__pbAttr = function () {
+    try { var s = JSON.parse(localStorage.getItem('pb_attr') || '{}'); return s.last || s.first || {}; }
+    catch (_) { return {}; }
+  };
+  // Copy attribution into a form's hidden inputs so Netlify Forms captures it.
+  window.__pbFillForm = function (form) {
+    var a = window.__pbAttr();
+    ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','gclid','fbclid','referrer','landing_page']
+      .forEach(function (k) {
+        var el = form.querySelector('input[name="' + k + '"]');
+        if (el && a[k]) el.value = a[k];
+      });
+  };
 })();
