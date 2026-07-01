@@ -5,7 +5,7 @@ import type { Context } from "https://edge.netlify.com";
 
 const CLIENT_SLUG = "valor";
 const INGEST_URL = "https://jggwanbbfaygsjobzjcj.functions.supabase.co/ai-hit";
-const INGEST_KEY = "__INGEST_KEY__";
+const INGEST_KEY = "9393504f45049665a37a69e00dc46c81";
 
 const AI_BOTS =
   /(GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|anthropic-ai|Claude-Web|PerplexityBot|Perplexity-User|Google-Extended|Googlebot-Extended|CCBot|Bytespider|Amazonbot|cohere-ai|Applebot-Extended|Meta-ExternalAgent|DuckAssistBot)/i;
