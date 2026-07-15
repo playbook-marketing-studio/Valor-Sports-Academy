@@ -21626,7 +21626,7 @@ var site_config_default = {
   serverName: "valor-site-editor",
   repo: "playbook-marketing-studio/Valor-Sports-Academy",
   branch: "main",
-  siteUrl: "https://www.valorsportsacademywa.com",
+  siteUrl: "https://valorsportsacademywa.com",
   commitPrefix: "valor-edit:",
   commitAuthor: {
     name: "Valor Site Editor",
