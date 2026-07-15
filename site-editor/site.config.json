@@ -1,0 +1,191 @@
+{
+  "client": "Valor Sports Academy",
+  "serverName": "valor-site-editor",
+  "repo": "playbook-marketing-studio/Valor-Sports-Academy",
+  "branch": "main",
+  "siteUrl": "https://www.valorsportsacademywa.com",
+  "commitPrefix": "valor-edit:",
+  "commitAuthor": {
+    "name": "Valor Site Editor",
+    "email": "bot@playbookmarketing.studio"
+  },
+  "deployNote": "deploying now, live in about 2 minutes",
+  "limits": {
+    "callsPerHour": 100,
+    "commitsPerHour": 20,
+    "maxDiffChars": 2048,
+    "proposalTtlMinutes": 15,
+    "maxImageBytes": 8000000
+  },
+  "slogans": [
+    "Train With Purpose",
+    "Rise With Valor"
+  ],
+  "pages": {
+    "Home": {
+      "path": "index.html",
+      "description": "Homepage: hero with the slogan, program overview, coach intros, testimonials selection, FAQ"
+    },
+    "Coaches": {
+      "path": "coaches.html",
+      "description": "Coaches overview page introducing Coach Michael and Coach Corey"
+    },
+    "Coach Michael": {
+      "path": "coach-michael-bibe.html",
+      "description": "Coach Michael Bibe's bio page with his reviews"
+    },
+    "Coach Corey": {
+      "path": "coach-corey-bibe.html",
+      "description": "Coach Corey Bibe's bio page with his reviews"
+    },
+    "Programs": {
+      "path": "programs.html",
+      "description": "Programs and camps: schedules, prices, camp dates (including the O-Line Camp)"
+    },
+    "Youth Football": {
+      "path": "youth-football-training.html",
+      "description": "Youth football training service page, includes camp section"
+    },
+    "Sports Training": {
+      "path": "sports-training.html",
+      "description": "Speed, agility and sports training service page, includes camp section"
+    },
+    "Personal Training": {
+      "path": "personal-training.html",
+      "description": "One-on-one personal training service page"
+    },
+    "Contact": {
+      "path": "contact.html",
+      "description": "Contact page: address, phone, hours, map, contact form (the form itself is locked)"
+    },
+    "Free Assessment": {
+      "path": "assessment.html",
+      "description": "Free assessment landing page with sign-up form (the form itself is locked)"
+    },
+    "Reviews": {
+      "path": "testimonials.html",
+      "description": "Full testimonials and reviews grid"
+    },
+    "Thank You": {
+      "path": "thank-you.html",
+      "description": "Thank-you page shown after someone submits the contact form"
+    },
+    "Article: Does Speed and Agility Training Work": {
+      "path": "does-speed-and-agility-training-work.html",
+      "description": "Educational article page"
+    },
+    "Article: How Often Should You Train": {
+      "path": "how-often-speed-and-agility-training.html",
+      "description": "Educational article page"
+    },
+    "Article: What Age to Start Training": {
+      "path": "what-age-to-start-training.html",
+      "description": "Educational article page"
+    }
+  },
+  "images": {
+    "hero photo of the coaches on the homepage": {
+      "path": "images/hero-coaches.webp",
+      "width": 1920,
+      "height": 1280,
+      "format": "webp",
+      "pages": ["Home", "Coaches", "Coach Michael", "Coach Corey", "Programs", "Sports Training", "Personal Training", "Reviews", "Youth Football", "Thank You"],
+      "note": "The big background photo of the coaches. Reused as the page-top image across most pages; swapping it changes every page that uses it."
+    },
+    "Coach Michael's portrait": {
+      "path": "images/coach-michael.webp",
+      "width": 1100,
+      "height": 1540,
+      "format": "webp",
+      "pages": ["Home", "Coaches", "Coach Michael", "Coach Corey"]
+    },
+    "Coach Corey's portrait": {
+      "path": "images/coach-corey.webp",
+      "width": 1100,
+      "height": 1650,
+      "format": "webp",
+      "pages": ["Home", "Coaches", "Coach Michael", "Coach Corey", "Youth Football"]
+    },
+    "young athletes training photo": {
+      "path": "images/training.webp",
+      "width": 1500,
+      "height": 2152,
+      "format": "webp",
+      "pages": ["Home", "Coaches", "Reviews"]
+    },
+    "youth football training session photo": {
+      "path": "images/football.webp",
+      "width": 1500,
+      "height": 1166,
+      "format": "webp",
+      "pages": ["Youth Football"]
+    },
+    "kids sports training photo": {
+      "path": "images/sports-kids.webp",
+      "width": 1024,
+      "height": 768,
+      "format": "webp",
+      "pages": ["Sports Training"]
+    },
+    "adult one-on-one personal training photo": {
+      "path": "images/personal-feature.webp",
+      "width": 1400,
+      "height": 935,
+      "format": "webp",
+      "pages": ["Personal Training"]
+    },
+    "community and grand opening photo": {
+      "path": "images/community.webp",
+      "width": 1600,
+      "height": 1067,
+      "format": "webp",
+      "pages": ["Contact"]
+    },
+    "action photo of athlete making a catch": {
+      "path": "images/giveaway-action.webp",
+      "width": 1600,
+      "height": 1067,
+      "format": "webp",
+      "pages": ["Free Assessment"]
+    }
+  },
+  "protectedPaths": [
+    "netlify.toml",
+    "netlify/",
+    "_redirects",
+    "package.json",
+    "package-lock.json",
+    "site-editor/",
+    "robots.txt",
+    "sitemap.xml",
+    "693309b118f05a36f23c922c82b19014.txt",
+    "styles.css",
+    "cta.js",
+    "getting-started.html",
+    "giveaway.html",
+    "giveaway-thank-you.html",
+    ".github/"
+  ],
+  "sharedText": [
+    {
+      "label": "phone number",
+      "pattern": "509-987-4612",
+      "note": "The phone number appears in the header and footer of every page (and in tel: links as +15099874612)."
+    },
+    {
+      "label": "hours",
+      "pattern": "11AM&ndash;8PM",
+      "note": "Opening hours appear in the footer of every page."
+    },
+    {
+      "label": "email address",
+      "pattern": "valorsportsacademywa@gmail.com",
+      "note": "The email appears in the footer of every page."
+    },
+    {
+      "label": "street address",
+      "pattern": "1973 Fowler Street",
+      "note": "The address appears in the footer of every page."
+    }
+  ]
+}

@@ -11,6 +11,12 @@
   function = "ai-tracker"
   path = "/*"
 
+# Site-editor MCP server (netlify/functions/mcp.mjs — bundled artifact, source
+# in site-editor/). Image CDN must be allowed to read the editor's temp uploads
+# so photo swaps can be resized server-side before committing.
+[images]
+  remote_images = ["https://www\\.valorsportsacademywa\\.com/mcp-temp/.*", "https://valorsportsacademywa\\.netlify\\.app/mcp-temp/.*"]
+
 # ------------------------------------------------------------------------------
 # Security headers (applied to every response)
 # ------------------------------------------------------------------------------

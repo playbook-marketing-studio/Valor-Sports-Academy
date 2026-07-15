@@ -1,0 +1,27 @@
+{
+  "name": "valor-site-editor-mcp-server",
+  "version": "1.0.0",
+  "description": "Remote MCP server for safe client edits to the Valor Sports Academy site. Source lives here; the bundled artifact is committed at netlify/functions/mcp.mjs so the site deploy stays build-free.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node test/checklist.test.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.15.0",
+    "@netlify/blobs": "^10.0.0",
+    "image-size": "^2.0.2",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
