@@ -165,7 +165,11 @@ export function buildServer(deps: ServerDeps): McpServer {
       if ("error" in resolved) return fail(resolved.error);
       const file = await getFile(resolved.entry.path);
       const text = extractText(file.text);
-      const warning = sloganHealthWarning(file.text);
+      // Brand words ("Valor") appear in normal copy everywhere; only check
+      // slogan health on pages that are supposed to carry the intact slogan.
+      const warning = config.sloganPages.includes(resolved.page)
+        ? sloganHealthWarning(file.text)
+        : null;
       const hasForm = /<form\b/i.test(file.text);
       const notes = [
         `Locked areas on this page (not editable): the navigation menu${hasForm ? ", the form" : ""}, tracking and page settings.`,

@@ -21644,6 +21644,7 @@ var site_config_default = {
     "Train With Purpose",
     "Rise With Valor"
   ],
+  sloganPages: ["Home"],
   pages: {
     Home: {
       path: "index.html",
@@ -24156,7 +24157,7 @@ function buildServer(deps) {
       if ("error" in resolved) return fail(resolved.error);
       const file = await getFile(resolved.entry.path);
       const text = extractText(file.text);
-      const warning = sloganHealthWarning(file.text);
+      const warning = config2.sloganPages.includes(resolved.page) ? sloganHealthWarning(file.text) : null;
       const hasForm = /<form\b/i.test(file.text);
       const notes = [
         `Locked areas on this page (not editable): the navigation menu${hasForm ? ", the form" : ""}, tracking and page settings.`,

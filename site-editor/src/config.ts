@@ -37,6 +37,8 @@ export interface SiteConfig {
     maxImageBytes: number;
   };
   slogans: string[];
+  /** Pages that must carry the intact slogan — health warnings only fire here. */
+  sloganPages: string[];
   pages: Record<string, PageEntry>;
   images: Record<string, ImageEntry>;
   protectedPaths: string[];

@@ -21,6 +21,7 @@
     "Train With Purpose",
     "Rise With Valor"
   ],
+  "sloganPages": ["Home"],
   "pages": {
     "Home": {
       "path": "index.html",

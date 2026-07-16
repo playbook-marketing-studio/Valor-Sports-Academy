@@ -6,16 +6,15 @@ A remote MCP server at **`https://valorsportsacademywa.com/mcp`** that lets Valo
 
 ## 1. Omar: switch it on (one time, ~5 minutes)
 
-The server is deployed but **fails closed** until two env vars exist.
+The server is deployed. **Done 2026-07-16: `EDIT_KEY` is set and live** (verified: tools respond with the key, 401 without). Only step 1 below remains — the GitHub token.
 
 1. **Create the GitHub token** — github.com → Settings → Developer settings → Personal access tokens → **Fine-grained tokens** → Generate new token:
    - Resource owner: `playbook-marketing-studio` · Repository access: **Only** `Valor-Sports-Academy`
    - Permissions → Repository → **Contents: Read and write** (nothing else)
    - Expiration: 1 year (calendar a renewal). Copy the token.
-2. **Set env vars** — app.netlify.com → project `valor-sports-academy-staging-envi` → Site configuration → Environment variables → Add:
-   - `EDIT_KEY` = the value of `VALOR_EDIT_KEY` in the vault (`Projects/playbook/.env`) — already generated
+2. **Set the env var** — app.netlify.com → project `valor-sports-academy-staging-envi` → Site configuration → Environment variables → Add:
    - `GITHUB_TOKEN` = the fine-grained PAT from step 1
-   - (Scope "Functions" is enough if asked; all-scopes is fine too.)
+   - (`EDIT_KEY` is already set — value lives in the vault, `Projects/playbook/.env` → `VALOR_EDIT_KEY`.)
 3. **Redeploy** — Deploys → Trigger deploy → Deploy site (env vars only take effect on a fresh deploy).
 4. **Verify** — from this repo:
    ```
