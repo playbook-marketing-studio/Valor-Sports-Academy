@@ -1,8 +1,19 @@
 /* Injected on every page:
-   1) a sticky mobile action bar (call + free assessment)
-   2) a persistent floating Contact button (call / text / email / message) */
+   1) Meta pixel (base + Lead on thank-you pages)
+   2) a sticky mobile action bar (call + free assessment)
+   3) a persistent floating Contact button (call / text / email / message) */
 (function () {
   var TEL = '+15099874612', NUM = '509-987-4612', MAIL = 'valorsportsacademywa@gmail.com';
+
+  // ---- Meta pixel ----
+  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+  n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+  document,'script','https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', '2538495873319346');
+  fbq('track', 'PageView');
+  if (/thank-you/.test(location.pathname)) fbq('track', 'Lead');
   var GIVEAWAY_LIVE = false; // flip to true once the giveaway is approved (re-shows banner + nav link)
 
   // ---- sticky mobile bar (CSS shows it only under 820px) ----
