@@ -1,0 +1,22 @@
+/* Valor fall 2026 social templates - shared */
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap');
+:root{
+  --red:#C8102E; --dark:#16140F; --cream:#ECEAE4; --cream2:#E4E1D9;
+  --display:'Anton',sans-serif; --body:'Hanken Grotesk',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;height:1350px;overflow:hidden}
+body{font-family:var(--body);-webkit-font-smoothing:antialiased}
+.canvas{position:relative;width:1080px;height:1350px;overflow:hidden}
+
+/* shared bottom schedule strip */
+.sched{position:absolute;left:0;right:0;bottom:0;background:var(--dark);
+  display:flex;align-items:center;gap:44px;padding:34px 64px 38px}
+.sched .start .lbl{font-weight:800;font-size:22px;letter-spacing:.22em;color:var(--cream2);opacity:.85}
+.sched .start .date{font-family:var(--display);font-size:64px;line-height:1.02;color:#fff;margin-top:4px}
+.sched .start .date em{font-style:normal;color:#FF7484}
+.sched .div{width:2px;align-self:stretch;background:rgba(236,234,228,.28)}
+.sched .times{display:flex;flex-direction:column;gap:12px;justify-content:center}
+.sched .trow{display:flex;align-items:baseline;gap:16px}
+.sched .trow .tl{font-weight:800;font-size:22px;letter-spacing:.16em;color:#FF7484;width:172px}
+.sched .trow .tv{font-family:var(--display);font-size:37px;color:#fff;letter-spacing:.01em}
