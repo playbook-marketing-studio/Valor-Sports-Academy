@@ -29,3 +29,6 @@ node_modules/
 
 # Original full-res photos (optimized copies live in /images)
 Valor-Pictures/
+
+# raw footage - never commit (20GB, like Valor-Pictures)
+Videos/
