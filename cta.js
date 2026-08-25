@@ -5,15 +5,68 @@
 (function () {
   var TEL = '+15099874612', NUM = '509-987-4612', MAIL = 'valorsportsacademywa@gmail.com';
 
-  // ---- Meta pixel ----
+  /* ---- Meta pixels ----
+     Every dataset the site reports into. Michael's new ad account has its own
+     dataset, so while the accounts run side by side we feed both and each one
+     stays complete. Delete an ID here once its account is retired.
+     The server half lives in netlify/functions/submission-created.js — the two
+     share an event_id so Meta dedupes browser + server copies of a lead. */
+  var PIXELS = [
+    '2538495873319346'          // Valor Website Pixel (Playbook-managed account)
+    // , 'PASTE_MICHAELS_DATASET_ID'   // new ad account — add once confirmed
+  ];
+
   !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
   n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
   n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
   t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
   document,'script','https://connect.facebook.net/en_US/fbevents.js');
-  fbq('init', '2538495873319346');
+
+  PIXELS.forEach(function (id) { fbq('init', id); });
   fbq('track', 'PageView');
-  if (/thank-you/.test(location.pathname)) fbq('track', 'Lead');
+
+  // Read a cookie the pixel drops (_fbp) or the click id it stores (_fbc).
+  function pbCookie(n) {
+    var m = document.cookie.match('(^|;)\\s*' + n + '\\s*=\\s*([^;]+)');
+    return m ? m.pop() : '';
+  }
+  // _fbc is only written after fbevents.js loads; rebuild it from the URL so a
+  // fast submit still carries the click id.
+  function pbFbc() {
+    var c = pbCookie('_fbc');
+    if (c) return c;
+    var id = new URLSearchParams(location.search).get('fbclid');
+    return id ? 'fb.1.' + Date.now() + '.' + id : '';
+  }
+  function pbEventId(prefix) {
+    var r;
+    try {
+      var a = new Uint32Array(2); crypto.getRandomValues(a);
+      r = a[0].toString(36) + a[1].toString(36);
+    } catch (_) { r = Math.random().toString(36).slice(2); }
+    return prefix + '.' + Date.now().toString(36) + '.' + r;
+  }
+  window.__pbEventId = pbEventId;
+
+  /* Which conversion this page represents. Test the giveaway path FIRST —
+     "/giveaway-thank-you" also contains "thank-you", and it previously fell
+     through to Lead, mislabelling every giveaway entry. */
+  var pbConv = /giveaway-thank-you/.test(location.pathname)
+      ? { name: 'CompleteRegistration', key: 'pb_eid_giveaway', data: { content_name: 'Summer of Valor giveaway' } }
+    : /thank-you/.test(location.pathname)
+      ? { name: 'Lead', key: 'pb_eid_lead', data: {} }
+      : null;
+
+  // Fire the conversion with the id stashed at submit time, so this browser
+  // event and the server event collapse into one in Events Manager.
+  window.__pbTrack = function (name, data, key) {
+    var eid = '';
+    try { if (key) { eid = sessionStorage.getItem(key) || ''; sessionStorage.removeItem(key); } } catch (_) {}
+    if (!eid) eid = pbEventId('web');
+    fbq('track', name, data || {}, { eventID: eid });
+  };
+
+  if (pbConv) window.__pbTrack(pbConv.name, pbConv.data, pbConv.key);
   var GIVEAWAY_LIVE = false; // flip to true once the giveaway is approved (re-shows banner + nav link)
 
   // ---- sticky mobile bar (CSS shows it only under 820px) ----
@@ -176,6 +229,20 @@
     try { var s = JSON.parse(localStorage.getItem('pb_attr') || '{}'); return s.last || s.first || {}; }
     catch (_) { return {}; }
   };
+  /* Set a hidden input. Netlify registers a form's fields by parsing the HTML
+     at deploy time, so the input must already exist in the markup to be
+     recorded — creating one here is only a last-ditch fallback. */
+  function pbSetHidden(form, name, value) {
+    if (!value) return;
+    var el = form.querySelector('input[name="' + name + '"]');
+    if (!el) {
+      el = document.createElement('input');
+      el.type = 'hidden'; el.name = name;
+      form.appendChild(el);
+    }
+    el.value = value;
+  }
+
   // Copy attribution into a form's hidden inputs so Netlify Forms captures it.
   window.__pbFillForm = function (form) {
     var a = window.__pbAttr();
@@ -184,5 +251,20 @@
         var el = form.querySelector('input[name="' + k + '"]');
         if (el && a[k]) el.value = a[k];
       });
+
+    /* Meta Conversions API: stamp the dedup id and the click identifiers so
+       submission-created.js can match this person server-side. The id is also
+       stashed for the thank-you page, which fires the browser half. */
+    var isGiveaway = (form.getAttribute('name') || '') === 'giveaway';
+    var key = isGiveaway ? 'pb_eid_giveaway' : 'pb_eid_lead';
+    var eid = pbEventId(isGiveaway ? 'reg' : 'lead');
+    try { sessionStorage.setItem(key, eid); } catch (_) {}
+
+    pbSetHidden(form, 'pb_event_id', eid);
+    pbSetHidden(form, 'pb_fbc', pbFbc());
+    pbSetHidden(form, 'pb_fbp', pbCookie('_fbp'));
+    pbSetHidden(form, 'pb_source_url', location.href.split('#')[0]);
+    pbSetHidden(form, 'pb_ua', navigator.userAgent);
+    return eid;
   };
 })();

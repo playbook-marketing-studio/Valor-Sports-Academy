@@ -62,6 +62,10 @@
     <form class="quiz-card" id="quizForm" name="assessment" method="POST" data-netlify="true" netlify-honeypot="bot-field" action="/thank-you">
       <input type="hidden" name="form-name" value="assessment">
       <input type="hidden" name="result-level" id="leadLevel" value="">
+      <!-- lead attribution (filled by cta.js so Netlify Forms captures the source) -->
+      <input type="hidden" name="utm_source"><input type="hidden" name="utm_medium"><input type="hidden" name="utm_campaign"><input type="hidden" name="utm_term"><input type="hidden" name="utm_content"><input type="hidden" name="gclid"><input type="hidden" name="fbclid"><input type="hidden" name="referrer"><input type="hidden" name="landing_page">
+      <!-- Meta Conversions API (filled by cta.js; must exist here so Netlify registers the fields) -->
+      <input type="hidden" name="pb_event_id"><input type="hidden" name="pb_fbc"><input type="hidden" name="pb_fbp"><input type="hidden" name="pb_source_url"><input type="hidden" name="pb_ua">
       <p hidden><label>Leave this empty: <input name="bot-field"></label></p>
 
       <p class="quiz-intro">Tell us where to send the results, then answer five quick questions. Takes about a minute.</p>
@@ -228,8 +232,14 @@
 
     // capture the lead in Netlify (no-op locally), then show the result either way
     try {
+      // Stamp attribution + the Meta dedup id BEFORE serialising the body.
+      if (window.__pbFillForm) window.__pbFillForm(form);
       var body = new URLSearchParams(new FormData(form)).toString();
       fetch('/', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body }).catch(function () {});
+      /* This page shows the result inline instead of redirecting to
+         /thank-you, so nothing else would ever fire the browser-side Lead.
+         Uses the same id the server sends, so the two dedupe. */
+      if (window.__pbTrack) window.__pbTrack('Lead', { content_name: 'Valor assessment' }, 'pb_eid_lead');
     } catch (e2) {}
 
     var aname = (document.getElementById('aname').value || '').trim();
