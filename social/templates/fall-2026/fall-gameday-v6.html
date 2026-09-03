@@ -1,0 +1,35 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="base.css">
+<style>
+body{background:#8e8b88}
+.bg{position:absolute;inset:0;background:radial-gradient(120% 90% at 60% 30%,#c4c1bf 0%,#a9a6a4 45%,#8a8785 100%)}
+.photo{position:absolute;left:0;right:-150px;top:0;height:1180px;display:flex;justify-content:flex-end}
+.photo img{height:1180px;width:auto;filter:brightness(.86) contrast(1.04);-webkit-mask-image:linear-gradient(to right,transparent 0,#000 14%,#000 86%,transparent 100%),linear-gradient(to bottom,#000 0,#000 92%,transparent 100%);-webkit-mask-composite:source-in;mask-composite:intersect}
+.shade{position:absolute;inset:0;background:linear-gradient(0deg,rgba(22,20,15,.94) 0%,rgba(22,20,15,.62) 26%,rgba(22,20,15,.18) 46%,rgba(22,20,15,0) 60%)}
+.logo{position:absolute;top:56px;right:64px;width:100px}
+.logo img{width:100%}
+.hdr{position:absolute;top:72px;left:72px;color:var(--red);font-weight:800;font-size:25px;letter-spacing:.26em}
+.head{position:absolute;left:72px;right:72px;bottom:222px}
+.head .k{font-family:var(--display);font-size:104px;line-height:1.06;letter-spacing:.012em;color:#fff;text-transform:uppercase;text-shadow:0 6px 30px rgba(0,0,0,.35)}
+.head .k.p{color:#FF7484;margin-top:22px}
+.head .s{margin-top:28px;font-weight:600;font-size:29px;line-height:1.4;letter-spacing:.01em;color:var(--cream2);max-width:940px;white-space:nowrap}
+.bar{position:absolute;left:0;right:0;bottom:0;background:var(--dark);display:flex;align-items:center;justify-content:space-between;padding:34px 72px;border-top:3px solid var(--red)}
+.bar .a{font-weight:800;font-size:24px;letter-spacing:.14em;color:#FF7484}
+.bar .a span{display:block;font-family:var(--display);font-size:44px;letter-spacing:0;color:#fff;margin-top:4px}
+.bar .b{text-align:right;white-space:nowrap;font-weight:700;font-size:26px;line-height:1.45;color:var(--cream2)}
+.bar .b b{color:#fff}
+</style></head><body><div class="canvas">
+  <div class="bg"></div>
+  <div class="photo"><img src="assets/corey-ball.jpg"></div>
+  <div class="shade"></div>
+  <div class="logo"><img src="assets/logo-emblem.png"></div>
+  <div class="hdr">VALOR SPORTS ACADEMY · RICHLAND, WA</div>
+  <div class="head">
+    <div class="k">Friday night<br>is for playing.</div>
+    <div class="k p">Mon thru Thu<br>is for work.</div>
+    <div class="s">In-season training, 2 days a week, built around game week.</div>
+  </div>
+  <div class="bar">
+    <div class="a">FALL BLOCK STARTS<span>Tuesday, Sept 8</span></div>
+    <div class="b">Mornings <b>5:30–6:45am</b> · Evenings <b>6–7 &amp; 7–8pm</b><br>Mon thru Thu · Ages 8–18 · <b>DM us to grab a spot</b></div>
+  </div>
+</div></body></html>
