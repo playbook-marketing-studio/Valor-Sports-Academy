@@ -12,8 +12,8 @@
      The server half lives in netlify/functions/submission-created.js — the two
      share an event_id so Meta dedupes browser + server copies of a lead. */
   var PIXELS = [
-    '2538495873319346'          // Valor Website Pixel (Playbook-managed account)
-    // , 'PASTE_MICHAELS_DATASET_ID'   // new ad account — add once confirmed
+    '2538495873319346',         // Valor Website Pixel (Playbook-managed account)
+    '4278914635772299'          // Valor pixel on Michael's ad account (added 2026-09-10)
   ];
 
   !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
