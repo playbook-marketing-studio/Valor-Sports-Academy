@@ -59,6 +59,12 @@
   status = 301
   force = true
 
+# Assessment booking: reschedule/cancel page (link is in the confirmation email)
+[[redirects]]
+  from = "/assessment/manage"
+  to = "/assessment-manage.html"
+  status = 200
+
 # Keep the internal kickoff sheet out of search entirely
 [[headers]]
   for = "/getting-started.html"

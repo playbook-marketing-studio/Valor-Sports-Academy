@@ -52,6 +52,29 @@
   .lp-coach span { display:block; color:#b6afa3; font-size:.9rem; margin-top:4px; line-height:1.5; }
   .lp-trust { display:flex; flex-wrap:wrap; gap: 10px 22px; margin-top: 22px; color: var(--muted); font-weight:600; font-size:.92rem; }
   .lp-trust span::before { content:"\2713"; color: var(--red); margin-right: 8px; font-weight:800; }
+  .bk-h { font-family: var(--body); font-weight:800; text-transform:none; letter-spacing:0; font-size:1.35rem; color: var(--ink); margin: 0 0 8px; }
+  .bk-sub { color: var(--muted); font-size:1.02rem; line-height:1.55; margin: 0 0 18px; }
+  .bk-days { display:grid; gap: 16px; margin-bottom: 18px; }
+  .bk-day b { display:block; font-weight:800; color: var(--ink); margin-bottom: 8px; }
+  .bk-chips { display:flex; flex-wrap:wrap; gap: 8px; }
+  .bk-chip { border:1.5px solid var(--line); background:#fff; border-radius: 999px; padding: 10px 16px; font: inherit; font-weight:700; font-size:.95rem; color: var(--ink); cursor:pointer; }
+  .bk-chip[disabled] { opacity:.4; cursor:not-allowed; text-decoration: line-through; }
+  .bk-chip.sel { border-color: var(--red); background: var(--red); color:#fff; }
+  .bk-confirm { width:100%; justify-content:center; }
+  .bk-confirm[disabled] { opacity:.5; cursor:not-allowed; }
+  .bk-loading { color: var(--muted); }
+  .bk-request { margin-top: 18px; border-top: 1px solid var(--line); }
+  .bk-request summary { list-style:none; cursor:pointer; padding: 16px 0 6px; font-weight:700; color: var(--ink); }
+  .bk-request summary::-webkit-details-marker { display:none; }
+  .bk-request summary::before { content:"+ "; color: var(--red); font-family: var(--display); }
+  .bk-request[open] summary::before { content:"\2212 "; }
+  .bk-request__body label { display:block; font-weight:700; font-size:.82rem; letter-spacing:.06em; text-transform:uppercase; color: var(--ink); margin: 14px 0 8px; }
+  .bk-request__body input, .bk-request__body select { width:100%; padding:14px 16px; border:1px solid var(--glass-stroke); border-radius: var(--r-sm); font-family: var(--body); font-size:1rem; color: var(--ink); background:#fff; }
+  .bk-request__body .field-row label { margin-top:0; }
+  .bk-alt { color: var(--muted); font-size:.95rem; margin-top: 18px; }
+  .bk-alt a { color: var(--red); font-weight:700; }
+  .bk-when { font-family: var(--display); text-transform: uppercase; font-size: clamp(1.9rem,5vw,2.8rem); color: var(--red); line-height: 1; margin: 6px 0 14px; }
+  .quiz-err { margin-top: 10px; }
   .quiz-more { margin-top: 20px; border-top: 1px solid var(--line); }
   .quiz-more summary { list-style:none; cursor:pointer; padding: 18px 0 8px; font-weight:700; color: var(--ink); display:flex; justify-content:space-between; align-items:center; gap:12px; }
   .quiz-more summary::-webkit-details-marker { display:none; }
@@ -207,21 +230,64 @@
       <p style="text-align:center;color:var(--muted);font-size:.86rem;margin-top:14px">Takes about a minute. We only use this to set up the visit.</p>
       <p class="quiz-err" id="quizErr">Please add a parent name, phone and email.</p>
     </form>
-      <!-- RESULT -->
-    <div class="quiz-card result" id="quizResult" style="margin-top:24px" aria-live="polite">
-      <div id="resQuiz">
-        <span class="result__badge">Your result</span>
-        <p class="result__level" id="resLevel"></p>
-        <div class="result__scale" id="resScale"><span></span><span></span><span></span><span></span></div>
-        <p class="result__text" id="resText"></p>
+      <!-- RESULT + BOOKING STEP -->
+      <div class="quiz-card result" id="quizResult" style="margin-top:24px" aria-live="polite">
+        <div id="resQuiz">
+          <span class="result__badge">Your result</span>
+          <p class="result__level" id="resLevel"></p>
+          <div class="result__scale" id="resScale"><span></span><span></span><span></span><span></span></div>
+          <p class="result__text" id="resText"></p>
+        </div>
+
+        <div id="bookStep">
+          <h3 class="bk-h" id="resThanks">Got it. Now pick a Saturday time.</h3>
+          <p class="bk-sub">Assessments run Saturdays, 10am to 1pm, at 1973 Fowler St in Richland. Tap a time and it is yours. A confirmation with a calendar invite goes to your email.</p>
+          <div id="bkSlots" class="bk-days"><p class="bk-loading">Loading open times&hellip;</p></div>
+          <button type="button" id="bkConfirm" class="btn btn--lg bk-confirm" disabled>Confirm this time <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+          <p class="quiz-err" id="bkErr"></p>
+          <details class="bk-request" id="bkRequest">
+            <summary>None of these work? Request a different time</summary>
+            <div class="bk-request__body">
+              <div class="field-row">
+                <div><label for="bkDay">Day</label><input id="bkDay" type="date"></div>
+                <div><label for="bkWindow">Time of day</label>
+                  <select id="bkWindow">
+                    <option value="">Select one</option>
+                    <option>Morning (before noon)</option>
+                    <option>Afternoon (noon to 5pm)</option>
+                    <option>Evening (after 5pm)</option>
+                  </select>
+                </div>
+              </div>
+              <label for="bkNote">Anything we should know</label>
+              <input id="bkNote" type="text" placeholder="e.g. practice runs until 6 on weekdays">
+              <button type="button" id="bkRequestBtn" class="btn btn--ink btn--lg" style="margin-top:14px">Send the request</button>
+              <p class="quiz-err" id="bkReqErr"></p>
+            </div>
+          </details>
+          <p class="bk-alt">Rather talk it through? Call or text <a href="tel:+15099874612">509-987-4612</a>.</p>
+        </div>
+
+        <div id="bookDone" hidden>
+          <span class="result__badge" id="bkDoneBadge">You're booked</span>
+          <p class="bk-when" id="bkWhen"></p>
+          <p class="bk-sub" id="bkDoneText"></p>
+          <div class="result__cta" id="bkCalBtns">
+            <a id="bkGoogle" class="btn btn--lg" target="_blank" rel="noopener">Add to Google Calendar</a>
+            <a id="bkApple" class="btn btn--glass btn--lg">Add to Apple Calendar</a>
+          </div>
+          <p class="bk-alt" id="bkDoneFoot">Need to change it? <a id="bkManage" href="#">Reschedule or cancel</a>. Questions? Call or text <a href="tel:+15099874612">509-987-4612</a>.</p>
+        </div>
+
+        <div id="bookFallback" hidden>
+          <h3 class="bk-h">Got it. A coach will reach out.</h3>
+          <p class="bk-sub">Expect a text or call from a Valor coach to set a time for the free assessment. Want it sooner? Call us now.</p>
+          <div class="result__cta">
+            <a href="tel:+15099874612" class="btn btn--lg">Call 509-987-4612</a>
+            <a href="https://app.upperhand.io/customers/2781-valor-sports-academy/events" class="btn btn--glass btn--lg">See the class schedule</a>
+          </div>
+        </div>
       </div>
-      <h3 id="resThanks" style="font-family:var(--body);font-weight:800;text-transform:none;letter-spacing:0;font-size:1.3rem;color:var(--ink);margin-bottom:10px">Got it.</h3>
-      <p style="color:var(--muted);margin-bottom:22px;font-size:1.05rem;line-height:1.6">Expect a text or call from a Valor coach to set a time for the free assessment. Want it sooner? Call us now.</p>
-      <div class="result__cta">
-        <a href="tel:+15099874612" class="btn btn--lg">Call 509-987-4612</a>
-        <a href="https://app.upperhand.io/customers/2781-valor-sports-academy/events" class="btn btn--glass btn--lg">See the class schedule</a>
-      </div>
-    </div>
       <p style="text-align:center;color:var(--muted);font-weight:600;margin-top:24px;font-size:.9rem">Valor Sports Academy · 1973 Fowler St, Richland · <a href="tel:+15099874612" style="color:var(--red)">509-987-4612</a> · <a href="mailto:valorsportsacademywa@gmail.com" style="color:var(--red)">valorsportsacademywa@gmail.com</a></p>
     </div>
   </div>
@@ -388,12 +454,120 @@
     } else {
       resQuiz.style.display = 'none';
     }
-    document.getElementById('resThanks').textContent = aname ? ('Got it. A coach will reach out about ' + aname + '.') : 'Got it. A coach will reach out.';
+    document.getElementById('resThanks').textContent = aname ? ('Got it. Now pick a Saturday time for ' + aname + '.') : 'Got it. Now pick a Saturday time.';
 
     form.style.display = 'none';
     var res = document.getElementById('quizResult');
     res.classList.add('show');
     res.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    bkStart({
+      athlete_name: aname,
+      athlete_age: (document.getElementById('aage').value || '').trim(),
+      sport: (document.getElementById('asport').value || '').trim(),
+      quiz_result: document.getElementById('leadLevel').value,
+      parent_name: (document.getElementById('pname').value || '').trim(),
+      phone: (document.getElementById('pphone').value || '').trim(),
+      email: (document.getElementById('pemail').value || '').trim()
+    });
+  });
+
+  /* ── Step 2: pick a Saturday slot (Playbook booking function) ── */
+  var BK_API = 'https://jggwanbbfaygsjobzjcj.supabase.co/functions/v1/assessment-booking';
+  var bkContact = null, bkSelected = null;
+  var bkEl = function (id) { return document.getElementById(id); };
+
+  function bkAttribution() {
+    try { return (window.__pbAttr && window.__pbAttr()) || {}; } catch (e) { return {}; }
+  }
+  function bkShowFallback() {
+    bkEl('bookStep').hidden = true; bkEl('bookDone').hidden = true; bkEl('bookFallback').hidden = false;
+  }
+  function bkRenderSlots(days) {
+    var box = bkEl('bkSlots'); box.innerHTML = ''; bkSelected = null; bkEl('bkConfirm').disabled = true;
+    if (!days || !days.length) { bkShowFallback(); return; }
+    days.forEach(function (d) {
+      var wrap = document.createElement('div'); wrap.className = 'bk-day';
+      var h = document.createElement('b'); h.textContent = d.label; wrap.appendChild(h);
+      var chips = document.createElement('div'); chips.className = 'bk-chips';
+      d.slots.forEach(function (sl) {
+        var c = document.createElement('button'); c.type = 'button'; c.className = 'bk-chip'; c.textContent = sl.label; c.disabled = !sl.open;
+        c.setAttribute('aria-pressed', 'false');
+        c.addEventListener('click', function () {
+          box.querySelectorAll('.bk-chip').forEach(function (x) { x.classList.remove('sel'); x.setAttribute('aria-pressed', 'false'); });
+          c.classList.add('sel'); c.setAttribute('aria-pressed', 'true');
+          bkSelected = { start: sl.start, label: d.label + ' at ' + sl.label };
+          bkEl('bkConfirm').disabled = false; bkEl('bkErr').classList.remove('show');
+        });
+        chips.appendChild(c);
+      });
+      wrap.appendChild(chips); box.appendChild(wrap);
+    });
+  }
+  function bkLoad() {
+    return fetch(BK_API + '?action=slots').then(function (r) { return r.json(); })
+      .then(function (d) { bkRenderSlots(d.days); })
+      .catch(function () { bkShowFallback(); });
+  }
+  function bkStart(contact) {
+    bkContact = contact;
+    bkEl('bookStep').hidden = false; bkEl('bookDone').hidden = true; bkEl('bookFallback').hidden = true;
+    var today = new Date(); var dayIn = bkEl('bkDay');
+    dayIn.min = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    bkLoad();
+  }
+  function bkPost(payload) {
+    return fetch(BK_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      .then(function (r) { return r.json().then(function (d) { d.__status = r.status; return d; }); });
+  }
+  function bkShowDone(b, mode) {
+    bkEl('bookStep').hidden = true; bkEl('bookFallback').hidden = true; bkEl('bookDone').hidden = false;
+    var badge = bkEl('bkDoneBadge'), when = bkEl('bkWhen'), text = bkEl('bkDoneText'), cal = bkEl('bkCalBtns'), foot = bkEl('bkDoneFoot');
+    if (mode === 'requested') {
+      badge.textContent = 'Request sent';
+      when.textContent = b.requested_day + ' · ' + b.requested_window;
+      text.textContent = 'Nothing is booked yet. A Valor coach will text or call ' + (bkContact.phone || 'you') + ' to confirm a time. A note with the details is on its way to ' + b.email + '.';
+      cal.hidden = true; foot.innerHTML = 'Questions? Call or text <a href="tel:+15099874612">509-987-4612</a>.';
+      return;
+    }
+    badge.textContent = mode === 'existing' ? 'Already booked' : "You're booked";
+    when.textContent = b.when || '';
+    text.textContent = (mode === 'existing' ? 'You already have a time with us. ' : '') + '1973 Fowler St, Richland, next to the Chef\'Store. Bring athletic clothes, training shoes and water. A confirmation with a calendar invite ' + (mode === 'existing' ? 'was sent' : 'is on its way') + ' to ' + b.email + '.';
+    cal.hidden = false; bkEl('bkGoogle').href = b.google_url || '#'; bkEl('bkApple').href = b.ics_url || '#';
+    foot.innerHTML = 'Need to change it? <a href="' + b.manage_url + '">Reschedule or cancel</a>. Questions? Call or text <a href="tel:+15099874612">509-987-4612</a>.';
+    res_scroll();
+  }
+  function res_scroll() { try { bkEl('quizResult').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {} }
+
+  bkEl('bkConfirm').addEventListener('click', function () {
+    if (!bkSelected || !bkContact) return;
+    var btn = bkEl('bkConfirm'), err = bkEl('bkErr'); btn.disabled = true; btn.textContent = 'Booking\u2026'; err.classList.remove('show');
+    var payload = Object.assign({ action: 'book', slot_start: bkSelected.start, attribution: bkAttribution() }, bkContact);
+    bkPost(payload).then(function (d) {
+      btn.innerHTML = 'Confirm this time <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+      if (d.existing && d.booking) { bkShowDone(d.booking, 'existing'); return; }
+      if (d.ok && d.booking) {
+        try { if (window.__pbTrack) window.__pbTrack('Schedule', { content_name: 'Valor assessment' }); } catch (e) {}
+        bkShowDone(d.booking, 'booked'); return;
+      }
+      err.textContent = d.error || 'That did not go through. Try another time or call 509-987-4612.'; err.classList.add('show');
+      if (d.code === 'taken' || d.code === 'invalid') bkLoad(); else btn.disabled = false;
+    }).catch(function () {
+      btn.innerHTML = 'Confirm this time'; btn.disabled = false;
+      err.textContent = 'That did not go through. Try again or call 509-987-4612.'; err.classList.add('show');
+    });
+  });
+
+  bkEl('bkRequestBtn').addEventListener('click', function () {
+    var day = bkEl('bkDay').value, win = bkEl('bkWindow').value, note = bkEl('bkNote').value, err = bkEl('bkReqErr'), btn = bkEl('bkRequestBtn');
+    err.classList.remove('show');
+    if (!day || !win) { err.textContent = 'Pick a day and a time of day.'; err.classList.add('show'); return; }
+    btn.disabled = true; btn.textContent = 'Sending\u2026';
+    bkPost(Object.assign({ action: 'request', requested_day: day, requested_window: win, note: note, attribution: bkAttribution() }, bkContact)).then(function (d) {
+      btn.disabled = false; btn.textContent = 'Send the request';
+      if (d.ok && d.booking) { bkShowDone(d.booking, 'requested'); return; }
+      err.textContent = d.error || 'That did not go through. Call 509-987-4612 and we will set it up.'; err.classList.add('show');
+    }).catch(function () { btn.disabled = false; btn.textContent = 'Send the request'; err.textContent = 'That did not go through. Call 509-987-4612.'; err.classList.add('show'); });
   });
 </script>
 <script src="/cta.js" defer></script>

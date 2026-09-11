@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5LJCRVTJ9E"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5LJCRVTJ9E');
+</script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your Assessment Booking | Valor Sports Academy</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/images/logo-emblem.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .mg { max-width: 720px; margin-inline: auto; }
+  .bk-h { font-family: var(--body); font-weight:800; text-transform:none; letter-spacing:0; font-size:1.35rem; color: var(--ink); margin: 0 0 8px; }
+  .bk-sub { color: var(--muted); font-size:1.02rem; line-height:1.55; margin: 0 0 18px; }
+  .bk-when { font-family: var(--display); text-transform: uppercase; font-size: clamp(1.9rem,5vw,2.8rem); color: var(--red); line-height: 1; margin: 6px 0 14px; }
+  .bk-days { display:grid; gap: 16px; margin-bottom: 18px; }
+  .bk-day b { display:block; font-weight:800; color: var(--ink); margin-bottom: 8px; }
+  .bk-chips { display:flex; flex-wrap:wrap; gap: 8px; }
+  .bk-chip { border:1.5px solid var(--line); background:#fff; border-radius: 999px; padding: 10px 16px; font: inherit; font-weight:700; font-size:.95rem; color: var(--ink); cursor:pointer; }
+  .bk-chip[disabled] { opacity:.4; cursor:not-allowed; text-decoration: line-through; }
+  .bk-chip.sel { border-color: var(--red); background: var(--red); color:#fff; }
+  .bk-confirm { width:100%; justify-content:center; }
+  .bk-confirm[disabled] { opacity:.5; cursor:not-allowed; }
+  .bk-alt { color: var(--muted); font-size:.95rem; margin-top: 18px; }
+  .bk-alt a { color: var(--red); font-weight:700; }
+  .mg-cancel { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--line); }
+  .quiz-err { margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="header" id="header">
+  <div class="container header__bar">
+    <a href="/" class="brand" aria-label="Valor Sports Academy, home">
+      <img src="/images/logo-emblem.png" alt="Valor Sports Academy emblem" onerror="this.style.display='none'">
+      <span class="brand__name">Valor<small>Sports Academy</small></span>
+    </a>
+    <nav class="nav" aria-label="Primary"><a href="/">Home</a><a href="/coaches">Coaches</a><a href="/programs">Programs</a><a href="/contact">Contact</a></nav>
+    <div class="header__cta">
+      <a href="tel:+15099874612" class="header__phone"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>509-987-4612</a>
+      <a href="https://app.upperhand.io/customers/2781-valor-sports-academy/events" class="btn">Book a Class</a>
+    </div>
+    <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false"><span></span><span></span><span></span></button>
+  </div>
+  <nav class="header__menu" aria-label="Mobile"><a href="/">Home</a><a href="/coaches">Coaches</a><a href="/programs">Programs</a><a href="/contact">Contact</a><a href="https://app.upperhand.io/customers/2781-valor-sports-academy/events">Book a Class</a></nav>
+</header>
+
+<main>
+<section class="pagehead">
+  <div class="bgimg"><img src="/images/assessment-floor.jpg" alt="" aria-hidden="true" onerror="this.style.display='none'"></div>
+  <div class="container">
+    <p class="crumbs"><a href="/">Home</a><span>/</span><a href="/assessment">Free Assessment</a><span>/</span>Your booking</p>
+    <h1>Your assessment booking</h1>
+    <p>Move it to another open Saturday time, or cancel it. Either way you get an updated email.</p>
+  </div>
+</section>
+
+<section class="section" style="background:var(--paper-2)">
+  <div class="container mg">
+    <div class="quiz-card" id="mgCard">
+      <p class="bk-sub" id="mgLoading">Looking up your booking&hellip;</p>
+
+      <div id="mgView" hidden>
+        <span class="result__badge" id="mgBadge">Booked</span>
+        <p class="bk-when" id="mgWhen"></p>
+        <p class="bk-sub" id="mgText"></p>
+        <div class="result__cta" id="mgCal">
+          <a id="mgGoogle" class="btn" target="_blank" rel="noopener">Add to Google Calendar</a>
+          <a id="mgApple" class="btn btn--glass">Add to Apple Calendar</a>
+        </div>
+
+        <div id="mgMove" style="margin-top:26px;padding-top:20px;border-top:1px solid var(--line)">
+          <h3 class="bk-h">Move it to another time</h3>
+          <div id="mgSlots" class="bk-days"></div>
+          <button type="button" id="mgConfirm" class="btn btn--lg bk-confirm" disabled>Move to this time</button>
+          <p class="quiz-err" id="mgErr"></p>
+        </div>
+
+        <div class="mg-cancel" id="mgCancelBox">
+          <h3 class="bk-h">Cannot make it at all?</h3>
+          <p class="bk-sub">Cancel and the time opens up for another family. You can book again any time from the <a href="/assessment" style="color:var(--red);font-weight:700">assessment page</a>.</p>
+          <button type="button" id="mgCancel" class="btn btn--outline">Cancel this booking</button>
+          <p class="quiz-err" id="mgCancelErr"></p>
+        </div>
+        <p class="bk-alt">Questions? Call or text <a href="tel:+15099874612">509-987-4612</a>.</p>
+      </div>
+
+      <div id="mgGone" hidden>
+        <h3 class="bk-h" id="mgGoneTitle">We could not find that booking.</h3>
+        <p class="bk-sub" id="mgGoneText">The link may be old. Book a new time from the assessment page, or call or text 509-987-4612.</p>
+        <div class="result__cta"><a href="/assessment" class="btn btn--lg">Book a time</a><a href="tel:+15099874612" class="btn btn--glass btn--lg">Call 509-987-4612</a></div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer__bottom">
+      <span>&copy; 2026 Valor Sports Academy</span>
+      <span>1973 Fowler Street, Richland, WA 99352 &middot; <a href="tel:+15099874612" style="color:#fff">509-987-4612</a></span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  var header = document.getElementById('header'), burger = document.getElementById('burger');
+  burger.addEventListener('click', function () { var o = header.classList.toggle('open'); burger.setAttribute('aria-expanded', o); });
+  var onScroll = function () { header.classList.toggle('solid', window.scrollY > 24); };
+  onScroll(); window.addEventListener('scroll', onScroll, { passive: true });
+
+  var BK_API = 'https://jggwanbbfaygsjobzjcj.supabase.co/functions/v1/assessment-booking';
+  var token = new URLSearchParams(location.search).get('t') || '';
+  var el = function (id) { return document.getElementById(id); };
+  var selected = null, current = null;
+
+  function showGone(title, text) {
+    el('mgLoading').hidden = true; el('mgView').hidden = true; el('mgGone').hidden = false;
+    if (title) el('mgGoneTitle').textContent = title;
+    if (text) el('mgGoneText').textContent = text;
+  }
+  function renderSlots(days) {
+    var box = el('mgSlots'); box.innerHTML = ''; selected = null; el('mgConfirm').disabled = true;
+    if (!days || !days.length) { box.innerHTML = '<p class="bk-sub">No open times right now. Call or text 509-987-4612 and we will find one.</p>'; return; }
+    days.forEach(function (d) {
+      var wrap = document.createElement('div'); wrap.className = 'bk-day';
+      var h = document.createElement('b'); h.textContent = d.label; wrap.appendChild(h);
+      var chips = document.createElement('div'); chips.className = 'bk-chips';
+      d.slots.forEach(function (sl) {
+        var c = document.createElement('button'); c.type = 'button'; c.className = 'bk-chip'; c.textContent = sl.label;
+        c.disabled = !sl.open || (current && current.slot_start === sl.start);
+        c.addEventListener('click', function () {
+          box.querySelectorAll('.bk-chip').forEach(function (x) { x.classList.remove('sel'); });
+          c.classList.add('sel'); selected = sl.start; el('mgConfirm').disabled = false; el('mgErr').classList.remove('show');
+        });
+        chips.appendChild(c);
+      });
+      wrap.appendChild(chips); box.appendChild(wrap);
+    });
+  }
+  function render(b, days) {
+    current = b;
+    el('mgLoading').hidden = true; el('mgGone').hidden = true; el('mgView').hidden = false;
+    var active = b.status === 'booked' || b.status === 'rescheduled';
+    if (b.status === 'canceled') {
+      showGone('This booking was canceled.', 'Want a new time? Book again from the assessment page, or call or text 509-987-4612.');
+      return;
+    }
+    if (b.status === 'requested') {
+      el('mgBadge').textContent = 'Time requested';
+      el('mgWhen').textContent = b.requested_day + ' · ' + b.requested_window;
+      el('mgText').textContent = 'Nothing is booked yet. A coach will text or call to confirm. If one of the open Saturday times below works, grab it and you are set.';
+      el('mgCal').hidden = true;
+    } else {
+      el('mgBadge').textContent = active ? 'Booked' : b.status;
+      el('mgWhen').textContent = b.when || '';
+      el('mgText').textContent = (b.athlete_name ? b.athlete_name + "'s free assessment. " : '') + '1973 Fowler St, Richland, next to the Chef\'Store. Bring athletic clothes, training shoes and water.';
+      el('mgCal').hidden = false; el('mgGoogle').href = b.google_url || '#'; el('mgApple').href = b.ics_url || '#';
+    }
+    var past = b.slot_start && new Date(b.slot_start).getTime() < Date.now();
+    el('mgMove').hidden = past || (b.status !== 'requested' && !active);
+    el('mgCancelBox').hidden = past || (b.status !== 'requested' && !active);
+    renderSlots(days);
+  }
+  function load() {
+    if (!token) { showGone(); return; }
+    fetch(BK_API + '?action=manage&t=' + encodeURIComponent(token)).then(function (r) { return r.json(); })
+      .then(function (d) { if (!d.booking) { showGone(); return; } render(d.booking, d.days); })
+      .catch(function () { showGone('Something went wrong loading your booking.', 'Try again in a minute, or call or text 509-987-4612.'); });
+  }
+  function post(payload) {
+    return fetch(BK_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(function (r) { return r.json(); });
+  }
+  el('mgConfirm').addEventListener('click', function () {
+    if (!selected) return;
+    var btn = el('mgConfirm'), err = el('mgErr'); btn.disabled = true; btn.textContent = 'Moving…'; err.classList.remove('show');
+    post({ action: 'reschedule', t: token, slot_start: selected }).then(function (d) {
+      btn.textContent = 'Move to this time';
+      if (d.ok && d.booking) { load(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+      err.textContent = d.error || 'That did not go through. Try another time or call 509-987-4612.'; err.classList.add('show');
+      if (d.code === 'taken' || d.code === 'invalid') load(); else btn.disabled = false;
+    }).catch(function () { btn.textContent = 'Move to this time'; btn.disabled = false; err.textContent = 'That did not go through. Try again or call 509-987-4612.'; err.classList.add('show'); });
+  });
+  el('mgCancel').addEventListener('click', function () {
+    if (!confirm('Cancel this assessment booking?')) return;
+    var btn = el('mgCancel'), err = el('mgCancelErr'); btn.disabled = true; btn.textContent = 'Canceling…';
+    post({ action: 'cancel', t: token }).then(function (d) {
+      if (d.ok) { showGone('Canceled. The time is open again.', 'You will get a confirmation email. Want a new time? Book again from the assessment page, or call or text 509-987-4612.'); return; }
+      btn.disabled = false; btn.textContent = 'Cancel this booking'; err.textContent = d.error || 'That did not go through. Call 509-987-4612.'; err.classList.add('show');
+    }).catch(function () { btn.disabled = false; btn.textContent = 'Cancel this booking'; err.textContent = 'That did not go through. Call 509-987-4612.'; err.classList.add('show'); });
+  });
+  load();
+</script>
+<script src="/cta.js" defer></script>
+</body>
+</html>
