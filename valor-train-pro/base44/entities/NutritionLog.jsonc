@@ -1,0 +1,46 @@
+{
+  "name": "NutritionLog",
+  "type": "object",
+  "properties": {
+    "meal_name": {
+      "type": "string",
+      "title": "Meal / Food Name"
+    },
+    "meal_type": {
+      "type": "string",
+      "title": "Meal Type",
+      "enum": [
+        "Breakfast",
+        "Lunch",
+        "Dinner",
+        "Snack"
+      ],
+      "default": "Snack"
+    },
+    "calories": {
+      "type": "number",
+      "title": "Calories"
+    },
+    "protein": {
+      "type": "number",
+      "title": "Protein (g)"
+    },
+    "carbs": {
+      "type": "number",
+      "title": "Carbs (g)"
+    },
+    "fats": {
+      "type": "number",
+      "title": "Fats (g)"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+    }
+  },
+  "required": [
+    "meal_name",
+    "date"
+  ]
+}

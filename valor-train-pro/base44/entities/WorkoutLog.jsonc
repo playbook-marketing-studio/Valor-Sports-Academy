@@ -1,0 +1,60 @@
+{
+  "name": "WorkoutLog",
+  "type": "object",
+  "properties": {
+    "workout_id": {
+      "type": "string",
+      "title": "Workout ID"
+    },
+    "workout_title": {
+      "type": "string",
+      "title": "Workout Title"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+    },
+    "week": {
+      "type": "number",
+      "title": "Week"
+    },
+    "day": {
+      "type": "string",
+      "title": "Day"
+    },
+    "logged_exercises": {
+      "type": "array",
+      "title": "Logged Exercises",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Exercise Name"
+          },
+          "sets": {
+            "type": "number",
+            "title": "Sets"
+          },
+          "reps": {
+            "type": "number",
+            "title": "Reps"
+          },
+          "weight": {
+            "type": "number",
+            "title": "Weight (lbs)"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes"
+          }
+        }
+      },
+      "default": []
+    }
+  },
+  "required": [
+    "date"
+  ]
+}

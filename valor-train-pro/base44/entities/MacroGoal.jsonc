@@ -1,0 +1,30 @@
+{
+  "name": "MacroGoal",
+  "type": "object",
+  "properties": {
+    "calories_goal": {
+      "type": "number",
+      "title": "Calories Goal"
+    },
+    "protein_goal": {
+      "type": "number",
+      "title": "Protein Goal (g)"
+    },
+    "carbs_goal": {
+      "type": "number",
+      "title": "Carbs Goal (g)"
+    },
+    "fats_goal": {
+      "type": "number",
+      "title": "Fats Goal (g)"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+    }
+  },
+  "required": [
+    "date"
+  ]
+}

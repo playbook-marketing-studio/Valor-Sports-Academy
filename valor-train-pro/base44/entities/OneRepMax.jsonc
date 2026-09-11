@@ -1,0 +1,28 @@
+{
+  "name": "OneRepMax",
+  "type": "object",
+  "properties": {
+    "exercise_name": {
+      "type": "string",
+      "title": "Exercise Name"
+    },
+    "weight": {
+      "type": "number",
+      "title": "1RM Weight (lbs)"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Notes"
+    }
+  },
+  "required": [
+    "exercise_name",
+    "weight",
+    "date"
+  ]
+}

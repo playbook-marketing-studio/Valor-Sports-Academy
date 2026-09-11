@@ -1,0 +1,82 @@
+{
+  "name": "Workout",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "title": "Title"
+    },
+    "description": {
+      "type": "string",
+      "title": "Description"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+    },
+    "category": {
+      "type": "string",
+      "title": "Category",
+      "enum": [
+        "Strength",
+        "Hypertrophy",
+        "Conditioning",
+        "Mobility",
+        "Power",
+        "Cardio"
+      ],
+      "default": "Strength"
+    },
+    "program": {
+      "type": "string",
+      "title": "Program"
+    },
+    "week": {
+      "type": "number",
+      "title": "Week"
+    },
+    "day": {
+      "type": "string",
+      "title": "Day"
+    },
+    "exercises": {
+      "type": "array",
+      "title": "Exercises",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Exercise Name"
+          },
+          "sets": {
+            "type": "number",
+            "title": "Sets"
+          },
+          "reps": {
+            "type": "number",
+            "title": "Reps"
+          },
+          "weight": {
+            "type": "number",
+            "title": "Weight (lbs)"
+          },
+          "intensity": {
+            "type": "number",
+            "title": "Intensity (% of 1RM)"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes"
+          }
+        }
+      },
+      "default": []
+    }
+  },
+  "required": [
+    "title",
+    "date"
+  ]
+}
