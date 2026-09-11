@@ -13,12 +13,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Free Athlete Assessment in Richland | Valor Sports Academy</title>
-<meta name="description" content="Bring your athlete in for a free assessment at Valor Sports Academy in Richland. Coaches who coach at the high school and college level watch them move and show you what to work on.">
+<meta name="description" content="Free athlete assessment at Valor Sports Academy in Richland. Bring your kid in, our coaches watch them train, and you leave knowing what to work on. No cost, no commitment.">
 <link rel="canonical" href="https://www.valorsportsacademywa.com/assessment">
 <meta name="robots" content="index, follow">
 <link rel="icon" href="/images/logo-emblem.png">
 <meta property="og:title" content="Free Athlete Assessment | Valor Sports Academy">
-<meta property="og:description" content="See what's holding your athlete back. Bring them in, we watch them move, and you leave with a clear picture and a plan. Free, in Richland.">
+<meta property="og:description" content="Free athlete assessment in Richland. Bring your kid in, our coaches watch them train, and you leave knowing what to work on. No cost, no commitment.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://www.valorsportsacademywa.com/assessment">
 <meta property="og:image" content="https://www.valorsportsacademywa.com/images/assessment-coaches.jpg">
@@ -45,6 +45,9 @@
   .lp-coach span { display:block; color:#b6afa3; font-size:.9rem; margin-top:4px; line-height:1.5; }
   .lp-trust { display:flex; flex-wrap:wrap; gap: 10px 22px; margin-top: 22px; color: var(--muted); font-weight:600; font-size:.92rem; }
   .lp-trust span::before { content:"\2713"; color: var(--red); margin-right: 8px; font-weight:800; }
+  main { display:flex; flex-direction:column; }
+  main > * { width:100%; }
+  @media (max-width: 860px) { .lp-hero { order:-2; } #book { order:-1; } }
   .quiz-more { margin-top: 20px; border-top: 1px solid var(--line); }
   .quiz-more summary { list-style:none; cursor:pointer; padding: 18px 0 8px; font-weight:700; color: var(--ink); display:flex; justify-content:space-between; align-items:center; gap:12px; }
   .quiz-more summary::-webkit-details-marker { display:none; }
@@ -81,23 +84,23 @@
   <div class="container">
     <p class="crumbs"><a href="/">Home</a><span>/</span>Free Assessment</p>
     <h1>See what's holding your athlete back.</h1>
-    <p>A free assessment at Valor in Richland. Our coaches watch your athlete move through the drills we run every session, then sit down with you and say what they saw: where they are today, the one or two things to work on first, and which program fits. No pressure to sign up.</p>
+    <p>Free athlete assessment at Valor Sports Academy in Richland. Bring your kid in, our coaches watch them train, and you leave knowing what to work on. No cost, no commitment.</p>
     <a href="#book" class="btn btn--lg">Book the free assessment <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
     <span class="hero__note">Or call or text <a href="tel:+15099874612" style="color:#fff;font-weight:700">509-987-4612</a>. 1973 Fowler St, next to the Chef'Store.</span>
   </div>
 </section>
 
-<section class="section">
+<section class="section lp-what">
   <div class="container">
     <div class="head io">
       <p class="tag-line">What happens</p>
       <h2>An assessment, not a sales pitch</h2>
-      <p>Team practice gets your athlete ready for the game. The hours around it are where speed, strength and confidence get built, and most parents have no way to know what their kid actually needs. That is what this visit is for.</p>
+      <p>Most parents can see their kid is working hard. What they cannot see is what to fix. This visit shows you.</p>
     </div>
     <div class="lp-steps io">
-      <div class="lp-step"><b>01</b><h3>Your athlete moves</h3><p>Warmup, footwork, acceleration and change of direction, and some basic strength work. The same drills our athletes do in a session, scaled to their age.</p></div>
-      <div class="lp-step"><b>02</b><h3>The coaches watch</h3><p>Coaches who coach at the high school and college level, looking for the things a parent cannot see from the stands: the first step, the cut, the habits that hold a kid back.</p></div>
-      <div class="lp-step"><b>03</b><h3>You get the picture</h3><p>Where they stand today, what to work on first, and which program fits: in-season training around practice, or off-season building for what is next. Then you decide.</p></div>
+      <div class="lp-step"><b>01</b><h3>Your athlete moves</h3><p>A warmup, then running, footwork and a few basic strength drills. The same things our athletes do every session, matched to their age.</p></div>
+      <div class="lp-step"><b>02</b><h3>The coaches watch</h3><p>High school and college coaches watch for what you cannot see from the stands: how your kid starts, how they cut, and the habits that slow them down.</p></div>
+      <div class="lp-step"><b>03</b><h3>You get the picture</h3><p>We tell you where your athlete is today, what to work on first, and which class fits. Then you decide. No pressure.</p></div>
     </div>
     <div class="lp-trust io"><span>Free, no card needed</span><span>Ages 8 to 18, every sport</span><span>Classes capped at 25</span><span>Drop in for a session first if you want</span></div>
   </div>
@@ -108,7 +111,7 @@
     <div class="head io" style="margin-bottom:26px">
       <p class="tag-line">Book it</p>
       <h2>Book the free assessment</h2>
-      <p>Six quick fields. A coach texts or calls you to set a time that works, and nothing is charged.</p>
+      <p>Six quick fields. A coach texts or calls you to set a time. Nothing to pay.</p>
     </div>
     <form class="quiz-card" id="quizForm" name="assessment" method="POST" data-netlify="true" netlify-honeypot="bot-field" action="/thank-you">
       <input type="hidden" name="form-name" value="assessment">
@@ -228,7 +231,7 @@
     <div class="head io">
       <p class="tag-line">Who is coaching</p>
       <h2>Coaches who coach on Friday nights, not just in the gym</h2>
-      <p style="color:#cbc5ba">Every session at Valor is run by the coaches themselves. Between them: college football, a high school defensive coordinator, and a Hall of Fame head coach on the 5:30am class.</p>
+      <p style="color:#cbc5ba">Every session is run by the coaches themselves: college football, a high school defensive coordinator, and a Hall of Fame head coach.</p>
     </div>
     <div class="lp-coaches io">
       <div class="lp-coach"><b>Michael Bibe</b><span>Head Coach and Co-Founder. Eastern Oregon University. Defensive Coordinator, Hanford High School.</span></div>
@@ -290,7 +293,7 @@
   <div class="cta__bg"><img src="/images/assessment-floor.jpg" alt="" aria-hidden="true" onerror="this.style.display='none'"></div>
   <div class="container io">
     <h2>Bring your athlete in</h2>
-    <p>One visit, a clear picture, and a plan. Free, in Richland.</p>
+    <p>One free visit. You leave knowing what to work on.</p>
     <a href="#book" class="btn btn--lg">Book the free assessment <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
   </div>
 </section>
