@@ -63,7 +63,7 @@
   <div class="container">
     <p class="crumbs"><a href="/">Home</a><span>/</span><a href="/assessment">Free Assessment</a><span>/</span>Your booking</p>
     <h1>Your assessment booking</h1>
-    <p>Move it to another open Saturday time, or cancel it. Either way you get an updated email.</p>
+    <p>Move it to another open Saturday time, or cancel it. Valor sees the change right away.</p>
   </div>
 </section>
 
@@ -198,7 +198,7 @@
     if (!confirm('Cancel this assessment booking?')) return;
     var btn = el('mgCancel'), err = el('mgCancelErr'); btn.disabled = true; btn.textContent = 'Canceling…';
     post({ action: 'cancel', t: token }).then(function (d) {
-      if (d.ok) { showGone('Canceled. The time is open again.', 'You will get a confirmation email. Want a new time? Book again from the assessment page, or call or text 509-987-4612.'); return; }
+      if (d.ok) { showGone('Canceled. The time is open again.', 'Want a new time? Book again from the assessment page, or call or text 509-987-4612.'); return; }
       btn.disabled = false; btn.textContent = 'Cancel this booking'; err.textContent = d.error || 'That did not go through. Call 509-987-4612.'; err.classList.add('show');
     }).catch(function () { btn.disabled = false; btn.textContent = 'Cancel this booking'; err.textContent = 'That did not go through. Call 509-987-4612.'; err.classList.add('show'); });
   });
