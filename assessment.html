@@ -31,11 +31,18 @@
 <style>
   .lp-hero .btn { margin-top: 26px; }
   .lp-hero .hero__note { display:block; margin-top: 16px; color:#cbc5ba; font-size:.95rem; }
-  .lp-steps { display:grid; grid-template-columns: repeat(3,1fr); gap: clamp(16px,2.4vw,26px); margin-top: clamp(30px,4vw,48px); }
-  .lp-step { background: var(--glass-strong); border:1px solid var(--glass-stroke); border-radius: var(--r); padding: clamp(22px,3vw,32px); box-shadow: var(--shadow-sm); }
-  .lp-step b { display:block; font-family: var(--display); color: var(--red); font-size: 1.1rem; letter-spacing:.06em; }
-  .lp-step h3 { font-size: clamp(1.4rem,2.6vw,1.8rem); color: var(--ink); margin: 10px 0 8px; }
-  .lp-step p { color: var(--muted); font-size: 1rem; line-height:1.6; }
+  .lp-visit { display:grid; grid-template-columns: 1.02fr .98fr; gap: clamp(28px,4vw,56px); align-items:start; }
+  .lp-visit .head h2 { font-size: clamp(2rem,3.6vw,3.1rem); }
+  .lp-visit .head p { font-size: 1.08rem; }
+  .lp-steps { list-style:none; margin: 26px 0 0; padding:0; display:grid; gap: 12px; }
+  .lp-step { display:grid; grid-template-columns: 40px 1fr; gap: 12px; background: var(--glass-strong); border:1px solid var(--glass-stroke); border-radius: var(--r-sm); padding: 18px 20px; box-shadow: var(--shadow-sm); }
+  .lp-step b { font-family: var(--display); color: var(--red); font-size: 1.1rem; letter-spacing:.06em; line-height:1.4; }
+  .lp-step h3 { font-size: 1.32rem; color: var(--ink); margin: 0 0 6px; }
+  .lp-step p { color: var(--muted); font-size: .98rem; line-height:1.55; }
+  .lp-formhead { margin-bottom: 16px; }
+  .lp-formhead h3 { font-size: clamp(1.7rem,2.6vw,2.2rem); color: var(--ink); }
+  .lp-formhead p { color: var(--muted); margin-top: 6px; }
+  .lp-visit__form .quiz-card { padding: clamp(22px,3vw,30px); }
   .lp-photos { display:grid; grid-template-columns: 1.2fr 1fr; gap: 14px; margin-top: clamp(28px,4vw,44px); }
   .lp-photos img { width:100%; height:100%; object-fit:cover; border-radius: var(--r); display:block; aspect-ratio: 4/3; }
   .lp-photos .tall { grid-row: span 2; aspect-ratio: 3/4; }
@@ -45,9 +52,6 @@
   .lp-coach span { display:block; color:#b6afa3; font-size:.9rem; margin-top:4px; line-height:1.5; }
   .lp-trust { display:flex; flex-wrap:wrap; gap: 10px 22px; margin-top: 22px; color: var(--muted); font-weight:600; font-size:.92rem; }
   .lp-trust span::before { content:"\2713"; color: var(--red); margin-right: 8px; font-weight:800; }
-  main { display:flex; flex-direction:column; }
-  main > * { width:100%; }
-  @media (max-width: 860px) { .lp-hero { order:-2; } #book { order:-1; } }
   .quiz-more { margin-top: 20px; border-top: 1px solid var(--line); }
   .quiz-more summary { list-style:none; cursor:pointer; padding: 18px 0 8px; font-weight:700; color: var(--ink); display:flex; justify-content:space-between; align-items:center; gap:12px; }
   .quiz-more summary::-webkit-details-marker { display:none; }
@@ -56,7 +60,8 @@
   .quiz-more[open] summary::after { content:"\2212"; }
   .quiz-more .qblock:first-of-type { border-top:0; padding-top: 10px; }
   .quiz-card .field-row + label, .quiz-card input + .field-row { margin-top: 14px; }
-  @media (max-width: 860px) { .lp-steps, .lp-coaches { grid-template-columns: 1fr; } .lp-photos { grid-template-columns: 1fr; } .lp-photos .tall { grid-row: auto; aspect-ratio: 4/3; } }
+  @media (max-width: 960px) { .lp-visit { grid-template-columns: 1fr; } .lp-visit__form { order:-1; } .lp-visit__copy { padding-top: 8px; } }
+  @media (max-width: 860px) { .lp-coaches { grid-template-columns: 1fr; } .lp-photos { grid-template-columns: 1fr; } .lp-photos .tall { grid-row: auto; aspect-ratio: 4/3; } }
 </style>
 
 </head>
@@ -90,30 +95,27 @@
   </div>
 </section>
 
-<section class="section lp-what">
-  <div class="container">
-    <div class="head io">
-      <p class="tag-line">The visit</p>
-      <h2>What you cannot fix from the bleachers</h2>
-      <p>Team practice is for the team. This visit is about your kid alone: how they move and what is getting in their way.</p>
+<section class="section" id="visit">
+  <div class="container lp-visit">
+    <div class="lp-visit__copy">
+      <div class="head io" style="margin-bottom:0">
+        <p class="tag-line">The visit</p>
+        <h2>What the free assessment is</h2>
+        <p>One visit to our building in Richland. It is free, you and your athlete come in together, and it has three parts.</p>
+      </div>
+      <ol class="lp-steps io">
+        <li class="lp-step"><b>01</b><div><h3>The walkthrough</h3><p>A coach walks you both through the building: the turf, the weight room, and how the in-season and off-season classes work around your kid's schedule.</p></div></li>
+        <li class="lp-step"><b>02</b><div><h3>The assessment</h3><p>Your athlete goes through a real session: a warmup, then running, footwork and a few basic strength drills, matched to their age. The coaches watch how they start and stop, how they hold up when it gets hard, and the habits that slow them down.</p></div></li>
+        <li class="lp-step"><b>03</b><div><h3>What you leave with</h3><p>A straight read on where your kid is today, the one or two things to work on first, and which class fits their season. You both hear it in plain words, and then you decide.</p></div></li>
+      </ol>
+      <div class="lp-trust io"><span>Free</span><span>Ages 8 to 18, every sport</span><span>Classes capped at 25</span><span>Drop in for a session first if you want</span></div>
     </div>
-    <div class="lp-steps io">
-      <div class="lp-step"><b>01</b><h3>They train</h3><p>A warmup, then running, footwork and a few basic strength drills. The same work our athletes do every session, matched to their age.</p></div>
-      <div class="lp-step"><b>02</b><h3>The coaches watch closely</h3><p>Coaches who stand on Tri-Cities sidelines on Friday nights watch for what you cannot see from the bleachers: how your kid starts and stops, and the habits that slow them down.</p></div>
-      <div class="lp-step"><b>03</b><h3>You both hear it straight</h3><p>We tell you and your athlete where they are today, what to work on first, and which class fits. Then you decide.</p></div>
-    </div>
-    <div class="lp-trust io"><span>Free</span><span>Ages 8 to 18, every sport</span><span>Classes capped at 25</span><span>Drop in for a session first if you want</span></div>
-  </div>
-</section>
-
-<section class="section" id="book" style="background:var(--paper-2)">
-  <div class="container quiz">
-    <div class="head io" style="margin-bottom:26px">
-      <p class="tag-line">Book it</p>
-      <h2>Book the free assessment</h2>
-      <p>Six quick fields. A coach texts or calls you to set a time.</p>
-    </div>
-    <form class="quiz-card" id="quizForm" name="assessment" method="POST" data-netlify="true" netlify-honeypot="bot-field" action="/thank-you">
+    <div class="lp-visit__form" id="book">
+      <div class="lp-formhead io">
+        <h3>Book the free assessment</h3>
+        <p>Six quick fields. A coach texts or calls you to set a time.</p>
+      </div>
+      <form class="quiz-card" id="quizForm" name="assessment" method="POST" data-netlify="true" netlify-honeypot="bot-field" action="/thank-you">
       <input type="hidden" name="form-name" value="assessment">
       <input type="hidden" name="result-level" id="leadLevel" value="">
       <!-- lead attribution (filled by cta.js so Netlify Forms captures the source) -->
@@ -205,8 +207,7 @@
       <p style="text-align:center;color:var(--muted);font-size:.86rem;margin-top:14px">Takes about a minute. We only use this to set up the visit.</p>
       <p class="quiz-err" id="quizErr">Please add a parent name, phone and email.</p>
     </form>
-
-    <!-- RESULT -->
+      <!-- RESULT -->
     <div class="quiz-card result" id="quizResult" style="margin-top:24px" aria-live="polite">
       <div id="resQuiz">
         <span class="result__badge">Your result</span>
@@ -221,8 +222,8 @@
         <a href="https://app.upperhand.io/customers/2781-valor-sports-academy/events" class="btn btn--glass btn--lg">See the class schedule</a>
       </div>
     </div>
-
-    <p style="text-align:center;color:var(--muted);font-weight:600;margin-top:24px;font-size:.9rem">Valor Sports Academy · 1973 Fowler St, Richland · <a href="tel:+15099874612" style="color:var(--red)">509-987-4612</a> · <a href="mailto:valorsportsacademywa@gmail.com" style="color:var(--red)">valorsportsacademywa@gmail.com</a></p>
+      <p style="text-align:center;color:var(--muted);font-weight:600;margin-top:24px;font-size:.9rem">Valor Sports Academy · 1973 Fowler St, Richland · <a href="tel:+15099874612" style="color:var(--red)">509-987-4612</a> · <a href="mailto:valorsportsacademywa@gmail.com" style="color:var(--red)">valorsportsacademywa@gmail.com</a></p>
+    </div>
   </div>
 </section>
 
