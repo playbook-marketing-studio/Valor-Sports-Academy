@@ -279,13 +279,6 @@
           <p class="bk-alt" id="bkDoneFoot">Need to change it? <a id="bkManage" href="#">Reschedule or cancel</a>. Questions? Call or text <a href="tel:+15099874612">509-987-4612</a>.</p>
         </div>
 
-        <!-- Netlify form: Valor's booking notification (Netlify sends it; the booking function sends no email until the Valor Gmail is set up) -->
-        <form name="assessment-booking" method="POST" data-netlify="true" netlify-honeypot="bot-field" hidden aria-hidden="true" id="bkNetlify">
-          <input type="hidden" name="form-name" value="assessment-booking">
-          <input type="hidden" name="booking"><input type="hidden" name="when"><input type="hidden" name="athlete-first-name"><input type="hidden" name="athlete-age"><input type="hidden" name="primary-sport"><input type="hidden" name="result-level"><input type="hidden" name="parent-name"><input type="hidden" name="parent-phone"><input type="hidden" name="email"><input type="hidden" name="requested-day"><input type="hidden" name="requested-window"><input type="hidden" name="note"><input type="hidden" name="manage-link"><input type="hidden" name="source">
-          <p hidden><label>Leave this empty: <input name="bot-field"></label></p>
-        </form>
-
         <div id="bookFallback" hidden>
           <h3 class="bk-h">Got it. A coach will reach out.</h3>
           <p class="bk-sub">Expect a text or call from a Valor coach to set a time for the free assessment. Want it sooner? Call us now.</p>
@@ -462,6 +455,7 @@
       resQuiz.style.display = 'none';
     }
     document.getElementById('resThanks').textContent = aname ? ('Got it. Now pick a Saturday time for ' + aname + '.') : 'Got it. Now pick a Saturday time.';
+    var fb = document.querySelector('#bookFallback .bk-h'); if (fb) fb.textContent = aname ? ('Got it. A coach will reach out about ' + aname + '.') : 'Got it. A coach will reach out.';
 
     form.style.display = 'none';
     var res = document.getElementById('quizResult');
@@ -513,12 +507,20 @@
   }
   function bkLoad() {
     return fetch(BK_API + '?action=slots').then(function (r) { return r.json(); })
-      .then(function (d) { bkEmailOn = !!d.email; if (bkEmailOn) bkEl('bkStepSub').textContent += ' A confirmation with a calendar invite goes to your email.'; bkRenderSlots(d.days); })
+      .then(function (d) {
+        if (!d || !d.enabled || !d.days || !d.days.length) { bkShowFallback(); return; }
+        bkEmailOn = !!d.email;
+        if (bkEmailOn && bkEl('bkStepSub').textContent.indexOf('calendar invite') < 0) bkEl('bkStepSub').textContent += ' A confirmation with a calendar invite goes to your email.';
+        bkEl('bookStep').hidden = false; bkEl('bookDone').hidden = true; bkEl('bookFallback').hidden = true;
+        bkRenderSlots(d.days);
+      })
       .catch(function () { bkShowFallback(); });
   }
   function bkStart(contact) {
     bkContact = contact;
-    bkEl('bookStep').hidden = false; bkEl('bookDone').hidden = true; bkEl('bookFallback').hidden = true;
+    // Original behaviour first ("a coach will reach out"); the Saturday picker
+    // replaces it only when the booking function reports the switch is on.
+    bkShowFallback();
     var today = new Date(); var dayIn = bkEl('bkDay');
     dayIn.min = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
     bkLoad();
@@ -526,24 +528,6 @@
   function bkPost(payload) {
     return fetch(BK_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       .then(function (r) { return r.json().then(function (d) { d.__status = r.status; return d; }); });
-  }
-  // Valor's notification goes through Netlify Forms (their existing form-email path)
-  // so nothing has to be sent from the booking function.
-  function bkNotifyValor(b, kind) {
-    try {
-      var nf = bkEl('bkNetlify'); if (!nf) return;
-      var a = bkAttribution();
-      var vals = {
-        'booking': kind, 'when': b.when || '', 'athlete-first-name': bkContact.athlete_name || '', 'athlete-age': bkContact.athlete_age || '',
-        'primary-sport': bkContact.sport || '', 'result-level': bkContact.quiz_result || '', 'parent-name': bkContact.parent_name || '',
-        'parent-phone': bkContact.phone || '', 'email': bkContact.email || '', 'requested-day': b.requested_day || '', 'requested-window': b.requested_window || '',
-        'note': (bkEl('bkNote') && bkEl('bkNote').value) || '', 'manage-link': b.manage_url || '',
-        'source': [a.utm_source, a.utm_medium, a.utm_campaign].filter(Boolean).join(' / ') || (a.fbclid ? 'Facebook/Meta ads' : (a.gclid ? 'Google Ads' : (a.referrer || 'direct')))
-      };
-      Object.keys(vals).forEach(function (k) { var el = nf.querySelector('input[name="' + k + '"]'); if (el) el.value = vals[k]; });
-      var body = new URLSearchParams(new FormData(nf)).toString();
-      fetch('/', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body }).catch(function () {});
-    } catch (e) {}
   }
   function bkShowDone(b, mode) {
     bkEl('bookStep').hidden = true; bkEl('bookFallback').hidden = true; bkEl('bookDone').hidden = false;
@@ -573,7 +557,6 @@
       if (d.existing && d.booking) { bkShowDone(d.booking, 'existing'); return; }
       if (d.ok && d.booking) {
         try { if (window.__pbTrack) window.__pbTrack('Schedule', { content_name: 'Valor assessment' }); } catch (e) {}
-        bkNotifyValor(d.booking, 'Booked');
         bkShowDone(d.booking, 'booked'); return;
       }
       err.textContent = d.error || 'That did not go through. Try another time or call 509-987-4612.'; err.classList.add('show');
@@ -591,7 +574,7 @@
     btn.disabled = true; btn.textContent = 'Sending\u2026';
     bkPost(Object.assign({ action: 'request', requested_day: day, requested_window: win, note: note, attribution: bkAttribution() }, bkContact)).then(function (d) {
       btn.disabled = false; btn.textContent = 'Send the request';
-      if (d.ok && d.booking) { bkNotifyValor(d.booking, 'Time requested (not booked)'); bkShowDone(d.booking, 'requested'); return; }
+      if (d.ok && d.booking) { bkShowDone(d.booking, 'requested'); return; }
       err.textContent = d.error || 'That did not go through. Call 509-987-4612 and we will set it up.'; err.classList.add('show');
     }).catch(function () { btn.disabled = false; btn.textContent = 'Send the request'; err.textContent = 'That did not go through. Call 509-987-4612.'; err.classList.add('show'); });
   });
