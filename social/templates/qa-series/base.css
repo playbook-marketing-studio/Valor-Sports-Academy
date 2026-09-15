@@ -1,0 +1,17 @@
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap');
+:root{--red:#C8102E;--dark:#16140F;--cream:#ECEAE4;--pink:#FF7484;--display:'Anton',sans-serif;--body:'Hanken Grotesk',sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;height:1920px;overflow:hidden;background:transparent}
+body{font-family:var(--body);-webkit-font-smoothing:antialiased}
+.canvas{position:relative;width:1080px;height:1920px}
+.sh{text-shadow:0 3px 18px rgba(0,0,0,.55),0 1px 3px rgba(0,0,0,.5)}
+/* series tag, top-left, under the IG top UI */
+.tag{position:absolute;top:230px;left:64px;display:flex;align-items:center;gap:14px}
+.tag .bar{width:10px;height:44px;background:var(--red)}
+.tag .t{font-weight:800;font-size:28px;letter-spacing:.3em;color:#fff}
+/* lower third, bottom-left, above the IG caption zone */
+.lt{position:absolute;left:64px;bottom:560px}
+.lt .name{font-family:var(--display);font-size:78px;line-height:1;color:#fff;text-transform:uppercase;letter-spacing:.01em}
+.lt .name b{color:var(--pink);font-weight:400}
+.lt .cred{margin-top:12px;font-weight:700;font-size:30px;letter-spacing:.06em;color:var(--cream)}
+.lt .rule{width:120px;height:8px;background:var(--red);margin-bottom:18px}
