@@ -1,4 +1,4 @@
-"""Valor photo grade: kill the yellow gym cast, clean whites, cooler shadows, gentle contrast, light sharpen.
+"""Valor photo grade: brighter v2 (9/15): +0.35 stop, shadow lift, highlight rolloff; kill the yellow gym cast, clean whites, cooler shadows, gentle contrast, light sharpen.
 Usage: grade.py <in_dir_or_file>... --out <dir> [--long 2160]"""
 import sys, os, glob, subprocess, tempfile
 import numpy as np
@@ -19,7 +19,7 @@ def grade(im):
     lin = lin * gain
     # 2. gentle S-curve contrast in linear light + slight lift of blacks back
     x = np.clip(lin, 0, 1)
-    x = x ** 1.06
+    x = x * 1.27; x = x + 0.018 * (1 - np.clip(x, 0, 1)); x = np.where(x > 0.75, 0.75 + (x - 0.75) * 0.72, x); x = np.clip(x, 0, 1)
     s = x - 0.5
     x = 0.5 + s * (1 + 0.18 * (1 - 4 * s * s))
     x = np.clip(x, 0, 1)
