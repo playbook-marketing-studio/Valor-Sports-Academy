@@ -392,6 +392,23 @@
 </footer>
 
 <script>
+  /* Arriving from a "Free Assessment" link (/assessment#book): land on the form.
+     The browser's own fragment jump is unreliable here — html{scroll-behavior:smooth}
+     animates it, and the hero image above the form finishes loading mid-animation,
+     which cancels the scroll and leaves the visitor at the top of the page. Do it
+     ourselves, instantly, and again once everything has settled. */
+  if (location.hash === '#book') {
+    var landOnForm = function () {
+      var el = document.getElementById('book');
+      if (!el) return;
+      var top = el.getBoundingClientRect().top + window.pageYOffset - 92; // = scroll-padding-top
+      window.scrollTo({ top: top < 0 ? 0 : top, behavior: 'auto' });
+    };
+    landOnForm();
+    window.addEventListener('load', landOnForm);
+    setTimeout(landOnForm, 400);
+  }
+
   var header = document.getElementById('header'), burger = document.getElementById('burger');
   burger.addEventListener('click', function () { var o = header.classList.toggle('open'); burger.setAttribute('aria-expanded', o); });
   var onScroll = function () { header.classList.toggle('solid', window.scrollY > 24); };
