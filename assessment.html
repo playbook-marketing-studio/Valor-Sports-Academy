@@ -393,20 +393,31 @@
 
 <script>
   /* Arriving from a "Free Assessment" link (/assessment#book): land on the form.
-     The browser's own fragment jump is unreliable here — html{scroll-behavior:smooth}
-     animates it, and the hero image above the form finishes loading mid-animation,
-     which cancels the scroll and leaves the visitor at the top of the page. Do it
-     ourselves, instantly, and again once everything has settled. */
+     Two things fight the browser's own fragment jump: html{scroll-behavior:smooth}
+     animates it, and the artwork above the form loads late, so the form's position
+     keeps moving. A single scroll (even on the load event) gets computed while the
+     page is still short, is clamped, and the visitor is left at the top — exactly
+     what this was meant to fix. So: re-assert the position until it sticks, and
+     stop the moment the visitor takes over. */
   if (location.hash === '#book') {
-    var landOnForm = function () {
-      var el = document.getElementById('book');
-      if (!el) return;
-      var top = el.getBoundingClientRect().top + window.pageYOffset - 92; // = scroll-padding-top
-      window.scrollTo({ top: top < 0 ? 0 : top, behavior: 'auto' });
-    };
-    landOnForm();
-    window.addEventListener('load', landOnForm);
-    setTimeout(landOnForm, 400);
+    (function () {
+      var deadline = Date.now() + 4000, done = false;
+      var stop = function () { done = true; };
+      ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(function (e) {
+        window.addEventListener(e, stop, { passive: true, once: true });
+      });
+      var land = function () {
+        if (done) return;
+        var el = document.getElementById('book');
+        if (el) {
+          var want = Math.max(0, el.getBoundingClientRect().top + window.pageYOffset - 92);
+          if (Math.abs(window.pageYOffset - want) > 4) window.scrollTo({ top: want, behavior: 'auto' });
+        }
+        if (Date.now() < deadline) setTimeout(land, 100);
+      };
+      land();
+      window.addEventListener('load', land);
+    })();
   }
 
   var header = document.getElementById('header'), burger = document.getElementById('burger');
