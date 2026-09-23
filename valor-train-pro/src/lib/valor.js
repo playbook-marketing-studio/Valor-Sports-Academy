@@ -14,32 +14,34 @@ export const DEFAULT_METRICS = [
 ];
 
 export async function loadSettings() {
-  const { data } = await supabase.from('settings').select('key, value').in('key', ['enrollment', 'classes', 'assessment_metrics']);
+  const { data } = await supabase.from('settings').select('key, value').in('key', ['enrollment', 'assessment_metrics']);
   const map = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
   const e = map.enrollment || {};
   return {
-    // Payment model is a switch (pending Omar/Corey): billing 'monthly' | 'one_time'. Content is included with enrollment.
-    enrollment: { billing: e.billing === 'monthly' ? 'monthly' : 'one_time', placeholder: !!e.placeholder, programs: Array.isArray(e.programs) ? e.programs : [], drop_in: e.drop_in || null },
-    classes: Array.isArray(map.classes) ? map.classes : [], // [{ key, name }] recommended at the assessment
+    // One-time classes and class packs (Omar 9/23: no subscriptions). Content is included while one is active.
+    enrollment: { placeholder: !!e.placeholder, note: e.note || '', items: Array.isArray(e.items) ? e.items : [] },
     metrics: Array.isArray(map.assessment_metrics) ? map.assessment_metrics : DEFAULT_METRICS,
   };
 }
 
 const usd = (c) => `$${(c / 100).toFixed(c % 100 ? 2 : 0)}`;
-/** "$199/mo" or "$199 one time" for a program under the current billing; drop-in is always one time. */
-export const priceLabel = (cfg, program) => (!program ? '' : program.key === 'drop_in' || cfg?.billing !== 'monthly' ? `${usd(program.amount_cents)} one time` : `${usd(program.amount_cents)}/mo`);
-/** The program a family is offered: the coach's recommendation if it's a program, else the only one, else null (let them pick). */
-export const defaultProgram = (cfg, recommendedKey) => cfg?.programs?.find((p) => p.key === recommendedKey) || (cfg?.programs?.length === 1 ? cfg.programs[0] : null);
-/** Monthly cash / Venmo covers one month plus 3 days' grace (same as Stripe renewals). */
-export const monthFromNow = () => { const d = new Date(); d.setMonth(d.getMonth() + 1); d.setDate(d.getDate() + 3); return d.toISOString(); };
+const classesText = (n) => (n == null ? 'unlimited classes' : `${n} class${n === 1 ? '' : 'es'}`);
+/** "$199 · 8 classes" (+ " · expires after 60 days"). */
+export const priceLabel = (item) => (!item ? '' : `${usd(item.amount_cents)} · ${classesText(item.classes)}${item.expires_days ? ` · expires after ${item.expires_days} days` : ''}`);
+/** The class/pack offered by default: the coach's recommendation, else the only item, else null (let them pick). */
+export const defaultItem = (cfg, recommendedKey) => cfg?.items?.find((x) => x.key === recommendedKey) || (cfg?.items?.length === 1 ? cfg.items[0] : null);
+export const itemName = (cfg, key) => cfg?.items?.find((x) => x.key === key)?.name || '';
 
-/** A payment row that currently counts as enrollment: paid, not a drop-in, not lapsed. Mirrors athlete_enrolled() in the DB. */
-export const countsAsEnrollment = (p) => p.status === 'paid' && p.plan_key !== 'drop_in' && (!p.covers_until || new Date(p.covers_until) > new Date());
+/** A payment that currently unlocks content: paid, classes left, not expired. Mirrors athlete_enrolled() in the DB. */
+export const countsAsEnrollment = (p) => p.status === 'paid'
+  && (!p.covers_until || new Date(p.covers_until) > new Date())
+  && (p.classes_total == null || p.classes_used < p.classes_total);
+export const classesLeft = (p) => (p.classes_total == null ? null : p.classes_total - p.classes_used);
 
 /** Athlete ids that are enrolled right now. */
 export async function enrolledIds(athleteIds) {
   if (!athleteIds?.length) return new Set();
-  const { data } = await supabase.from('payments').select('athlete_id, status, plan_key, covers_until').in('athlete_id', athleteIds).eq('status', 'paid');
+  const { data } = await supabase.from('payments').select('athlete_id, status, plan_key, covers_until, classes_total, classes_used').in('athlete_id', athleteIds).eq('status', 'paid');
   return new Set((data || []).filter(countsAsEnrollment).map((r) => r.athlete_id));
 }
 

@@ -1,20 +1,17 @@
 // ════════════════════════════════════════════════════════════════════════
 // Edge Function · stripe-webhook  (Valor Train Pro)
 // Stripe → POST here. Signature verified with STRIPE_WEBHOOK_SECRET.
-// Stripe charges a program (enrollment, content included) or a drop-in. Program billing is
-// a config switch (settings.enrollment.billing): one_time, or monthly = Stripe subscription.
+// Stripe only charges one-time classes / class packs (no subscriptions, Omar 9/23).
 //   checkout.session.completed / async_payment_succeeded → payments row paid (unlocks content);
-//       monthly rows cover one month + grace (covers_until)
-//   invoice.paid (subscription_cycle)                     → new paid row for the next month
+//       covers_until = expiry when the item has expires_days
 //   checkout.session.expired / async_payment_failed      → payments row canceled
 //   charge.refunded                                       → payments row refunded (locks content)
-// A canceled or failing subscription simply stops adding months, so access lapses on its own.
 // Idempotent on re-delivery.
 // Stripe → Developers → Webhooks → https://gpotwyuttkkygvxzktep.supabase.co/functions/v1/stripe-webhook
 // Deploy: supabase functions deploy stripe-webhook --no-verify-jwt --project-ref gpotwyuttkkygvxzktep --use-api
 // ════════════════════════════════════════════════════════════════════════
 import Stripe from "npm:stripe@17.7.0";
-import { admin, bad, monthFrom } from "../_shared/common.ts";
+import { admin, bad, expiryFrom } from "../_shared/common.ts";
 
 const cryptoProvider = Stripe.createSubtleCryptoProvider();
 
@@ -48,11 +45,11 @@ Deno.serve(async (req) => {
           stripe_checkout_session_id: obj.id,
           stripe_customer_id: typeof obj.customer === "string" ? obj.customer : null,
           stripe_payment_intent_id: typeof obj.payment_intent === "string" ? obj.payment_intent : null,
-          stripe_subscription_id: typeof obj.subscription === "string" ? obj.subscription : null,
         };
         if (paid) {
-          patch.status = "paid"; patch.paid_at = new Date().toISOString();
-          if (obj.mode === "subscription") patch.covers_until = monthFrom(new Date());
+          const now = new Date();
+          patch.status = "paid"; patch.paid_at = now.toISOString();
+          patch.covers_until = expiryFrom(now, Number(obj.metadata?.expires_days) || null);
         }
         await admin.from("payments").update(patch).eq("id", paymentId).neq("status", "paid");
         break;
@@ -61,25 +58,6 @@ Deno.serve(async (req) => {
       case "checkout.session.async_payment_failed": {
         const paymentId = obj.metadata?.payment_id || obj.client_reference_id;
         if (paymentId) await admin.from("payments").update({ status: "canceled" }).eq("id", paymentId).eq("status", "pending");
-        break;
-      }
-      case "invoice.paid": {
-        if (obj.billing_reason !== "subscription_cycle") break; // month one is recorded at checkout
-        const subId = typeof obj.subscription === "string" ? obj.subscription : obj.subscription?.id;
-        if (!subId) break;
-        const note = `invoice ${obj.id}`;
-        const { data: dupe } = await admin.from("payments").select("id").eq("note", note).maybeSingle();
-        if (dupe) break;
-        const { data: first } = await admin.from("payments").select("*").eq("stripe_subscription_id", subId).order("created_at", { ascending: true }).limit(1).maybeSingle();
-        if (!first) break;
-        const periodEnd = obj.lines?.data?.[0]?.period?.end;
-        const until = periodEnd ? new Date(periodEnd * 1000 + 3 * 86400000).toISOString() : monthFrom(new Date());
-        await admin.from("payments").insert({
-          athlete_id: first.athlete_id, parent_id: first.parent_id, plan_key: first.plan_key, description: first.description,
-          amount_cents: obj.amount_paid ?? first.amount_cents, kind: "subscription", method: "card", status: "paid",
-          paid_at: new Date().toISOString(), covers_until: until, stripe_subscription_id: subId, stripe_customer_id: first.stripe_customer_id,
-          stripe_payment_intent_id: typeof obj.payment_intent === "string" ? obj.payment_intent : null, note,
-        });
         break;
       }
       case "charge.refunded": {

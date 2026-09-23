@@ -10,7 +10,7 @@ A cold lead from a Meta ad never makes an account or pays anything up front. The
 2. **The booking shows up in the app on its own.** Staff open Assessments and see each Saturday's list, plus anyone who asked for a different time. Every row has call, text, check-in and no-show buttons.
 3. **During the assessment, a coach opens the athlete.** They record the test numbers, what to work on first, the class that fits their season, and notes.
 4. **After the assessment, staff tap "Get parent login".** A QR code comes up. The parent scans it, sets a password and lands on their kid's page with the results already there. Staff can also text or email the link. It works once, for 24 hours.
-5. **The family enrolls in a program.** Workouts, nutrition and training plans are included with enrollment; there's no separate content subscription. Staff take payment on the spot:
+5. **The family buys a class or a class pack**, one time, the way they would at the front desk. There are no subscriptions of any kind (Omar 9/23). Workouts, nutrition and training plans are included while they have an active class or pack. Staff take payment on the spot:
    - **Card:** tap "show QR to scan". The parent pays on their own phone with card, Apple Pay or Google Pay.
    - **Cash, Venmo or other:** tap the matching button, and the app records who marked it paid.
 
@@ -28,18 +28,20 @@ Parents see all of it on their phone: results and program on Home, the coach's p
 
 Demo: `DEMO.md` has a 10-minute walkthrough and a seed/purge script with families at every stage.
 
-**Access rule.** An athlete whose enrollment is paid, online or marked paid by staff, unlocks the content. Until then the family sees the assessment results and an enroll-and-pay screen instead of workouts, nutrition and progress. The database enforces this too: a coach's workouts and maxes for an athlete aren't readable by the family until they're enrolled. Undoing a payment or a Stripe refund locks it again.
+**Access rule.** A paid class or pack unlocks the content until its classes are used up or it expires. It counts as paid whether it went through online or staff marked it paid. Staff tap **Log a class visit** on the athlete's page each time the kid trains, which uses one class from the oldest active pack. Until something is paid, the family sees the assessment results and an enroll-and-pay screen instead of workouts, nutrition and progress. The database enforces this too: a coach's workouts and maxes stay hidden until the athlete has an active class or pack. Used up, expired, refunded or undone locks it again.
 
 The assessment itself is always free, and nothing charges for booking one. Families can enroll on the spot with the staff QR code, cash or Venmo. They can also enroll later from their phone with **Enroll and pay**, or from a payment link staff text them.
 
-**Payment model is a switch, pending Omar and Corey (9/23).** On the **Enrollment** screen, staff set:
-- **Billing:** "Monthly" or "One time".
-  - **Monthly:** the card renews each month through Stripe. Cash or Venmo covers one month, and access stops when a month isn't paid.
-  - **One time:** a single payment enrolls them.
-- **Programs and prices:** "Use the website's monthly programs" loads $199, $99 and $299 a month in one tap.
-- **Drop-in price:** always one time, and it never unlocks content.
+**Classes and packs are config values** on the **Enrollment** screen. Each one has a name, a price, a class count (blank means unlimited) and an expiry in days (blank means never, which is the default). The current list is a **placeholder from the live programs page, labeled "confirm with Corey"**:
 
-Live today it's **One time with a single $199 placeholder enrollment**, marked as a placeholder so staff see a reminder. Switching is a settings change, not a code change.
+| Item | Price | Classes |
+|---|---|---|
+| Drop-in session | $25 | 1 |
+| In-season, 1x a week | $99 | 4 |
+| In-season, 2x a week | $199 | 8 |
+| Off-season, 3x a week | $299 | 12 |
+
+The site lists those three as monthly prices. Here they're sized as one-month packs until Corey gives the real list.
 
 
 Roles: `admin` (Corey, Michael, staff), `parent`, `athlete` (athlete logins are v1.1).
@@ -72,7 +74,7 @@ App edge functions: `ingest-booking` (site bookings in), `staff` (parent login l
 - **Assessment tests:** the five tests (10-yard sprint, 40-yard dash, pro agility, vertical, broad jump) are a placeholder list. Corey should confirm what they actually run. It's one settings row, no code change.
 - **SMS reminders:** v2, needs a texting provider and has usage costs.
 - **v1.1 (week of 9/28):** coach-to-athlete assignment and athlete logins. There is no content tier or subscription; content is included with enrollment (Omar 9/23).
-- **Waiting on Omar/Corey:** monthly or one-time billing, and the real programs and prices. Either answer is a change on the Enrollment screen. Both modes were tested 9/23: enroll unlocks, a lapsed month locks, a drop-in doesn't unlock.
+- **Waiting on Corey:** the real class and pack list and prices, plus any expiry. It's all edited on the Enrollment screen, no code change.
 - **Staff edits don't flow back to the portal.** Check-in and no-show marked in the app don't update the Playbook portal's Leads tab.
 - **Test data to delete before launch:** run `node scripts/demo-data.mjs purge`. It removes every `@valortrainpro.test` family. Then delete the admin-test@valortrainpro.test login and its `staff_allowlist` row, and Omar's own test booking (heyomarvega@gmail.com).
 - **Current members aren't in the app yet.** Kids already training at Valor need to be added one at a time with **Add athlete**, or a spreadsheet import could be built. Corey's roster decides which.
@@ -81,7 +83,7 @@ App edge functions: `ingest-booking` (site bookings in), `staff` (parent login l
 
 1. **Stripe keys** (test mode first) into the vault as `VALOR_STRIPE_SECRET_KEY` and `VALOR_STRIPE_WEBHOOK_SECRET`. The publishable key isn't needed, because checkout is hosted by Stripe. Then run:
    `supabase secrets set STRIPE_SECRET_KEY=sk_test_… STRIPE_WEBHOOK_SECRET=whsec_… --project-ref gpotwyuttkkygvxzktep`
-   Webhook URL: `https://gpotwyuttkkygvxzktep.supabase.co/functions/v1/stripe-webhook`. Events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `invoice.paid` (monthly renewals), `charge.refunded`.
+   Webhook URL: `https://gpotwyuttkkygvxzktep.supabase.co/functions/v1/stripe-webhook`. Events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded`.
 2. **Michael's Gmail app password.** It turns on site self-booking and can also power the app's emails.
 3. **The app domain** (e.g. `app.valorsportsacademywa.com`). It goes into Supabase Auth site URL and redirect list, plus the `APP_URL` secret.
 4. **Corey's staff email list**, for `staff_allowlist`. Today it holds omar@playbookmarketing.studio, coreybibe30@gmail.com and mbibe@eou.edu.

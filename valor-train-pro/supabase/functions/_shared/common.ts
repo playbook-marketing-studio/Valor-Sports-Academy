@@ -43,20 +43,16 @@ export function appOrigin(req: Request) {
   return (Deno.env.get("APP_URL") || "http://localhost:5173").replace(/\/$/, "");
 }
 
-export type Program = { key: string; name: string; amount_cents: number };
-export type EnrollmentConfig = {
-  billing: "one_time" | "monthly";   // switch pending Omar/Corey: how a program is charged
-  placeholder?: boolean;
-  programs: Program[];                // what a family enrolls in; content is included
-  drop_in?: { name: string; amount_cents: number } | null; // always one time, never unlocks content
-};
+/** A class or class pack, sold the way Valor sells at the gym. One-time only (Omar 9/23: no subscriptions). */
+export type Item = { key: string; name: string; amount_cents: number; classes: number | null; expires_days: number | null };
+export type EnrollmentConfig = { placeholder?: boolean; items: Item[] };
 export async function enrollmentConfig(): Promise<EnrollmentConfig> {
   const { data } = await admin.from("settings").select("value").eq("key", "enrollment").maybeSingle();
   const v = (data?.value || {}) as Partial<EnrollmentConfig>;
-  return { billing: v.billing === "monthly" ? "monthly" : "one_time", placeholder: !!v.placeholder, programs: Array.isArray(v.programs) ? v.programs : [], drop_in: v.drop_in ?? null };
+  return { placeholder: !!v.placeholder, items: Array.isArray(v.items) ? v.items : [] };
 }
-/** Monthly coverage: one month from `from`, plus a few days' grace so a late renewal doesn't lock a kid out. */
-export const GRACE_DAYS = 3;
-export function monthFrom(from: Date) {
-  const d = new Date(from); d.setUTCMonth(d.getUTCMonth() + 1); d.setUTCDate(d.getUTCDate() + GRACE_DAYS); return d.toISOString();
+/** Expiry for a purchase made now, or null when the item never expires. */
+export function expiryFrom(from: Date, days: number | null | undefined) {
+  if (!days || days <= 0) return null;
+  return new Date(from.getTime() + days * 86400000).toISOString();
 }

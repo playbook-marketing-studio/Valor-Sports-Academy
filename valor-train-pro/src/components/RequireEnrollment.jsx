@@ -27,7 +27,7 @@ export default function RequireEnrollment() {
       const [enrolled, settings, { data: as }, { data: past }] = await Promise.all([
         enrolledIds(ids), loadSettings(),
         ids.length ? supabase.from('assessments').select('athlete_id, recommended_plan, date').in('athlete_id', ids).order('date', { ascending: false }) : { data: [] },
-        ids.length ? supabase.from('payments').select('athlete_id').in('athlete_id', ids).eq('status', 'paid').neq('plan_key', 'drop_in') : { data: [] },
+        ids.length ? supabase.from('payments').select('athlete_id').in('athlete_id', ids).eq('status', 'paid') : { data: [] },
       ]);
       const rec = {}; (as || []).forEach((x) => { if (!(x.athlete_id in rec)) rec[x.athlete_id] = x.recommended_plan; });
       setState({ loading: false, athletes: kids, enrolled, enrollment: settings.enrollment, rec, lapsed: new Set((past || []).map((p) => p.athlete_id)) });
@@ -43,7 +43,7 @@ export default function RequireEnrollment() {
       <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Lock className="h-6 w-6" /></div>
       <div>
         <h1 className="font-display text-3xl">Unlocks with enrollment</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Workouts, nutrition and your athlete's training plan are included once they're enrolled at Valor. Pay here, or with a coach at the gym.</p>
+        <p className="mt-2 text-sm text-muted-foreground">Workouts, nutrition and your athlete's training plan are included while they have a class or class pack at Valor. Pay here, or with a coach at the gym.</p>
       </div>
       {state.athletes.length === 0 ? (
         <Card><CardContent className="p-5 text-sm">
@@ -52,8 +52,8 @@ export default function RequireEnrollment() {
         </CardContent></Card>
       ) : state.athletes.map((a) => (
         <Card key={a.id}><CardContent className="flex items-center justify-between gap-3 p-4">
-          <div><p className="font-semibold">{a.first_name} {a.last_name || ''}</p><p className="text-xs text-muted-foreground">{state.lapsed.has(a.id) ? 'Enrollment lapsed' : 'Not enrolled yet'}</p></div>
-          <EnrollButton athlete={a} cfg={state.enrollment} recommendedKey={state.rec[a.id]} label={state.lapsed.has(a.id) ? 'Renew' : `Enroll ${a.first_name}`} />
+          <div><p className="font-semibold">{a.first_name} {a.last_name || ''}</p><p className="text-xs text-muted-foreground">{state.lapsed.has(a.id) ? 'Classes used up or expired' : 'Not enrolled yet'}</p></div>
+          <EnrollButton athlete={a} cfg={state.enrollment} recommendedKey={state.rec[a.id]} label={state.lapsed.has(a.id) ? 'Buy more classes' : `Enroll ${a.first_name}`} />
         </CardContent></Card>
       ))}
     </div>

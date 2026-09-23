@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Dumbbell, Apple, TrendingUp, Flame, Target, ArrowRight } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
-import { loadSettings, DEFAULT_METRICS, countsAsEnrollment } from '@/lib/valor';
+import { loadSettings, DEFAULT_METRICS, countsAsEnrollment, classesLeft, itemName } from '@/lib/valor';
 import { supabase } from '@/api/supabaseClient';
 import EnrollButton from '@/components/EnrollButton';
 import AthleteForm from '@/components/AthleteForm';
@@ -15,7 +15,7 @@ export default function Home() {
   const [athletes, setAthletes] = useState([]);
   const [assessments, setAssessments] = useState([]);
   const [payments, setPayments] = useState([]);
-  const [settings, setSettings] = useState({ enrollment: null, classes: [], metrics: DEFAULT_METRICS });
+  const [settings, setSettings] = useState({ enrollment: null, metrics: DEFAULT_METRICS });
   const enrolledPays = payments.filter(countsAsEnrollment);
   const [editing, setEditing] = useState(null);
   const [reload, setReload] = useState(0);
@@ -111,8 +111,9 @@ export default function Home() {
           {athletes.map((a) => {
             const as = assessments.find((x) => x.athlete_id === a.id);
             const paid = enrolledPays.find((x) => x.athlete_id === a.id);
-            const lapsed = !paid && payments.some((x) => x.athlete_id === a.id && x.plan_key !== 'drop_in');
-            const cls = settings.classes.find((c) => c.key === as?.recommended_plan);
+            const lapsed = !paid && payments.some((x) => x.athlete_id === a.id);
+            const left = enrolledPays.filter((x) => x.athlete_id === a.id).reduce((n, x) => (n == null || classesLeft(x) == null ? null : n + classesLeft(x)), 0);
+            const cls = itemName(settings.enrollment, as?.recommended_plan);
             const filled = as ? settings.metrics.filter((m) => as.metrics?.[m.key]) : [];
             return (
               <Card key={a.id}>
@@ -142,11 +143,11 @@ export default function Home() {
                       {as.notes && <p className="text-muted-foreground">{as.notes}</p>}
                     </>
                   )}
-                  {cls && <p><span className="font-semibold">Class that fits their season:</span> {cls.name}</p>}
+                  {cls && <p><span className="font-semibold">Coach recommends:</span> {cls}</p>}
                   <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
-                    {paid ? <p><span className="font-semibold text-green-700">Enrolled{paid.plan_key !== 'enrollment' ? `: ${paid.description.split(' · ')[0]}` : ''}.</span>{paid.covers_until ? ` Paid through ${new Date(paid.covers_until).toLocaleDateString()}.` : ''} Workouts, nutrition and their training plan are unlocked.</p>
-                      : <p>{lapsed ? `${a.first_name}'s enrollment has lapsed. Renew` : `Enroll ${a.first_name}`} to unlock workouts, nutrition and their training plan.</p>}
-                    {!paid && <EnrollButton athlete={a} cfg={settings.enrollment} recommendedKey={as?.recommended_plan} label={lapsed ? 'Renew' : undefined} />}
+                    {paid ? <p><span className="font-semibold text-green-700">Enrolled.</span> {left == null ? 'Unlimited classes' : `${left} class${left === 1 ? '' : 'es'} left`}{paid.covers_until ? `, good through ${new Date(paid.covers_until).toLocaleDateString()}` : ''}. Workouts, nutrition and their training plan are unlocked.</p>
+                      : <p>{lapsed ? `${a.first_name}'s classes are used up or expired. Buy more` : `Enroll ${a.first_name}`} to unlock workouts, nutrition and their training plan.</p>}
+                    {!paid && <EnrollButton athlete={a} cfg={settings.enrollment} recommendedKey={as?.recommended_plan} label={lapsed ? 'Buy more classes' : undefined} />}
                   </div>
                 </CardContent>
               </Card>
