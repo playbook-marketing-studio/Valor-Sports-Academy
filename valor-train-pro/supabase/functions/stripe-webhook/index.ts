@@ -1,11 +1,10 @@
 // ════════════════════════════════════════════════════════════════════════
 // Edge Function · stripe-webhook  (Valor Train Pro)
 // Stripe → POST here. Signature verified with STRIPE_WEBHOOK_SECRET.
-//   checkout.session.completed / async_payment_succeeded → payments row paid
-//     (+ stripe customer / subscription ids for monthly plans)
+// Stripe only ever charges ENROLLMENT (one-time; content is included, no subscriptions).
+//   checkout.session.completed / async_payment_succeeded → payments row paid (unlocks content)
 //   checkout.session.expired / async_payment_failed      → payments row canceled
-//   invoice.paid (billing_reason subscription_cycle)      → a new paid row for each
-//     month after the first, so the staff screen shows renewals
+//   charge.refunded                                       → payments row refunded (locks content)
 // Idempotent on re-delivery.
 // Stripe → Developers → Webhooks → https://gpotwyuttkkygvxzktep.supabase.co/functions/v1/stripe-webhook
 // Deploy: supabase functions deploy stripe-webhook --no-verify-jwt --project-ref gpotwyuttkkygvxzktep --use-api
@@ -40,11 +39,11 @@ Deno.serve(async (req) => {
       case "checkout.session.async_payment_succeeded": {
         const paymentId = obj.metadata?.payment_id || obj.client_reference_id;
         if (!paymentId) break;
-        const paid = event.type === "checkout.session.async_payment_succeeded" || obj.payment_status === "paid" || obj.payment_status === "no_payment_required";
+        const paid = event.type === "checkout.session.async_payment_succeeded" || obj.payment_status === "paid";
         const patch: Record<string, unknown> = {
           stripe_checkout_session_id: obj.id,
           stripe_customer_id: typeof obj.customer === "string" ? obj.customer : null,
-          stripe_subscription_id: typeof obj.subscription === "string" ? obj.subscription : null,
+          stripe_payment_intent_id: typeof obj.payment_intent === "string" ? obj.payment_intent : null,
         };
         if (paid) { patch.status = "paid"; patch.paid_at = new Date().toISOString(); }
         await admin.from("payments").update(patch).eq("id", paymentId).neq("status", "paid");
@@ -56,21 +55,11 @@ Deno.serve(async (req) => {
         if (paymentId) await admin.from("payments").update({ status: "canceled" }).eq("id", paymentId).eq("status", "pending");
         break;
       }
-      case "invoice.paid": {
-        if (obj.billing_reason !== "subscription_cycle") break; // month one is recorded by checkout
-        const subId = typeof obj.subscription === "string" ? obj.subscription : obj.subscription?.id;
-        if (!subId) break;
-        const { data: first } = await admin.from("payments").select("*").eq("stripe_subscription_id", subId)
-          .order("created_at", { ascending: true }).limit(1).maybeSingle();
-        if (!first) break;
-        const note = `invoice ${obj.id}`;
-        const { data: dupe } = await admin.from("payments").select("id").eq("note", note).maybeSingle();
-        if (dupe) break;
-        await admin.from("payments").insert({
-          athlete_id: first.athlete_id, parent_id: first.parent_id, plan_key: first.plan_key, description: first.description,
-          amount_cents: obj.amount_paid ?? first.amount_cents, kind: "subscription", method: "card", status: "paid",
-          paid_at: new Date().toISOString(), stripe_subscription_id: subId, stripe_customer_id: first.stripe_customer_id, note,
-        });
+      case "charge.refunded": {
+        const pi = typeof obj.payment_intent === "string" ? obj.payment_intent : null;
+        const paymentId = obj.metadata?.payment_id;
+        if (paymentId) await admin.from("payments").update({ status: "refunded" }).eq("id", paymentId);
+        else if (pi) await admin.from("payments").update({ status: "refunded" }).eq("stripe_payment_intent_id", pi);
         break;
       }
       default:

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+import { enrolledIds } from '@/lib/valor';
 import WorkoutDayCard from '@/components/WorkoutDayCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -27,7 +28,7 @@ export default function Workouts() {
       base44.entities.Workout.list('-date', 500),
       base44.entities.OneRepMax.list('-date', 500),
       base44.entities.WorkoutLog.list('-date', 500),
-      base44.entities.Athlete.list('first_name', 20).catch(() => []),
+      base44.entities.Athlete.list('first_name', 20).then(async (ks) => { const on = await enrolledIds(ks.map((k) => k.id)); return ks.filter((k) => on.has(k.id)); }).catch(() => []),
     ]);
     setAthletes(kids);
     // a plan = anything with a week number: coach-built workouts for an athlete, or the In-Season template

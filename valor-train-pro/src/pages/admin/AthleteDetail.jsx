@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
 import { fmtSlot, money } from '@/lib/slots';
-import { athleteName, loadSettings, planLabel, smsHref, telHref } from '@/lib/valor';
+import { athleteName, loadSettings, smsHref, telHref } from '@/lib/valor';
 import { loginState } from './Athletes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AthleteForm from '@/components/AthleteForm';
@@ -32,7 +32,7 @@ function QrPanel({ value, caption }) {
 }
 
 // ── assessment results ────────────────────────────────────────────────────
-function Results({ athlete, booking, plans, metrics, onSaved }) {
+function Results({ athlete, booking, classes, metrics, onSaved }) {
   const [rec, setRec] = useState(null);
   const [form, setForm] = useState({ metrics: {}, work_on: '', recommended_plan: '', notes: '' });
   const [busy, setBusy] = useState(false);
@@ -78,7 +78,7 @@ function Results({ athlete, booking, plans, metrics, onSaved }) {
           <Label>Class that fits their season</Label>
           <Select value={form.recommended_plan} onValueChange={(v) => setForm({ ...form, recommended_plan: v })}>
             <SelectTrigger><SelectValue placeholder="Pick one" /></SelectTrigger>
-            <SelectContent>{plans.map((p) => <SelectItem key={p.key} value={p.key}>{planLabel(p)}</SelectItem>)}</SelectContent>
+            <SelectContent>{classes.map((c) => <SelectItem key={c.key} value={c.key}>{c.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="space-y-1"><Label>Coach notes</Label><Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
@@ -143,10 +143,9 @@ function ParentLogin({ athlete, onChanged }) {
   );
 }
 
-// ── payment ───────────────────────────────────────────────────────────────
-function Payment({ athlete, plans, suggested }) {
+// ── payment (enrollment: one product, content included) ───────────────
+function Payment({ athlete, enrollment }) {
   const { user } = useAuth();
-  const [plan, setPlan] = useState(suggested || '');
   const [rows, setRows] = useState([]);
   const [checkout, setCheckout] = useState(null); // {url, payment_id}
   const [busy, setBusy] = useState('');
@@ -159,17 +158,18 @@ function Payment({ athlete, plans, suggested }) {
     return data || [];
   }, [athlete.id]);
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { if (suggested && !plan) setPlan(suggested); }, [suggested, plan]);
   useEffect(() => () => clearInterval(poll.current), []);
 
-  const chosen = plans.find((p) => p.key === plan);
+  const enrolled = rows.some((r) => r.status === 'paid');
   const paidNow = checkout && rows.find((r) => r.id === checkout.payment_id)?.status === 'paid';
+  const price = enrollment ? money(enrollment.amount_cents) : '';
 
   const showCardQr = async () => {
     setBusy('card');
     try {
-      const r = await callFn('staff', { body: { action: 'take_payment', athlete_id: athlete.id, plan_key: plan } });
-      if (r.configured === false) toast({ title: 'Card payments are not connected yet', description: r.message });
+      const r = await callFn('staff', { body: { action: 'take_payment', athlete_id: athlete.id } });
+      if (r.already_enrolled) { toast({ title: `${athlete.first_name} is already enrolled` }); await load(); }
+      else if (r.configured === false) toast({ title: 'Card payments are not connected yet', description: r.message });
       else {
         setCheckout(r);
         clearInterval(poll.current);
@@ -184,50 +184,56 @@ function Payment({ athlete, plans, suggested }) {
   };
 
   const record = async (method) => {
-    if (!chosen) return;
+    if (!enrollment) return;
     setBusy(method);
     const { error } = await supabase.from('payments').insert({
-      athlete_id: athlete.id, parent_id: athlete.parent_id, plan_key: chosen.key,
-      description: `${chosen.name} · ${athleteName(athlete)}`, amount_cents: chosen.amount_cents,
+      athlete_id: athlete.id, parent_id: athlete.parent_id, plan_key: 'enrollment',
+      description: `${enrollment.name} · ${athleteName(athlete)}`, amount_cents: enrollment.amount_cents,
       kind: 'one_time', method, status: 'paid', paid_at: new Date().toISOString(), recorded_by: user.id, note: note.trim() || null,
     });
     setBusy('');
     if (error) return toast({ title: 'Could not record it', description: error.message });
     setNote(''); await load();
-    toast({ title: `${METHOD_LABEL[method]} payment recorded`, description: `${money(chosen.amount_cents)} for ${chosen.name}` });
+    toast({ title: `${athlete.first_name} is enrolled`, description: `${METHOD_LABEL[method]} · ${price}. Workouts and nutrition are unlocked.` });
   };
   const voidRow = async (r) => {
+    if (!window.confirm('Undo this payment? The athlete loses access to workouts and nutrition until they are marked paid again.')) return;
     const { error } = await supabase.from('payments').update({ status: 'canceled' }).eq('id', r.id);
     if (error) toast({ title: 'Could not undo', description: error.message }); else load();
   };
 
   return (
     <Card>
-      <CardHeader className="pb-3"><CardTitle className="text-lg">3. Payment</CardTitle></CardHeader>
+      <CardHeader className="pb-3"><CardTitle className="text-lg">3. Enrollment</CardTitle></CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-1">
-          <Label>Program</Label>
-          <Select value={plan} onValueChange={setPlan}>
-            <SelectTrigger><SelectValue placeholder="Pick what they're signing up for" /></SelectTrigger>
-            <SelectContent>{plans.map((p) => <SelectItem key={p.key} value={p.key}>{planLabel(p)}</SelectItem>)}</SelectContent>
-          </Select>
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          <Button onClick={showCardQr} disabled={!chosen || !!busy} className="col-span-3 gap-2">{busy === 'card' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Smartphone className="h-4 w-4" />} Card: show QR to scan</Button>
-          <Button variant="outline" onClick={() => record('cash')} disabled={!chosen || !!busy} className="gap-2"><Banknote className="h-4 w-4" /> Paid cash</Button>
-          <Button variant="outline" onClick={() => record('venmo')} disabled={!chosen || !!busy} className="gap-2">Paid Venmo</Button>
-          <Button variant="outline" onClick={() => record('other')} disabled={!chosen || !!busy} className="gap-2">Other</Button>
-        </div>
-        <Input placeholder="Note (optional): Venmo name, check number, card on the reader" value={note} onChange={(e) => setNote(e.target.value)} />
-        {chosen?.interval && <p className="text-xs text-muted-foreground">Card: the parent's card is charged {money(chosen.amount_cents)} today and each month after. Cash / Venmo covers one month.</p>}
-
+        {!enrollment ? <p className="text-sm text-muted-foreground">Set the enrollment price on the Enrollment screen first.</p> : (
+          <>
+            <div className="flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2 text-sm">
+              <span>{enrollment.name} · <span className="font-semibold">{price}</span> one time · workouts, nutrition and training plans included</span>
+            </div>
+            {enrollment.placeholder && <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">Placeholder price. Set the real one on the Enrollment screen once Corey confirms it.</p>}
+            {enrolled ? (
+              <p className="flex items-center gap-2 text-sm font-semibold text-green-700"><CheckCircle2 className="h-5 w-5" /> Enrolled. {athlete.first_name}'s family has full access.</p>
+            ) : (
+              <>
+                <div className="grid grid-cols-3 gap-2">
+                  <Button onClick={showCardQr} disabled={!!busy} className="col-span-3 gap-2">{busy === 'card' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Smartphone className="h-4 w-4" />} Card: show QR to scan</Button>
+                  <Button variant="outline" onClick={() => record('cash')} disabled={!!busy} className="gap-2"><Banknote className="h-4 w-4" /> Paid cash</Button>
+                  <Button variant="outline" onClick={() => record('venmo')} disabled={!!busy} className="gap-2">Paid Venmo</Button>
+                  <Button variant="outline" onClick={() => record('other')} disabled={!!busy} className="gap-2">Other</Button>
+                </div>
+                <Input placeholder="Note (optional): Venmo name, check number, card on the reader" value={note} onChange={(e) => setNote(e.target.value)} />
+              </>
+            )}
+          </>
+        )}
         {rows.length > 0 && (
           <div className="divide-y divide-border rounded-lg border border-border text-sm">
             {rows.map((r) => (
               <div key={r.id} className="flex items-center justify-between gap-2 px-3 py-2">
                 <div className="min-w-0">
                   <p className="truncate">{r.description.split(' · ')[0]} · {money(r.amount_cents)}</p>
-                  <p className="text-xs text-muted-foreground">{METHOD_LABEL[r.method]}{r.kind === 'subscription' ? ' · monthly' : ''} · {r.status === 'paid' ? `paid ${new Date(r.paid_at).toLocaleDateString()}` : r.status}{r.note ? ` · ${r.note}` : ''}</p>
+                  <p className="text-xs text-muted-foreground">{METHOD_LABEL[r.method]} · {r.status === 'paid' ? `paid ${new Date(r.paid_at).toLocaleDateString()}` : r.status}{r.note ? ` · ${r.note}` : ''}</p>
                 </div>
                 {r.status === 'paid' && r.method !== 'card' && <Button size="sm" variant="ghost" onClick={() => voidRow(r)}>Undo</Button>}
               </div>
@@ -237,14 +243,14 @@ function Payment({ athlete, plans, suggested }) {
       </CardContent>
       <Dialog open={!!checkout} onOpenChange={(o) => { if (!o) { setCheckout(null); clearInterval(poll.current); } }}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>{chosen ? `${chosen.name} · ${money(chosen.amount_cents)}${chosen.interval ? '/mo' : ''}` : 'Payment'}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{enrollment ? `${enrollment.name} · ${price}` : 'Enrollment'}</DialogTitle></DialogHeader>
           {checkout && (paidNow ? (
             <div className="flex flex-col items-center gap-2 py-6 text-center"><Check className="h-10 w-10 text-green-600" /><p className="font-semibold">Paid. Welcome to Valor.</p></div>
           ) : (
             <div className="space-y-4">
               <QrPanel value={checkout.url} caption="Parent scans with their phone camera and pays with card, Apple Pay or Google Pay. This screen updates when it goes through." />
               <div className="grid grid-cols-2 gap-2">
-                {athlete.parent_phone && <Button asChild variant="outline" size="sm"><a href={smsHref(athlete.parent_phone, `Here's the link to finish ${athlete.first_name}'s Valor sign-up: ${checkout.url}`)}><MessageSquare className="h-4 w-4" /> Text link</a></Button>}
+                {athlete.parent_phone && <Button asChild variant="outline" size="sm"><a href={smsHref(athlete.parent_phone, `Here's the link to finish ${athlete.first_name}'s Valor enrollment: ${checkout.url}`)}><MessageSquare className="h-4 w-4" /> Text link</a></Button>}
                 <Button variant="outline" size="sm" onClick={() => { navigator.clipboard?.writeText(checkout.url); toast({ title: 'Payment link copied' }); }}><Copy className="h-4 w-4" /> Copy link</Button>
               </div>
             </div>
@@ -254,7 +260,6 @@ function Payment({ athlete, plans, suggested }) {
     </Card>
   );
 }
-
 
 // ── profile ───────────────────────────────────────────────────────────────
 function ProfileTab({ athlete, onEdit, onSibling }) {
@@ -413,18 +418,16 @@ export default function AthleteDetail() {
   const { id } = useParams();
   const [athlete, setAthlete] = useState(null);
   const [booking, setBooking] = useState(null);
-  const [settings, setSettings] = useState({ plans: [], metrics: [] });
-  const [suggested, setSuggested] = useState('');
+  const [settings, setSettings] = useState({ enrollment: null, classes: [], metrics: [] });
   const [form, setForm] = useState(null); // 'edit' | 'sibling'
   const navigate = useNavigate();
 
   const load = useCallback(async () => {
-    const [{ data: a }, { data: b }, { data: as }] = await Promise.all([
+    const [{ data: a }, { data: b }] = await Promise.all([
       supabase.from('athletes_admin').select('*').eq('id', id).maybeSingle(),
       supabase.from('bookings').select('*').eq('athlete_id', id).order('slot_start', { ascending: false, nullsFirst: false }).limit(1).maybeSingle(),
-      supabase.from('assessments').select('recommended_plan').eq('athlete_id', id).order('date', { ascending: false }).limit(1).maybeSingle(),
     ]);
-    setAthlete(a); setBooking(b); if (as?.recommended_plan) setSuggested(as.recommended_plan);
+    setAthlete(a); setBooking(b);
   }, [id]);
   useEffect(() => { load(); loadSettings().then(setSettings); }, [load]);
 
@@ -463,10 +466,10 @@ export default function AthleteDetail() {
         </TabsList>
         <TabsContent value="day" className="mt-5">
           <div className="grid gap-6 lg:grid-cols-2">
-            <Results athlete={athlete} booking={booking} plans={settings.plans} metrics={settings.metrics} onSaved={(r) => r.recommended_plan && setSuggested(r.recommended_plan)} />
+            <Results athlete={athlete} booking={booking} classes={settings.classes} metrics={settings.metrics} onSaved={load} />
             <div className="space-y-6">
               <ParentLogin athlete={athlete} onChanged={load} />
-              <Payment athlete={athlete} plans={settings.plans} suggested={suggested} />
+              <Payment athlete={athlete} enrollment={settings.enrollment} />
             </div>
           </div>
         </TabsContent>

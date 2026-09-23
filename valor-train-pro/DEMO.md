@@ -13,7 +13,9 @@ DEMO_PASSWORD='<pick one>' node scripts/demo-data.mjs seed
 
 Logins:
 - **Staff:** your own allowlisted email (omar@, Corey, Michael) or `admin-test@valortrainpro.test`.
-- **Demo parent:** `dana.hill@valortrainpro.test`, with the `DEMO_PASSWORD` you used.
+- **Demo parents**, both using the `DEMO_PASSWORD` you used:
+  - `dana.hill@valortrainpro.test`: enrolled, so everything is unlocked.
+  - `kim.brown@valortrainpro.test`: not enrolled, so content is locked.
 
 What the seed creates:
 
@@ -22,9 +24,9 @@ What the seed creates:
 | Liam, Sophia, Jaylen, Emma | Booked next Saturday (from the website, Meta / IG / Google) | Saturday list, check-in, ad source |
 | Noah | Booked the Saturday after | Future days |
 | Ava | Asked for a different time | Time requests, text-to-confirm |
-| Marcus (Dana Hill) | Assessed last Saturday, parent active, $199/mo on card, 2 weeks of workouts, maxes | Everything after enrollment |
-| Tyler (Marcus's brother) | Walk-in last Saturday, paid cash | Walk-ins, siblings, cash |
-| Ethan | Assessed, login sent, not paid | Follow-up case |
+| Marcus (Dana Hill) | Assessed last Saturday, parent active, enrolled by card, 2 weeks of workouts, maxes | Everything after enrollment |
+| Tyler (Marcus's brother) | Walk-in last Saturday, enrolled with cash | Walk-ins, siblings, staff marking paid |
+| Ethan (Kim Brown) | Assessed, login sent, NOT enrolled; the coach already built a workout | The lock, and the follow-up case |
 | Chloe | No-show | No-shows |
 
 ## The walkthrough
@@ -33,9 +35,10 @@ What the seed creates:
 2. **Saturday morning: check in Liam.** Tap **Check in** and his page opens.
 3. **Record the assessment.** Enter the five test numbers, what to work on first, the class that fits, and a note. Tap **Save results**.
 4. **Give the parent their login.** Tap **Get parent login** and a QR code appears. Scan it with your phone, set a password, and Liam's results are already there.
-5. **Take payment.** The program is already picked from the recommendation.
+5. **Enroll them.** It's one price, and content is included.
    - **Card:** tap **show QR to scan** and the parent pays on their phone. This needs Stripe keys; until then it says not connected.
-   - **Cash:** tap **Paid cash**, and it shows under payments with a date.
+   - **Cash:** tap **Paid cash** and they're enrolled.
+   - **Show the lock:** log in as Kim. Workouts shows "Unlocks with enrollment". Mark Ethan paid as staff, refresh Kim's screen, and his coach's workout appears.
 6. **A walk-in shows up.** On **Assessments**, tap **Walk-in**. Enter the kid and parent and tap **Add and check in**, and you're on their page. Use Dana's email to show that a sibling links to the existing parent login automatically.
 7. **After they sign up: the coach's side.** Open **Athletes**, then **Marcus**:
    - **Profile:** edit details, add a sibling, archive.

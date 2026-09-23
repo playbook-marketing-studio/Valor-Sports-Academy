@@ -43,8 +43,10 @@ export function appOrigin(req: Request) {
   return (Deno.env.get("APP_URL") || "http://localhost:5173").replace(/\/$/, "");
 }
 
-export type Plan = { key: string; name: string; amount_cents: number; interval: "month" | null };
-export async function plans(): Promise<Plan[]> {
-  const { data } = await admin.from("settings").select("value").eq("key", "plans").maybeSingle();
-  return Array.isArray(data?.value) ? data!.value as Plan[] : [];
+export type Enrollment = { name: string; amount_cents: number; placeholder?: boolean };
+/** The one product Stripe charges: enrollment (content is included). Config, not code. */
+export async function enrollment(): Promise<Enrollment | null> {
+  const { data } = await admin.from("settings").select("value").eq("key", "enrollment").maybeSingle();
+  const v = data?.value as Enrollment | undefined;
+  return v && Number.isFinite(v.amount_cents) && v.amount_cents > 0 ? v : null;
 }

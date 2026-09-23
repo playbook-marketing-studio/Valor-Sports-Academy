@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { TrendingUp, Plus, X } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+import { enrolledIds } from '@/lib/valor';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,7 +35,7 @@ export default function Progress() {
     const [data, plan, kids] = await Promise.all([
       base44.entities.OneRepMax.list('-date', 500),
       base44.entities.Workout.filter({ program: 'In-Season I' }, 'date', 100),
-      base44.entities.Athlete.list('first_name', 20).catch(() => []),
+      base44.entities.Athlete.list('first_name', 20).then(async (ks) => { const on = await enrolledIds(ks.map((k) => k.id)); return ks.filter((k) => on.has(k.id)); }).catch(() => []),
     ]);
     setAllMaxes(data);
     setAthletes(kids);

@@ -14,7 +14,7 @@ const baseNav = [
 const adminNav = [
   { to: '/admin/bookings', label: 'Assessments', icon: ClipboardList },
   { to: '/admin/athletes', label: 'Athletes', icon: Users },
-  { to: '/admin/programs', label: 'Programs & prices', icon: Tag },
+  { to: '/admin/enrollment', label: 'Enrollment', icon: Tag },
 ];
 
 export default function AppLayout() {

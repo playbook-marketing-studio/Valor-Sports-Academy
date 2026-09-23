@@ -1,5 +1,6 @@
 import React from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { CheckCircle2 } from 'lucide-react';
 import PublicLayout from './PublicLayout';
 import { VALOR_PHONE } from '@/lib/valor';
@@ -20,9 +21,10 @@ export default function Paid() {
         <CheckCircle2 className="mt-0.5 h-6 w-6 text-green-600" />
         <div className="text-sm">
           <p className="font-semibold">Payment received. Welcome to Valor.</p>
-          <p className="mt-1 text-muted-foreground">Your receipt is on its way to your email. Questions? Call or text {VALOR_PHONE}.</p>
+          <p className="mt-1 text-muted-foreground">Your receipt is on its way to your email. Workouts, nutrition and your athlete's training plan are unlocked. Questions? Call or text {VALOR_PHONE}.</p>
         </div>
       </div>
+      <Button asChild className="mt-5 w-full"><Link to="/">Go to my dashboard</Link></Button>
     </PublicLayout>
   );
 }

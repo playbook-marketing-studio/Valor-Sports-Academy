@@ -14,12 +14,21 @@ export const DEFAULT_METRICS = [
 ];
 
 export async function loadSettings() {
-  const { data } = await supabase.from('settings').select('key, value').in('key', ['plans', 'assessment_metrics']);
+  const { data } = await supabase.from('settings').select('key, value').in('key', ['enrollment', 'classes', 'assessment_metrics']);
   const map = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
-  return { plans: Array.isArray(map.plans) ? map.plans : [], metrics: Array.isArray(map.assessment_metrics) ? map.assessment_metrics : DEFAULT_METRICS };
+  return {
+    enrollment: map.enrollment || null, // { name, amount_cents, placeholder } — the ONE thing Stripe charges; content is included
+    classes: Array.isArray(map.classes) ? map.classes : [], // [{ key, name }] recommended at the assessment
+    metrics: Array.isArray(map.assessment_metrics) ? map.assessment_metrics : DEFAULT_METRICS,
+  };
 }
 
-export const planLabel = (p) => `${p.name} · $${(p.amount_cents / 100).toFixed(0)}${p.interval ? '/mo' : ''}`;
+/** Athlete ids with a paid enrollment (paid online or marked paid by staff). */
+export async function enrolledIds(athleteIds) {
+  if (!athleteIds?.length) return new Set();
+  const { data } = await supabase.from('payments').select('athlete_id').in('athlete_id', athleteIds).eq('status', 'paid');
+  return new Set((data || []).map((r) => r.athlete_id));
+}
 export const athleteName = (a) => [a?.first_name, a?.last_name].filter(Boolean).join(' ');
 export const telHref = (phone) => `tel:${String(phone || '').replace(/[^\d+]/g, '')}`;
 export const smsHref = (phone, body) => `sms:${String(phone || '').replace(/[^\d+]/g, '')}?&body=${encodeURIComponent(body)}`;

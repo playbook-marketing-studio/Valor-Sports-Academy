@@ -22,6 +22,7 @@ import AdminBookings from '@/pages/admin/Bookings';
 import AdminAthletes from '@/pages/admin/Athletes';
 import AthleteDetail from '@/pages/admin/AthleteDetail';
 import AdminPrograms from '@/pages/admin/Programs';
+import RequireEnrollment from '@/components/RequireEnrollment';
 import Welcome from '@/pages/public/Welcome';
 import Paid from '@/pages/public/Paid';
 import ExternalRedirect from '@/components/ExternalRedirect';
@@ -67,15 +68,19 @@ const AuthenticatedApp = () => {
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Home />} />
-          <Route path="/workouts" element={<Workouts />} />
-          <Route path="/nutrition" element={<Nutrition />} />
-          <Route path="/progress" element={<ProgressPage />} />
-          <Route path="/workout/:workoutId" element={<WorkoutSession />} />
+          {/* included with enrollment: unpaid families get the enroll-and-pay screen */}
+          <Route element={<RequireEnrollment />}>
+            <Route path="/workouts" element={<Workouts />} />
+            <Route path="/nutrition" element={<Nutrition />} />
+            <Route path="/progress" element={<ProgressPage />} />
+            <Route path="/workout/:workoutId" element={<WorkoutSession />} />
+          </Route>
           <Route element={<RequireRole roles={['admin']} />}>
             <Route path="/admin/bookings" element={<AdminBookings />} />
             <Route path="/admin/athletes" element={<AdminAthletes />} />
             <Route path="/admin/athletes/:id" element={<AthleteDetail />} />
-            <Route path="/admin/programs" element={<AdminPrograms />} />
+            <Route path="/admin/enrollment" element={<AdminPrograms />} />
+            <Route path="/admin/programs" element={<Navigate to="/admin/enrollment" replace />} />
           </Route>
         </Route>
       </Route>

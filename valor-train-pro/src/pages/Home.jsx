@@ -4,10 +4,9 @@ import { Dumbbell, Apple, TrendingUp, Flame, Target, ArrowRight } from 'lucide-r
 import { base44 } from '@/api/base44Client';
 import { money } from '@/lib/slots';
 import { loadSettings, DEFAULT_METRICS } from '@/lib/valor';
-import { supabase, callFn } from '@/api/supabaseClient';
+import { supabase } from '@/api/supabaseClient';
+import { startEnrollment } from '@/lib/enroll';
 import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/use-toast';
-import { VALOR_PHONE } from '@/lib/valor';
 import AthleteForm from '@/components/AthleteForm';
 import { Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,19 +17,11 @@ export default function Home() {
   const [athletes, setAthletes] = useState([]);
   const [assessments, setAssessments] = useState([]);
   const [payments, setPayments] = useState([]);
-  const [settings, setSettings] = useState({ plans: [], metrics: DEFAULT_METRICS });
+  const [settings, setSettings] = useState({ enrollment: null, classes: [], metrics: DEFAULT_METRICS });
   const [editing, setEditing] = useState(null);
   const [reload, setReload] = useState(0);
   const [paying, setPaying] = useState('');
-  const enroll = async (a, plan) => {
-    setPaying(a.id);
-    try {
-      const r = await callFn('staff', { body: { action: 'take_payment', athlete_id: a.id, plan_key: plan.key } });
-      if (r.configured === false) toast({ title: 'Online payment is not set up yet', description: `Pay at Valor, or call or text ${VALOR_PHONE}.` });
-      else window.location.href = r.url;
-    } catch (e) { toast({ title: 'Could not start payment', description: e.message }); }
-    setPaying('');
-  };
+  const enroll = async (a) => { setPaying(a.id); await startEnrollment(a); setPaying(''); };
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -123,7 +114,7 @@ export default function Home() {
           {athletes.map((a) => {
             const as = assessments.find((x) => x.athlete_id === a.id);
             const paid = payments.find((x) => x.athlete_id === a.id);
-            const plan = settings.plans.find((p) => p.key === (paid?.plan_key || as?.recommended_plan));
+            const cls = settings.classes.find((c) => c.key === as?.recommended_plan);
             const filled = as ? settings.metrics.filter((m) => as.metrics?.[m.key]) : [];
             return (
               <Card key={a.id}>
@@ -153,12 +144,12 @@ export default function Home() {
                       {as.notes && <p className="text-muted-foreground">{as.notes}</p>}
                     </>
                   )}
-                  {plan && (
-                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
-                      <p>{paid ? <><span className="font-semibold text-green-700">Enrolled:</span> {plan.name}</> : <><span className="font-semibold">Recommended:</span> {plan.name} · {money(plan.amount_cents)}{plan.interval ? '/mo' : ''}</>}</p>
-                      {!paid && <Button size="sm" onClick={() => enroll(a, plan)} disabled={paying === a.id}>{paying === a.id ? 'One moment…' : 'Enroll and pay'}</Button>}
-                    </div>
-                  )}
+                  {cls && <p><span className="font-semibold">Class that fits their season:</span> {cls.name}</p>}
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
+                    {paid ? <p><span className="font-semibold text-green-700">Enrolled.</span> Workouts, nutrition and their training plan are unlocked.</p>
+                      : <p>Enroll {a.first_name} to unlock workouts, nutrition and their training plan{settings.enrollment ? ` · ${money(settings.enrollment.amount_cents)}` : ''}.</p>}
+                    {!paid && <Button size="sm" onClick={() => enroll(a)} disabled={paying === a.id}>{paying === a.id ? 'One moment…' : 'Enroll and pay'}</Button>}
+                  </div>
                 </CardContent>
               </Card>
             );
@@ -168,6 +159,7 @@ export default function Home() {
 
       <AthleteForm open={!!editing} onOpenChange={(o) => !o && setEditing(null)} mode="parent_edit" athlete={editing} onSaved={() => setReload((n) => n + 1)} />
 
+      {user?.role !== 'admin' && athletes.length > 0 && !payments.length ? null : (<>
       {/* Quick stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>
@@ -225,6 +217,7 @@ export default function Home() {
           </Link>
         ))}
       </div>
+      </>)}
     </div>
   );
 }
