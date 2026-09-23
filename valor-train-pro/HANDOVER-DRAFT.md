@@ -56,7 +56,7 @@ Roles: `admin` (Corey, Michael, staff), `parent`, `athlete` (athlete logins are 
 | Preview | Vercel preview on Omar's account (link in the Train Pro memory note; it changes on every deploy). Real host should be Netlify next to the site. |
 | Keys | Vault `playbook/.env`: `VALOR_TRAINPRO_SUPABASE_*`, `VALOR_TRAINPRO_INGEST_KEY` |
 
-App edge functions: `ingest-booking` (site bookings in), `staff` (parent login link, card payment QR), `stripe-webhook` (marks card payments paid and records monthly renewals).
+App edge functions: `ingest-booking` (site bookings in), `staff` (parent login link, card payment QR), `stripe-webhook` (marks card payments paid, marks refunds).
 
 ## Verified 9/23
 
