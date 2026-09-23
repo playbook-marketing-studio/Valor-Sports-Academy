@@ -4,7 +4,10 @@ import { Dumbbell, Apple, TrendingUp, Flame, Target, ArrowRight } from 'lucide-r
 import { base44 } from '@/api/base44Client';
 import { money } from '@/lib/slots';
 import { loadSettings, DEFAULT_METRICS } from '@/lib/valor';
-import { supabase } from '@/api/supabaseClient';
+import { supabase, callFn } from '@/api/supabaseClient';
+import { Button } from '@/components/ui/button';
+import { toast } from '@/components/ui/use-toast';
+import { VALOR_PHONE } from '@/lib/valor';
 import AthleteForm from '@/components/AthleteForm';
 import { Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +21,16 @@ export default function Home() {
   const [settings, setSettings] = useState({ plans: [], metrics: DEFAULT_METRICS });
   const [editing, setEditing] = useState(null);
   const [reload, setReload] = useState(0);
+  const [paying, setPaying] = useState('');
+  const enroll = async (a, plan) => {
+    setPaying(a.id);
+    try {
+      const r = await callFn('staff', { body: { action: 'take_payment', athlete_id: a.id, plan_key: plan.key } });
+      if (r.configured === false) toast({ title: 'Online payment is not set up yet', description: `Pay at Valor, or call or text ${VALOR_PHONE}.` });
+      else window.location.href = r.url;
+    } catch (e) { toast({ title: 'Could not start payment', description: e.message }); }
+    setPaying('');
+  };
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -141,9 +154,10 @@ export default function Home() {
                     </>
                   )}
                   {plan && (
-                    <p className="rounded-lg border border-border px-3 py-2">
-                      {paid ? <><span className="font-semibold text-green-700">Enrolled:</span> {plan.name}</> : <><span className="font-semibold">Recommended:</span> {plan.name} · {money(plan.amount_cents)}{plan.interval ? '/mo' : ''}</>}
-                    </p>
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
+                      <p>{paid ? <><span className="font-semibold text-green-700">Enrolled:</span> {plan.name}</> : <><span className="font-semibold">Recommended:</span> {plan.name} · {money(plan.amount_cents)}{plan.interval ? '/mo' : ''}</>}</p>
+                      {!paid && <Button size="sm" onClick={() => enroll(a, plan)} disabled={paying === a.id}>{paying === a.id ? 'One moment…' : 'Enroll and pay'}</Button>}
+                    </div>
                   )}
                 </CardContent>
               </Card>

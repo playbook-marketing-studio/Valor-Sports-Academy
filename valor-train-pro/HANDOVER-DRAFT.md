@@ -28,7 +28,9 @@ Parents see all of it on their phone: results and program on Home, the coach's p
 
 Demo: `DEMO.md` has a 10-minute walkthrough and a seed/purge script with families at every stage.
 
-Programs and prices come from the site's programs page and live in the app settings.
+The assessment itself is always free. Nothing in the app charges for booking one. Payment only happens after the assessment, when a family enrolls in a program. They can enroll on the spot using the staff QR code, cash or Venmo. They can also do it later from their phone with **Enroll and pay** on their home screen, or from a payment link staff text them.
+
+Programs and prices are a settings value that staff edit on **Programs & prices**, with no code change. They start at the prices on the site's programs page. Corey is confirming the real ones.
 
 | Program | Price |
 |---|---|

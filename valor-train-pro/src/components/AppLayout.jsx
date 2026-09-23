@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Dumbbell, Apple, TrendingUp, LayoutDashboard, LogOut, Menu, X, ClipboardList, Users } from 'lucide-react';
+import { Dumbbell, Apple, TrendingUp, LayoutDashboard, LogOut, Menu, X, ClipboardList, Users, Tag } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { cn } from '@/lib/utils';
 import Brand from '@/components/Brand';
@@ -14,6 +14,7 @@ const baseNav = [
 const adminNav = [
   { to: '/admin/bookings', label: 'Assessments', icon: ClipboardList },
   { to: '/admin/athletes', label: 'Athletes', icon: Users },
+  { to: '/admin/programs', label: 'Programs & prices', icon: Tag },
 ];
 
 export default function AppLayout() {

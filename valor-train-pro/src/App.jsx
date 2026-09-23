@@ -21,6 +21,7 @@ import WorkoutSession from '@/pages/WorkoutSession';
 import AdminBookings from '@/pages/admin/Bookings';
 import AdminAthletes from '@/pages/admin/Athletes';
 import AthleteDetail from '@/pages/admin/AthleteDetail';
+import AdminPrograms from '@/pages/admin/Programs';
 import Welcome from '@/pages/public/Welcome';
 import Paid from '@/pages/public/Paid';
 import ExternalRedirect from '@/components/ExternalRedirect';
@@ -74,6 +75,7 @@ const AuthenticatedApp = () => {
             <Route path="/admin/bookings" element={<AdminBookings />} />
             <Route path="/admin/athletes" element={<AdminAthletes />} />
             <Route path="/admin/athletes/:id" element={<AthleteDetail />} />
+            <Route path="/admin/programs" element={<AdminPrograms />} />
           </Route>
         </Route>
       </Route>

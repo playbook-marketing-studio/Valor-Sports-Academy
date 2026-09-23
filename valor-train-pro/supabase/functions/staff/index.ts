@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════════
-// Edge Function · staff  (Valor Train Pro) — staff-only actions (admin JWT required)
+// Edge Function · staff  (Valor Train Pro) — staff actions, plus parent self-checkout
 //   POST {action:"invite_parent", athlete_id}
 //        → a one-tap login link for the parent (invite for a new account, magic link
 //          for an existing one). Staff show it as a QR, text it or email it. Valid 24h.
@@ -7,10 +7,12 @@
 //        → Stripe Checkout (subscription for monthly plans, one-time for drop-ins),
 //          returns {url} for the QR on the staff screen. {configured:false} until
 //          STRIPE_SECRET_KEY is set; cash / Venmo are recorded straight from the app.
+//        A PARENT may call take_payment for their own athlete (pay later from their phone);
+//        everything else is staff only.
 // Deploy: supabase functions deploy staff --no-verify-jwt --project-ref gpotwyuttkkygvxzktep --use-api
 // ════════════════════════════════════════════════════════════════════════
 import Stripe from "npm:stripe@17.7.0";
-import { admin, appOrigin, bad, cors, json, plans, requireAdmin } from "../_shared/common.ts";
+import { admin, appOrigin, bad, cors, json, plans, userFromRequest } from "../_shared/common.ts";
 
 async function inviteParent(req: Request, athleteId: string) {
   const { data: a } = await admin.from("athletes").select("*").eq("id", athleteId).maybeSingle();
@@ -45,7 +47,7 @@ async function inviteParent(req: Request, athleteId: string) {
   return json({ link, email, existing_account: !!prof, expires_hours: 24 });
 }
 
-async function takePayment(req: Request, staffId: string, athleteId: string, planKey: string) {
+async function takePayment(req: Request, staffId: string | null, athleteId: string, planKey: string) {
   const plan = (await plans()).find((p) => p.key === planKey);
   if (!plan) return bad("pick a program");
   const { data: a } = await admin.from("athletes").select("*").eq("id", athleteId).maybeSingle();
@@ -93,13 +95,23 @@ async function takePayment(req: Request, staffId: string, athleteId: string, pla
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return bad("POST only", 405);
-  const staff = await requireAdmin(req);
-  if (!staff) return bad("staff only", 403);
+  const user = await userFromRequest(req);
+  if (!user) return bad("sign in first", 401);
+  const { data: prof } = await admin.from("profiles").select("role").eq("id", user.id).maybeSingle();
+  const isStaff = prof?.role === "admin";
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return bad("invalid json"); }
   try {
-    if (body.action === "invite_parent") return await inviteParent(req, String(body.athlete_id || ""));
-    if (body.action === "take_payment") return await takePayment(req, staff.id, String(body.athlete_id || ""), String(body.plan_key || ""));
+    const athleteId = String(body.athlete_id || "");
+    if (body.action === "take_payment") {
+      if (!isStaff) {
+        const { data: a } = await admin.from("athletes").select("parent_id").eq("id", athleteId).maybeSingle();
+        if (!a || a.parent_id !== user.id) return bad("not your athlete", 403);
+      }
+      return await takePayment(req, isStaff ? user.id : null, athleteId, String(body.plan_key || ""));
+    }
+    if (!isStaff) return bad("staff only", 403);
+    if (body.action === "invite_parent") return await inviteParent(req, athleteId);
     return bad("unknown action", 404);
   } catch (e) {
     console.error(e);

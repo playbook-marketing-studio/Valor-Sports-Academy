@@ -241,7 +241,13 @@ function Payment({ athlete, plans, suggested }) {
           {checkout && (paidNow ? (
             <div className="flex flex-col items-center gap-2 py-6 text-center"><Check className="h-10 w-10 text-green-600" /><p className="font-semibold">Paid. Welcome to Valor.</p></div>
           ) : (
-            <QrPanel value={checkout.url} caption="Parent scans with their phone camera and pays with card, Apple Pay or Google Pay. This screen updates when it goes through." />
+            <div className="space-y-4">
+              <QrPanel value={checkout.url} caption="Parent scans with their phone camera and pays with card, Apple Pay or Google Pay. This screen updates when it goes through." />
+              <div className="grid grid-cols-2 gap-2">
+                {athlete.parent_phone && <Button asChild variant="outline" size="sm"><a href={smsHref(athlete.parent_phone, `Here's the link to finish ${athlete.first_name}'s Valor sign-up: ${checkout.url}`)}><MessageSquare className="h-4 w-4" /> Text link</a></Button>}
+                <Button variant="outline" size="sm" onClick={() => { navigator.clipboard?.writeText(checkout.url); toast({ title: 'Payment link copied' }); }}><Copy className="h-4 w-4" /> Copy link</Button>
+              </div>
+            </div>
           ))}
         </DialogContent>
       </Dialog>
