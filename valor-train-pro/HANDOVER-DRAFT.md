@@ -34,12 +34,6 @@ The assessment itself is always free, and nothing charges for booking one. Famil
 
 **Enrollment price** is a config value. Staff edit it on the **Enrollment** screen, along with the list of classes a coach can recommend. It's a **$199 placeholder** and shows a reminder to staff until Corey gives the real number.
 
-| Program | Price |
-|---|---|
-| In-season, 2x a week | $199/mo |
-| In-season, 1x a week | $99/mo |
-| Off-season, 3x a week | $299/mo |
-| Drop-in session | $25 |
 
 Roles: `admin` (Corey, Michael, staff), `parent`, `athlete` (athlete logins are v1.1).
 
@@ -84,4 +78,4 @@ App edge functions: `ingest-booking` (site bookings in), `staff` (parent login l
 2. **Michael's Gmail app password.** It turns on site self-booking and can also power the app's emails.
 3. **The app domain** (e.g. `app.valorsportsacademywa.com`). It goes into Supabase Auth site URL and redirect list, plus the `APP_URL` secret.
 4. **Corey's staff email list**, for `staff_allowlist`. Today it holds omar@playbookmarketing.studio, coreybibe30@gmail.com and mbibe@eou.edu.
-5. **Corey's actual assessment tests**, and whether the monthly plans carry the 3-month commitment the fall posts mention. Stripe can enforce it; today it isn't enforced.
+5. **Corey's actual assessment tests**, and the real **enrollment price**. It goes on the Enrollment screen; no code change.
