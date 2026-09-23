@@ -19,7 +19,7 @@ Roles: `admin` (Corey, Michael, staff), `parent`, `athlete` (athlete logins are 
 |---|---|---|
 | Code | `valor-sports-academy/valor-train-pro/`, branch `product/train-pro-v1` | React 18 + Vite + Tailwind + shadcn. Base44 removed. |
 | Database + auth + functions | Supabase project `valor-train-pro`, ref `gpotwyuttkkygvxzktep` (us-west-1) | Created 9/23 in Omar's org (free plan, no cost). Transfer to a Valor-owned org later. |
-| Preview | https://valor-train-7jhy6fdhi-vegan-demons-projects.vercel.app | Vercel preview, Omar's account. Not a Valor domain. Long-term host should be Netlify next to the site (`netlify.toml` is in the folder). |
+| Preview | https://valor-train-qz8wzix5h-vegan-demons-projects.vercel.app | Vercel preview, Omar's account. Not a Valor domain. Long-term host should be Netlify next to the site (`netlify.toml` is in the folder). |
 | Keys | Vault `playbook/.env`: `VALOR_TRAINPRO_SUPABASE_URL / _ANON_KEY / _SERVICE_ROLE_KEY / _DB_PASSWORD` | Front end reads `valor-train-pro/.env` (gitignored, copy of `.env.example`). |
 
 Run locally: `npm install && npm run dev` (needs `.env`). Build: `npm run build`. Deploy functions: `supabase functions deploy booking stripe-checkout stripe-webhook --no-verify-jwt --project-ref gpotwyuttkkygvxzktep --use-api`. Schema: `supabase db push --linked`.
