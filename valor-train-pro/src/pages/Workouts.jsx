@@ -71,7 +71,7 @@ export default function Workouts() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight lg:text-3xl">Workouts</h1>
+          <h1 className="font-display text-2xl tracking-tight lg:text-3xl">Workouts</h1>
           <p className="mt-1 text-sm text-muted-foreground">In-Season plan · log your live numbers</p>
         </div>
         <NewWorkoutDialog onCreated={load} />
@@ -102,7 +102,7 @@ export default function Workouts() {
           {groupedDays.map(({ day, label, workouts }) => (
             <div key={day} className="space-y-3">
               <div className="flex items-baseline gap-2">
-                <h2 className="font-display text-lg font-semibold text-primary">{label}</h2>
+                <h2 className="font-display text-lg text-primary">{label}</h2>
                 <span className="text-sm text-muted-foreground">· {day}</span>
               </div>
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -118,7 +118,7 @@ export default function Workouts() {
       {/* Custom workouts */}
       {customWorkouts.length > 0 && (
         <div className="space-y-3">
-          <h2 className="font-display text-lg font-semibold">My Workouts</h2>
+          <h2 className="font-display text-lg ">My Workouts</h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {customWorkouts.map((w) => (
               <Card key={w.id}>

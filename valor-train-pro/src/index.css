@@ -4,43 +4,45 @@
 
 @layer base {
   :root {
-    --background: 24 10% 7%;
-    --foreground: 40 30% 95%;
-    --card: 24 8% 10%;
-    --card-foreground: 40 30% 95%;
-    --popover: 24 10% 9%;
-    --popover-foreground: 40 30% 95%;
-    --primary: 38 92% 52%;
-    --primary-foreground: 24 10% 7%;
-    --secondary: 24 8% 14%;
-    --secondary-foreground: 40 30% 95%;
-    --muted: 24 8% 16%;
-    --muted-foreground: 38 10% 65%;
-    --accent: 24 10% 18%;
-    --accent-foreground: 40 30% 95%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 40 30% 95%;
-    --border: 24 8% 18%;
-    --input: 24 8% 18%;
-    --ring: 38 92% 52%;
-    --chart-1: 38 92% 52%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 200 70% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --radius: 0.75rem;
-    --font-heading: 'Inter', ui-sans-serif, system-ui, sans-serif;
-    --font-body: 'Inter', ui-sans-serif, system-ui, sans-serif;
-    --font-display: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    /* Valor Sports Academy palette, lifted from the site's styles.css */
+    --background: 45 17% 91%;          /* paper #eceae4 */
+    --foreground: 43 19% 7%;           /* ink #16140f */
+    --card: 0 0% 100%;                 /* bone */
+    --card-foreground: 43 19% 7%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 43 19% 7%;
+    --primary: 350 85% 42%;            /* red #c8102e */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 44 17% 87%;           /* paper-2 #e4e1d9 */
+    --secondary-foreground: 43 19% 7%;
+    --muted: 44 17% 87%;
+    --muted-foreground: 35 8% 31%;     /* muted #56514a */
+    --accent: 44 17% 87%;
+    --accent-foreground: 43 19% 7%;
+    --destructive: 351 88% 33%;        /* red-deep #9d0a20 */
+    --destructive-foreground: 0 0% 100%;
+    --border: 42 12% 83%;              /* line #d9d6cf */
+    --input: 42 12% 83%;
+    --ring: 350 85% 42%;
+    --chart-1: 350 85% 42%;
+    --chart-2: 43 19% 7%;
+    --chart-3: 35 8% 31%;
+    --chart-4: 351 88% 33%;
+    --chart-5: 42 12% 63%;
+    --radius: 0.875rem;                /* site --r-sm 14px */
+    --font-heading: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+    --font-body: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+    --font-display: 'Anton', 'Arial Narrow', sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    --sidebar-background: 24 10% 6%;
-    --sidebar-foreground: 40 20% 85%;
-    --sidebar-primary: 38 92% 52%;
-    --sidebar-primary-foreground: 24 10% 7%;
-    --sidebar-accent: 24 8% 14%;
-    --sidebar-accent-foreground: 40 30% 95%;
-    --sidebar-border: 24 8% 16%;
-    --sidebar-ring: 38 92% 52%;
+    /* sidebar = the site's ink hero/footer */
+    --sidebar-background: 43 19% 7%;
+    --sidebar-foreground: 45 17% 91%;
+    --sidebar-primary: 350 85% 42%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 42 17% 11%;      /* ink-2 */
+    --sidebar-accent-foreground: 45 17% 91%;
+    --sidebar-border: 35 16% 17%;      /* ink-3 */
+    --sidebar-ring: 350 85% 42%;
   }
 }
 
@@ -51,7 +53,19 @@
 
   body {
     @apply bg-background text-foreground font-body antialiased;
+    background-image:
+      radial-gradient(60vw 50vh at 82% -5%, rgba(200,16,46,.10), transparent 60%),
+      radial-gradient(40vw 40vh at 0% 100%, rgba(22,20,15,.06), transparent 60%);
+    background-attachment: fixed;
   }
+  /* Anton only ships one weight: display text is upright, uppercase, tight, like the site's h1-h3 */
+  .font-display {
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: .01em;
+    line-height: .96;
+  }
+  ::selection { background: hsl(var(--primary)); color: #fff; }
 }
 
 @layer utilities {

@@ -16,7 +16,7 @@ export default function WorkoutDayCard({ workout, latest1rm, isCompleted, onLog 
       <div className="flex items-center justify-between border-b border-border bg-muted/30 px-5 py-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">{workout.day}</p>
-          <h3 className="font-display text-xl font-bold">{focus}</h3>
+          <h3 className="font-display text-xl ">{focus}</h3>
         </div>
         <div className="flex flex-col items-end gap-1">
           <span className="flex items-center gap-1 text-xs text-muted-foreground"><Calendar className="h-3 w-3" />{workout.date}</span>

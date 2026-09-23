@@ -103,7 +103,7 @@ export default function WorkoutSession() {
 
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-primary">{workout.day}</p>
-        <h1 className="font-display text-2xl font-bold">{workout.title.replace(/^Week \d+ - /, '')}</h1>
+        <h1 className="font-display text-2xl ">{workout.title.replace(/^Week \d+ - /, '')}</h1>
         {workout.description && <p className="mt-1 text-sm text-muted-foreground">{workout.description}</p>}
       </div>
 

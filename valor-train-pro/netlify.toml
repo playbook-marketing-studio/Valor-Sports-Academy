@@ -1,0 +1,8 @@
+# Valor Train Pro (Vite SPA). Long-term host is Netlify next to the marketing site.
+[build]
+  command = "npm run build"
+  publish = "dist"
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

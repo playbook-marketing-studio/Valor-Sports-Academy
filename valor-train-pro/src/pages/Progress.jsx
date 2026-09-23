@@ -113,7 +113,7 @@ export default function Progress() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight lg:text-3xl">Progress</h1>
+          <h1 className="font-display text-2xl tracking-tight lg:text-3xl">Progress</h1>
           <p className="mt-1 text-sm text-muted-foreground">Track your 1-rep-max lifts over time</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>

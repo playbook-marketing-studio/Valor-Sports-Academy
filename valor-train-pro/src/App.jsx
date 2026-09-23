@@ -18,7 +18,12 @@ import Workouts from '@/pages/Workouts';
 import Nutrition from '@/pages/Nutrition';
 import ProgressPage from '@/pages/Progress';
 import WorkoutSession from '@/pages/WorkoutSession';
-// Add page imports here
+import Book from '@/pages/book/Book';
+import BookAccount from '@/pages/book/Account';
+import BookPay from '@/pages/book/Pay';
+import BookDone from '@/pages/book/Done';
+import AdminBookings from '@/pages/admin/Bookings';
+import RequireRole from '@/components/RequireRole';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -50,6 +55,11 @@ const AuthenticatedApp = () => {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      {/* public booking flow: form -> parent account -> payment -> done */}
+      <Route path="/book" element={<Book />} />
+      <Route path="/book/account" element={<BookAccount />} />
+      <Route path="/book/pay" element={<BookPay />} />
+      <Route path="/book/done" element={<BookDone />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Home />} />
@@ -57,6 +67,9 @@ const AuthenticatedApp = () => {
           <Route path="/nutrition" element={<Nutrition />} />
           <Route path="/progress" element={<ProgressPage />} />
           <Route path="/workout/:workoutId" element={<WorkoutSession />} />
+          <Route element={<RequireRole roles={['admin']} />}>
+            <Route path="/admin/bookings" element={<AdminBookings />} />
+          </Route>
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />
