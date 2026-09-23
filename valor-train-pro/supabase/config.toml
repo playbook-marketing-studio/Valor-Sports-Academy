@@ -414,18 +414,17 @@ enabled = true
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
 
 # ── Valor Train Pro edge functions ──────────────────────────────────────────
-# booking: public form (create/claim/get/slots). Claim + choose are gated by the
-# booking's claim_token (or the caller's Supabase JWT, verified inside).
-[functions.booking]
+# ingest-booking: the site's booking function pushes each booking here (x-ingest-key).
+[functions.ingest-booking]
 verify_jwt = false
-entrypoint = "./functions/booking/index.ts"
+entrypoint = "./functions/ingest-booking/index.ts"
 
-# stripe-checkout: creates a Stripe Checkout Session for one booking.
-[functions.stripe-checkout]
+# staff: parent login link + Stripe payment QR. Checks the staff JWT inside.
+[functions.staff]
 verify_jwt = false
-entrypoint = "./functions/stripe-checkout/index.ts"
+entrypoint = "./functions/staff/index.ts"
 
-# stripe-webhook: Stripe -> mark booking paid. Signature-verified, no JWT.
+# stripe-webhook: Stripe -> payments paid. Signature-verified, no JWT.
 [functions.stripe-webhook]
 verify_jwt = false
 entrypoint = "./functions/stripe-webhook/index.ts"

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { UserPlus, Mail, Lock, Loader2, User, Phone } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import { safeReturnTo } from "@/lib/authReturnTo";
+import { SITE_ASSESSMENT_URL } from "@/lib/valor";
 
 export default function Register() {
   const [form, setForm] = useState({ full_name: "", phone: "", email: "", password: "", confirm: "" });
@@ -50,8 +51,8 @@ export default function Register() {
           Already have an account?{" "}
           <Link to="/login" className="text-primary font-medium hover:underline">Log in</Link>
           <br />
-          Booking a first assessment?{" "}
-          <Link to="/book" className="text-primary font-medium hover:underline">Start here</Link>
+          New to Valor?{" "}
+          <a href={SITE_ASSESSMENT_URL} className="text-primary font-medium hover:underline">Book a free assessment</a>
         </>
       }
     >

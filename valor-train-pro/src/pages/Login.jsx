@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { LogIn, Mail, Lock, Loader2 } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import { safeReturnTo } from "@/lib/authReturnTo";
+import { SITE_ASSESSMENT_URL } from "@/lib/valor";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -46,8 +47,8 @@ export default function Login() {
             Create one
           </Link>
           <br />
-          New athlete?{" "}
-          <Link to="/book" className="text-primary font-medium hover:underline">Book an assessment</Link>
+          New to Valor?{" "}
+          <a href={SITE_ASSESSMENT_URL} className="text-primary font-medium hover:underline">Book a free assessment</a>
         </>
       }
     >

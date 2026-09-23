@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Dumbbell, Apple, TrendingUp, LayoutDashboard, LogOut, Menu, X, ClipboardList } from 'lucide-react';
+import { Dumbbell, Apple, TrendingUp, LayoutDashboard, LogOut, Menu, X, ClipboardList, Users } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { cn } from '@/lib/utils';
 import Brand from '@/components/Brand';
@@ -11,12 +11,15 @@ const baseNav = [
   { to: '/nutrition', label: 'Nutrition', icon: Apple },
   { to: '/progress', label: 'Progress', icon: TrendingUp },
 ];
-const adminNav = [{ to: '/admin/bookings', label: 'Assessments', icon: ClipboardList }];
+const adminNav = [
+  { to: '/admin/bookings', label: 'Assessments', icon: ClipboardList },
+  { to: '/admin/athletes', label: 'Athletes', icon: Users },
+];
 
 export default function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, logout } = useAuth();
-  const navItems = user?.role === 'admin' ? [...baseNav, ...adminNav] : baseNav;
+  const navItems = user?.role === 'admin' ? [...adminNav, ...baseNav] : baseNav;
 
   const handleLogout = async () => {
     await logout();

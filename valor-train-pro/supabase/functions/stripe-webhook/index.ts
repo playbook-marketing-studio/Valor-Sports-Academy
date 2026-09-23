@@ -1,15 +1,14 @@
 // ════════════════════════════════════════════════════════════════════════
 // Edge Function · stripe-webhook  (Valor Train Pro)
-// Stripe → POST here. Verifies the signature with STRIPE_WEBHOOK_SECRET, then:
-//   checkout.session.completed / checkout.session.async_payment_succeeded (paid)
-//     → bookings.payment_status = paid, paid_at, stripe ids
-//   checkout.session.async_payment_failed / checkout.session.expired
-//     → bookings.payment_status = unpaid (parent can retry or pay in person)
-//   charge.refunded → refunded
-// Idempotent: re-delivery of a paid event is a no-op.
-// Stripe dashboard → Developers → Webhooks → endpoint URL:
-//   https://gpotwyuttkkygvxzktep.supabase.co/functions/v1/stripe-webhook
-// Deploy: supabase functions deploy stripe-webhook --no-verify-jwt --project-ref gpotwyuttkkygvxzktep
+// Stripe → POST here. Signature verified with STRIPE_WEBHOOK_SECRET.
+//   checkout.session.completed / async_payment_succeeded → payments row paid
+//     (+ stripe customer / subscription ids for monthly plans)
+//   checkout.session.expired / async_payment_failed      → payments row canceled
+//   invoice.paid (billing_reason subscription_cycle)      → a new paid row for each
+//     month after the first, so the staff screen shows renewals
+// Idempotent on re-delivery.
+// Stripe → Developers → Webhooks → https://gpotwyuttkkygvxzktep.supabase.co/functions/v1/stripe-webhook
+// Deploy: supabase functions deploy stripe-webhook --no-verify-jwt --project-ref gpotwyuttkkygvxzktep --use-api
 // ════════════════════════════════════════════════════════════════════════
 import Stripe from "npm:stripe@17.7.0";
 import { admin, bad } from "../_shared/common.ts";
@@ -23,9 +22,8 @@ Deno.serve(async (req) => {
   const sig = req.headers.get("stripe-signature");
   if (!sig) return bad("missing signature", 400);
   const raw = await req.text();
-
   const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "sk_test_placeholder", {
-    apiVersion: "2024-12-18.acacia", httpClient: Stripe.createFetchHttpClient(),
+    apiVersion: "2025-02-24.acacia", httpClient: Stripe.createFetchHttpClient(),
   });
   let event: Stripe.Event;
   try {
@@ -35,57 +33,47 @@ Deno.serve(async (req) => {
     return bad("bad signature", 400);
   }
 
-  const obj = event.data.object as Record<string, unknown>;
-  const meta = (obj.metadata || {}) as Record<string, string>;
-  const bookingId = meta.booking_id || (obj.client_reference_id as string | undefined);
-
-  const findBooking = async () => {
-    if (bookingId) {
-      const { data } = await admin.from("bookings").select("*").eq("id", bookingId).maybeSingle();
-      if (data) return data;
-    }
-    if (typeof obj.id === "string" && event.type.startsWith("checkout.session")) {
-      const { data } = await admin.from("bookings").select("*").eq("stripe_checkout_session_id", obj.id).maybeSingle();
-      if (data) return data;
-    }
-    if (typeof obj.payment_intent === "string") {
-      const { data } = await admin.from("bookings").select("*").eq("stripe_payment_intent_id", obj.payment_intent).maybeSingle();
-      if (data) return data;
-    }
-    return null;
-  };
-
   try {
+    const obj = event.data.object as Record<string, any>;
     switch (event.type) {
       case "checkout.session.completed":
       case "checkout.session.async_payment_succeeded": {
-        const session = obj as unknown as Stripe.Checkout.Session;
-        const paidNow = event.type === "checkout.session.async_payment_succeeded" || session.payment_status === "paid";
-        const b = await findBooking();
-        if (!b) { console.warn("no booking for", event.id); break; }
+        const paymentId = obj.metadata?.payment_id || obj.client_reference_id;
+        if (!paymentId) break;
+        const paid = event.type === "checkout.session.async_payment_succeeded" || obj.payment_status === "paid" || obj.payment_status === "no_payment_required";
         const patch: Record<string, unknown> = {
-          payment_method: "online",
-          stripe_checkout_session_id: session.id,
-          stripe_payment_intent_id: typeof session.payment_intent === "string" ? session.payment_intent : b.stripe_payment_intent_id,
+          stripe_checkout_session_id: obj.id,
+          stripe_customer_id: typeof obj.customer === "string" ? obj.customer : null,
+          stripe_subscription_id: typeof obj.subscription === "string" ? obj.subscription : null,
         };
-        if (paidNow && b.payment_status !== "paid") { patch.payment_status = "paid"; patch.paid_at = new Date().toISOString(); }
-        else if (!paidNow && b.payment_status !== "paid") patch.payment_status = "pending";
-        await admin.from("bookings").update(patch).eq("id", b.id);
+        if (paid) { patch.status = "paid"; patch.paid_at = new Date().toISOString(); }
+        await admin.from("payments").update(patch).eq("id", paymentId).neq("status", "paid");
         break;
       }
-      case "checkout.session.async_payment_failed":
-      case "checkout.session.expired": {
-        const b = await findBooking();
-        if (b && b.payment_status !== "paid") await admin.from("bookings").update({ payment_status: "unpaid" }).eq("id", b.id);
+      case "checkout.session.expired":
+      case "checkout.session.async_payment_failed": {
+        const paymentId = obj.metadata?.payment_id || obj.client_reference_id;
+        if (paymentId) await admin.from("payments").update({ status: "canceled" }).eq("id", paymentId).eq("status", "pending");
         break;
       }
-      case "charge.refunded": {
-        const b = await findBooking();
-        if (b) await admin.from("bookings").update({ payment_status: "refunded" }).eq("id", b.id);
+      case "invoice.paid": {
+        if (obj.billing_reason !== "subscription_cycle") break; // month one is recorded by checkout
+        const subId = typeof obj.subscription === "string" ? obj.subscription : obj.subscription?.id;
+        if (!subId) break;
+        const { data: first } = await admin.from("payments").select("*").eq("stripe_subscription_id", subId)
+          .order("created_at", { ascending: true }).limit(1).maybeSingle();
+        if (!first) break;
+        const note = `invoice ${obj.id}`;
+        const { data: dupe } = await admin.from("payments").select("id").eq("note", note).maybeSingle();
+        if (dupe) break;
+        await admin.from("payments").insert({
+          athlete_id: first.athlete_id, parent_id: first.parent_id, plan_key: first.plan_key, description: first.description,
+          amount_cents: obj.amount_paid ?? first.amount_cents, kind: "subscription", method: "card", status: "paid",
+          paid_at: new Date().toISOString(), stripe_subscription_id: subId, stripe_customer_id: first.stripe_customer_id, note,
+        });
         break;
       }
       default:
-        // ignore everything else
     }
   } catch (e) {
     console.error("webhook handling failed", e);

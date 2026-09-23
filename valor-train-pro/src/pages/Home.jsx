@@ -2,14 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Dumbbell, Apple, TrendingUp, Flame, Target, ArrowRight } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
-import { fmtSlot, money } from '@/lib/slots';
+import { money } from '@/lib/slots';
+import { loadSettings, DEFAULT_METRICS } from '@/lib/valor';
+import { supabase } from '@/api/supabaseClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function Home() {
   const [user, setUser] = useState(null);
   const [stats, setStats] = useState({ workouts: 0, todayCalories: 0, topLift: 0 });
   const [athletes, setAthletes] = useState([]);
-  const [bookings, setBookings] = useState([]);
+  const [assessments, setAssessments] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [settings, setSettings] = useState({ plans: [], metrics: DEFAULT_METRICS });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,15 +23,22 @@ export default function Home() {
         setUser(me);
         const today = new Date().toISOString().slice(0, 10);
 
-        const [workouts, logs, maxes, kids, bks] = await Promise.all([
+        const [workouts, logs, maxes, kids] = await Promise.all([
           base44.entities.Workout.list('-date', 100),
           base44.entities.NutritionLog.filter({ date: today }, '-created_date', 100),
           base44.entities.OneRepMax.list('-date', 100),
           me.role === 'admin' ? [] : base44.entities.Athlete.list('first_name', 20).catch(() => []),
-          me.role === 'admin' ? [] : base44.entities.Booking.list('-created_date', 20).catch(() => []),
         ]);
         setAthletes(kids);
-        setBookings(bks);
+        if (me.role !== 'admin' && kids.length) {
+          const ids = kids.map((k) => k.id);
+          const [{ data: as }, { data: ps }, st] = await Promise.all([
+            supabase.from('assessments').select('*').in('athlete_id', ids).order('date', { ascending: false }),
+            supabase.from('payments').select('*').in('athlete_id', ids).eq('status', 'paid').order('paid_at', { ascending: false }),
+            loadSettings(),
+          ]);
+          setAssessments(as || []); setPayments(ps || []); setSettings(st);
+        }
 
         const todayCalories = logs.reduce((s, l) => s + (l.calories || 0), 0);
         const topLift = maxes.reduce((m, r) => Math.max(m, r.weight || 0), 0);
@@ -89,33 +100,49 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Athletes + assessment status (parents) */}
-      {(athletes.length > 0 || bookings.length > 0) && (
-        <Card>
-          <CardHeader><CardTitle className="text-lg">Your athletes</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            {athletes.map((a) => {
-              const b = bookings.find((x) => x.athlete_id === a.id) || null;
-              return (
-                <div key={a.id} className="flex flex-col gap-1 rounded-lg bg-muted/30 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <span className="font-medium">{a.first_name} {a.last_name || ''}</span>
-                    <span className="ml-2 text-xs text-muted-foreground">{[a.age && `age ${a.age}`, a.sport].filter(Boolean).join(' · ')}</span>
-                  </div>
-                  {b && (
-                    <div className="text-xs text-muted-foreground">
-                      Assessment {fmtSlot(b.slot_start)} ·{' '}
-                      {b.payment_status === 'paid' ? <span className="text-green-500">paid</span>
-                        : b.payment_method === 'in_person' ? `${money(b.amount_cents, b.currency)} due at the session`
-                        : <Link to={`/book/pay?b=${b.id}&t=${b.claim_token}`} className="text-primary hover:underline">choose how to pay</Link>}
-                    </div>
+      {/* Athletes: assessment results + program (parents) */}
+      {athletes.length > 0 && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {athletes.map((a) => {
+            const as = assessments.find((x) => x.athlete_id === a.id);
+            const paid = payments.find((x) => x.athlete_id === a.id);
+            const plan = settings.plans.find((p) => p.key === (paid?.plan_key || as?.recommended_plan));
+            const filled = as ? settings.metrics.filter((m) => as.metrics?.[m.key]) : [];
+            return (
+              <Card key={a.id}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="font-display text-2xl">{a.first_name} {a.last_name || ''}</CardTitle>
+                  <p className="text-xs text-muted-foreground">{[a.age && `Age ${a.age}`, a.sport].filter(Boolean).join(' · ')}</p>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                  {!as && <p className="text-muted-foreground">Assessment results show up here after the session.</p>}
+                  {as && (
+                    <>
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Assessment · {new Date(as.date + 'T12:00:00').toLocaleDateString()}</p>
+                      {filled.length > 0 && (
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                          {filled.map((m) => (
+                            <div key={m.key} className="rounded-lg bg-muted/60 px-3 py-2">
+                              <p className="text-[11px] text-muted-foreground">{m.label}</p>
+                              <p className="font-semibold">{as.metrics[m.key]}{m.unit ? ` ${m.unit}` : ''}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {as.work_on && <p><span className="font-semibold">Work on first:</span> {as.work_on}</p>}
+                      {as.notes && <p className="text-muted-foreground">{as.notes}</p>}
+                    </>
                   )}
-                </div>
-              );
-            })}
-            <Link to="/book" className="inline-block text-xs text-primary hover:underline">Book an assessment for another athlete</Link>
-          </CardContent>
-        </Card>
+                  {plan && (
+                    <p className="rounded-lg border border-border px-3 py-2">
+                      {paid ? <><span className="font-semibold text-green-700">Enrolled:</span> {plan.name}</> : <><span className="font-semibold">Recommended:</span> {plan.name} · {money(plan.amount_cents)}{plan.interval ? '/mo' : ''}</>}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       )}
 
       {/* Quick stats */}

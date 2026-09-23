@@ -11,8 +11,9 @@ export const AuthProvider = ({ children }) => {
   const [authChecked, setAuthChecked] = useState(false);
   const [authError, setAuthError] = useState(null);
 
-  const checkUserAuth = useCallback(async () => {
-    setIsLoadingAuth(true);
+  // silent = refresh the user without swapping the whole app for a spinner (token refresh, focus)
+  const checkUserAuth = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setIsLoadingAuth(true);
     try {
       const me = await base44.auth.me();
       setUser(me);
@@ -30,7 +31,9 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     checkUserAuth();
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') checkUserAuth();
+      // Never await Supabase calls inside this callback (it holds the auth lock and deadlocks);
+      // defer to the next tick instead.
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') setTimeout(() => checkUserAuth({ silent: true }), 0);
       if (event === 'SIGNED_OUT') { setUser(null); setIsAuthenticated(false); }
     });
     return () => sub.subscription.unsubscribe();

@@ -18,11 +18,13 @@ import Workouts from '@/pages/Workouts';
 import Nutrition from '@/pages/Nutrition';
 import ProgressPage from '@/pages/Progress';
 import WorkoutSession from '@/pages/WorkoutSession';
-import Book from '@/pages/book/Book';
-import BookAccount from '@/pages/book/Account';
-import BookPay from '@/pages/book/Pay';
-import BookDone from '@/pages/book/Done';
 import AdminBookings from '@/pages/admin/Bookings';
+import AdminAthletes from '@/pages/admin/Athletes';
+import AthleteDetail from '@/pages/admin/AthleteDetail';
+import Welcome from '@/pages/public/Welcome';
+import Paid from '@/pages/public/Paid';
+import ExternalRedirect from '@/components/ExternalRedirect';
+import { SITE_ASSESSMENT_URL } from '@/lib/valor';
 import RequireRole from '@/components/RequireRole';
 
 const AuthenticatedApp = () => {
@@ -55,11 +57,12 @@ const AuthenticatedApp = () => {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      {/* public booking flow: form -> parent account -> payment -> done */}
-      <Route path="/book" element={<Book />} />
-      <Route path="/book/account" element={<BookAccount />} />
-      <Route path="/book/pay" element={<BookPay />} />
-      <Route path="/book/done" element={<BookDone />} />
+      {/* Cold leads book the free assessment on the website, not here. */}
+      <Route path="/book/*" element={<ExternalRedirect to={SITE_ASSESSMENT_URL} />} />
+      {/* Parent lands here from the login link a coach sends after the assessment. */}
+      <Route path="/welcome" element={<Welcome />} />
+      {/* Stripe sends the parent's phone here after paying from the coach's QR code. */}
+      <Route path="/paid" element={<Paid />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Home />} />
@@ -69,6 +72,8 @@ const AuthenticatedApp = () => {
           <Route path="/workout/:workoutId" element={<WorkoutSession />} />
           <Route element={<RequireRole roles={['admin']} />}>
             <Route path="/admin/bookings" element={<AdminBookings />} />
+            <Route path="/admin/athletes" element={<AdminAthletes />} />
+            <Route path="/admin/athletes/:id" element={<AthleteDetail />} />
           </Route>
         </Route>
       </Route>

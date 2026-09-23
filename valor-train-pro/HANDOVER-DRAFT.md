@@ -1,59 +1,69 @@
-# Valor Train Pro v1 · handover draft (day 1, Wed 9/23/2026)
+# Valor Train Pro v1 · handover draft
 
-Draft for the Friday 9/25 3pm handover to Corey and Michael. Day 2 (Thu 9/24 1-3pm) updates this. Written by Playbook (Omar's Claude session).
+Draft for the Friday 9/25 3pm handover to Corey and Michael. Updated Wed 9/23 evening after Omar redirected the flow. Day 2 (Thu 9/24 1-3pm) finishes it.
 
-## What it is
+## How it works now
 
-Valor Train Pro is the athlete app: workouts, nutrition, progress and 1RM tracking (everything the Base44 v1 had), plus a booking-to-payment flow for the athlete assessment:
+A cold lead from a Meta ad never makes an account or pays anything up front. The free assessment stays free.
 
-1. Parent fills the assessment form and picks a Saturday slot (`/book`).
-2. Parent creates the account that owns the athlete (`/book/account`). Athletes under 18 never own data; the parent does.
-3. Parent pays online through Stripe Checkout, or picks "pay at the assessment" (`/book/pay`).
-4. Staff see every booking on the Assessments screen and mark in-person payments paid (`/admin/bookings`). Online payments mark themselves through the Stripe webhook.
+1. **The parent books on the website.** They fill in the assessment form, then pick a Saturday slot. This is the site's existing form and calendar, unchanged.
+2. **The booking shows up in the app on its own.** Staff open Assessments and see each Saturday's list, plus anyone who asked for a different time. Every row has call, text, check-in and no-show buttons.
+3. **During the assessment, a coach opens the athlete.** They record the test numbers, what to work on first, the class that fits their season, and notes.
+4. **After the assessment, staff tap "Get parent login".** A QR code comes up. The parent scans it, sets a password and lands on their kid's page with the results already there. Staff can also text or email the link. It works once, for 24 hours.
+5. **Staff take payment on the spot.** Pick the program, then either:
+   - **Card:** tap "show QR to scan". The parent pays on their own phone with card, Apple Pay or Google Pay. Monthly programs renew on their own.
+   - **Cash, Venmo or other:** tap the matching button, and the app records who marked it paid.
+
+Walk-ins with no booking: tap "Walk-in" on the Assessments screen. The waiver stays on paper in person.
+
+Programs and prices come from the site's programs page and live in the app settings.
+
+| Program | Price |
+|---|---|
+| In-season, 2x a week | $199/mo |
+| In-season, 1x a week | $99/mo |
+| Off-season, 3x a week | $299/mo |
+| Drop-in session | $25 |
 
 Roles: `admin` (Corey, Michael, staff), `parent`, `athlete` (athlete logins are v1.1).
 
 ## Where it runs
 
-| Piece | Where | Notes |
-|---|---|---|
-| Code | `valor-sports-academy/valor-train-pro/`, branch `product/train-pro-v1` | React 18 + Vite + Tailwind + shadcn. Base44 removed. |
-| Database + auth + functions | Supabase project `valor-train-pro`, ref `gpotwyuttkkygvxzktep` (us-west-1) | Created 9/23 in Omar's org (free plan, no cost). Transfer to a Valor-owned org later. |
-| Preview | https://valor-train-qz8wzix5h-vegan-demons-projects.vercel.app | Vercel preview, Omar's account. Not a Valor domain. Long-term host should be Netlify next to the site (`netlify.toml` is in the folder). |
-| Keys | Vault `playbook/.env`: `VALOR_TRAINPRO_SUPABASE_URL / _ANON_KEY / _SERVICE_ROLE_KEY / _DB_PASSWORD` | Front end reads `valor-train-pro/.env` (gitignored, copy of `.env.example`). |
+| Piece | Where |
+|---|---|
+| Code | `valor-sports-academy/valor-train-pro/`, branch `product/train-pro-v1` |
+| Database, logins, functions | Supabase project `valor-train-pro`, ref `gpotwyuttkkygvxzktep` (Omar's org, free plan; move to a Valor org later) |
+| Site booking to app | The site's booking function (Playbook project) copies every booking to the app's `ingest-booking` function. Switch: secrets `TRAINPRO_INGEST_URL` + `TRAINPRO_INGEST_KEY` on the Playbook project. Resync: `push_app` action. |
+| Preview | Vercel preview on Omar's account (link in the Train Pro memory note; it changes on every deploy). Real host should be Netlify next to the site. |
+| Keys | Vault `playbook/.env`: `VALOR_TRAINPRO_SUPABASE_*`, `VALOR_TRAINPRO_INGEST_KEY` |
 
-Run locally: `npm install && npm run dev` (needs `.env`). Build: `npm run build`. Deploy functions: `supabase functions deploy booking stripe-checkout stripe-webhook --no-verify-jwt --project-ref gpotwyuttkkygvxzktep --use-api`. Schema: `supabase db push --linked`.
+App edge functions: `ingest-booking` (site bookings in), `staff` (parent login link, card payment QR), `stripe-webhook` (marks card payments paid and records monthly renewals).
 
-## What works (verified in a browser 9/23)
+## Verified 9/23
 
-- Booking form with live Saturday slots (10:00 to 12:30 PT, 30 min, one athlete per slot, unique index so no double booking; "None of these work?" files a time request).
-- Parent sign-up inside the flow, booking attached to the new account, athlete row created automatically.
-- "Pay at the assessment" path end to end, confirmation page, parent dashboard shows the athlete and payment status.
-- Staff Assessments screen: search, Upcoming / Unpaid / All filters, Mark paid / Undo, status (booked, requested, attended, no show, canceled), assessment fee setting.
-- Stripe webhook handler: a signed `checkout.session.completed` marks the booking paid; a forged signature is rejected (tested against the deployed function with a placeholder secret).
-- Sign in / sign out / password reset (Supabase auth, email confirmation off so onboarding is one flow).
-- Workouts, Nutrition, Progress, 1RM screens run on Supabase with per-user row security. Admins can read everything.
-- Branding: the site's palette (paper, ink, red), Anton + Hanken Grotesk, the real emblem.
+- A site booking landed in the app with slot, quiz result and ad source. A reschedule updated it without losing the source. A time request showed under "Asked for a different time".
+- Check-in, results, parent login QR, cash payment: done end to end as staff.
+- The parent opened the login link on a phone-sized screen, set a password and saw their athlete's results and enrolled program.
+- A parent account cannot see another family, record a payment, use staff actions or make itself an admin.
+- The Stripe webhook accepts a signed event and rejects a forged one (tested day 1).
 
-## What is stubbed or waiting
+## Waiting on
 
-- **Stripe Checkout** returns "not connected yet" until `STRIPE_SECRET_KEY` is set as a Supabase secret. Code is complete; it needs keys and one real test-mode purchase. Webhook secret is a placeholder today.
-- **Assessment fee is a placeholder: $50.** Set the real number on the Assessments screen (or `settings.assessment.fee_cents`).
-- **Emails** (booking confirmation, receipt, reminder): none yet. Day 2.
-- **Site link**: the marketing site's `/assessment` result card still uses the old Playbook booking function. Day 2 wires the result card to `/book?athlete=…&parent=…&email=…` on the app (the form accepts those prefills already).
-- **Seed data**: no In-Season workout plan yet (Base44 data was never exported). Day 2 adds a starter plan.
-- **Nutrition label scanner**: disabled (it was a Base44 function on an LLM key nobody owns). Manual macro entry works.
-- **Google sign-in**: removed (no OAuth client). Email + password only.
-- **Subscription tier** (Stripe Billing + Customer Portal): v1.1, week of 9/28.
-- **Coach-to-athlete assignment, athlete logins**: v1.1. The schema already has `athletes.user_id` for it.
-- Test rows to delete before launch: parent `parent-test@valortrainpro.test`, admin `admin-test@valortrainpro.test` (also in `staff_allowlist`), booking for "Jordan Tester".
+- **Self-booking on the site is still off.** It turns on when Michael's Gmail app password is set on the Playbook project (see the booking memory note). Until then parents see "a coach will reach out", and staff can add those families as walk-ins.
+- **Card payments** show "not connected" until Stripe keys are set. Cash, Venmo and other work today.
+- **Emails from the app** (password reset, login link by email) go through Supabase's built-in sender, which only delivers to project members. Point Supabase Auth at the Valor Gmail (SMTP) once the app password exists. The QR and text options work without it.
+- **Assessment tests:** the five tests (10-yard sprint, 40-yard dash, pro agility, vertical, broad jump) are a placeholder list. Corey should confirm what they actually run. It's one settings row, no code change.
+- **SMS reminders:** v2, needs a texting provider and has usage costs.
+- **v1.1 (week of 9/28):** coach-to-athlete assignment, athlete logins, and a Stripe customer portal so parents can manage their card and cancel.
+- **Staff edits don't flow back to the portal.** Check-in and no-show marked in the app don't update the Playbook portal's Leads tab.
+- **Test data to delete before launch:** parents parent-test@, riley-demo@, sam-demo@valortrainpro.test; admin admin-test@valortrainpro.test (also in `staff_allowlist`); Omar's own test booking (heyomarvega@gmail.com).
 
 ## What Omar must supply
 
-1. **Stripe keys** (test mode first) into the vault as `VALOR_STRIPE_SECRET_KEY`, `VALOR_STRIPE_WEBHOOK_SECRET`, `VALOR_STRIPE_PUBLISHABLE_KEY`, then:
+1. **Stripe keys** (test mode first) into the vault as `VALOR_STRIPE_SECRET_KEY` and `VALOR_STRIPE_WEBHOOK_SECRET`. The publishable key isn't needed, because checkout is hosted by Stripe. Then run:
    `supabase secrets set STRIPE_SECRET_KEY=sk_test_… STRIPE_WEBHOOK_SECRET=whsec_… --project-ref gpotwyuttkkygvxzktep`
-   Webhook endpoint in Stripe: `https://gpotwyuttkkygvxzktep.supabase.co/functions/v1/stripe-webhook`, events `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded`.
-2. **Domain** for the app (roadmap suggests `app.valorsportsacademywa.com`), then set it as Supabase auth Site URL + redirect allow list and the `APP_URL` function secret.
-3. **Corey's staff list**: emails to put in `staff_allowlist` so they land as admins when they sign up. Today: omar@playbookmarketing.studio, coreybibe30@gmail.com, mbibe@eou.edu.
-4. The real assessment fee.
-5. Decision: Netlify (recommended, next to the site) or keep Vercel.
+   Webhook URL: `https://gpotwyuttkkygvxzktep.supabase.co/functions/v1/stripe-webhook`. Events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `invoice.paid`.
+2. **Michael's Gmail app password.** It turns on site self-booking and can also power the app's emails.
+3. **The app domain** (e.g. `app.valorsportsacademywa.com`). It goes into Supabase Auth site URL and redirect list, plus the `APP_URL` secret.
+4. **Corey's staff email list**, for `staff_allowlist`. Today it holds omar@playbookmarketing.studio, coreybibe30@gmail.com and mbibe@eou.edu.
+5. **Corey's actual assessment tests**, and whether the monthly plans carry the 3-month commitment the fall posts mention. Stripe can enforce it; today it isn't enforced.
