@@ -71,7 +71,15 @@ const slot = (ymd, hh, mm) => ({ slot_start: atPT(ymd, hh, mm), slot_end: atPT(y
 async function seed() {
   await purge();
   const staff = (await rest('GET', `profiles?select=id&email=eq.admin-test@valortrainpro.test`))[0];
-  const enr = (await rest('GET', 'settings?select=value&key=eq.enrollment'))[0].value; // the one product; content included
+  // enrollment config: billing 'monthly' | 'one_time', programs[], drop_in. Seed follows whatever is set.
+  const cfg = (await rest('GET', 'settings?select=value&key=eq.enrollment'))[0].value;
+  const monthly = cfg.billing === 'monthly';
+  const prog = (k) => cfg.programs.find((p) => p.key === k) || cfg.programs[0];
+  const pay = (athleteId, parentId, k, athleteName, method, paidAt, extra = {}) => {
+    const p = prog(k);
+    const covers = monthly ? new Date(new Date(paidAt).getTime() + 34 * 86400000).toISOString() : null;
+    return rest('POST', 'payments', { athlete_id: athleteId, parent_id: parentId, plan_key: p.key, description: `${p.name} · ${athleteName}`, amount_cents: p.amount_cents, kind: monthly && method === 'card' ? 'subscription' : 'one_time', method, status: 'paid', paid_at: paidAt, covers_until: covers, recorded_by: staff.id, ...extra });
+  };
 
   // 1. website bookings (same path as the live site)
   await ingest([
@@ -101,7 +109,7 @@ async function seed() {
   const dana = await authAdmin('POST', 'users', { email: 'dana.hill' + DOMAIN, password: pw, email_confirm: true, user_metadata: { full_name: 'Dana Hill', phone: '509-555-0117', role: 'parent' } });
   await rest('PATCH', `athletes?id=eq.${marcus.id}`, { parent_id: dana.id, invited_at: atPT(lastSat, 11, 5) });
   await fetch(`${URL_}/auth/v1/token?grant_type=password`, { method: 'POST', headers: { apikey: SVC, 'content-type': 'application/json' }, body: JSON.stringify({ email: 'dana.hill' + DOMAIN, password: pw }) }); // sets "last signed in"
-  await rest('POST', 'payments', { athlete_id: marcus.id, parent_id: dana.id, plan_key: 'enrollment', description: `${enr.name} · Marcus Hill`, amount_cents: enr.amount_cents, kind: 'one_time', method: 'card', status: 'paid', paid_at: atPT(lastSat, 11, 10), recorded_by: staff.id, stripe_customer_id: 'cus_demo_dana', note: 'demo' });
+  await pay(marcus.id, dana.id, 'inseason_2x', 'Marcus Hill', 'card', atPT(lastSat, 11, 10), { stripe_customer_id: 'cus_demo_dana', note: 'demo' });
   for (const [ex, w] of [['Back squat', 245], ['Bench press', 185], ['Hang clean', 165], ['Trap bar deadlift', 315]]) await rest('POST', 'one_rep_maxes', { athlete_id: marcus.id, owner_id: staff.id, exercise_name: ex, weight: w, date: lastSat });
   const wk1Mon = addDays(lastSat, 2), wk1Wed = addDays(lastSat, 4);
   const lower = [{ name: 'Back squat', sets: 4, reps: 5, intensity: 75 }, { name: 'Hang clean', sets: 4, reps: 3, intensity: 70 }, { name: 'Box jump', sets: 3, reps: 5, notes: '30 in box' }, { name: 'Nordic curl', sets: 3, reps: 6, notes: 'slow on the way down' }];
@@ -118,7 +126,7 @@ async function seed() {
   const [tyler] = await rest('POST', 'athletes', { parent_id: dana.id, first_name: 'Tyler', last_name: 'Hill', age: 12, sport: 'Football', parent_name: 'Dana Hill', parent_email: 'dana.hill' + DOMAIN, parent_phone: '509-555-0117' });
   const [tb] = await rest('POST', 'bookings', { athlete_id: tyler.id, parent_id: dana.id, origin: 'walk_in', status: 'attended', checked_in_at: atPT(lastSat, 10, 40), athlete_first_name: 'Tyler', athlete_last_name: 'Hill', athlete_age: 12, sport: 'Football', parent_name: 'Dana Hill', parent_email: 'dana.hill' + DOMAIN, parent_phone: '509-555-0117' });
   await rest('POST', 'assessments', { athlete_id: tyler.id, booking_id: tb.id, date: lastSat, coach_id: staff.id, metrics: { sprint_10yd: '2.02', sprint_40yd: '6.10', pro_agility: '5.35', vertical_in: '16', broad_jump_in: '70' }, work_on: 'Arm action when he sprints, and basic squat pattern.', recommended_plan: 'inseason_1x' });
-  await rest('POST', 'payments', { athlete_id: tyler.id, parent_id: dana.id, plan_key: 'enrollment', description: `${enr.name} · Tyler Hill`, amount_cents: enr.amount_cents, kind: 'one_time', method: 'cash', status: 'paid', paid_at: atPT(lastSat, 11, 12), recorded_by: staff.id });
+  await pay(tyler.id, dana.id, 'inseason_1x', 'Tyler Hill', 'cash', atPT(lastSat, 11, 12));
 
   // 4. Ethan: assessed, login sent, hasn't paid yet (the follow-up case)
   const ethan = await athleteByEmail('kim.brown' + DOMAIN, 'Ethan');
@@ -129,6 +137,7 @@ async function seed() {
   await rest('POST', 'workouts', { athlete_id: ethan.id, owner_id: staff.id, program: 'Valor plan', week: 1, day: 'Monday', date: addDays(lastSat, 2), title: 'Speed foundations', category: 'Speed', description: null, exercises: [{ name: 'A-skip', sets: 3, reps: 20 }, { name: 'Wall drive', sets: 3, reps: 10 }] });
   await rest('PATCH', `athletes?id=eq.${ethan.id}`, { parent_id: kim.id, invited_at: atPT(lastSat, 10, 55) });
 
+  console.log(`billing: ${cfg.billing} (${cfg.programs.length} program${cfg.programs.length === 1 ? '' : 's'})`);
   console.log(`seeded: next Saturday ${nextSat} (4 booked), ${satAfter} (1), 1 time request, last Saturday ${lastSat} (Marcus enrolled by card, Tyler walk-in enrolled with cash, Ethan assessed and NOT enrolled = locked, Chloe no-show)`);
   console.log('demo parent logins ($DEMO_PASSWORD): dana.hill@ (enrolled, unlocked) and kim.brown@ (not enrolled, locked) valortrainpro.test');
 }

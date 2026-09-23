@@ -2,11 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Dumbbell, Apple, TrendingUp, Flame, Target, ArrowRight } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
-import { money } from '@/lib/slots';
-import { loadSettings, DEFAULT_METRICS } from '@/lib/valor';
+import { loadSettings, DEFAULT_METRICS, countsAsEnrollment } from '@/lib/valor';
 import { supabase } from '@/api/supabaseClient';
-import { startEnrollment } from '@/lib/enroll';
-import { Button } from '@/components/ui/button';
+import EnrollButton from '@/components/EnrollButton';
 import AthleteForm from '@/components/AthleteForm';
 import { Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,10 +16,9 @@ export default function Home() {
   const [assessments, setAssessments] = useState([]);
   const [payments, setPayments] = useState([]);
   const [settings, setSettings] = useState({ enrollment: null, classes: [], metrics: DEFAULT_METRICS });
+  const enrolledPays = payments.filter(countsAsEnrollment);
   const [editing, setEditing] = useState(null);
   const [reload, setReload] = useState(0);
-  const [paying, setPaying] = useState('');
-  const enroll = async (a) => { setPaying(a.id); await startEnrollment(a); setPaying(''); };
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -113,7 +110,8 @@ export default function Home() {
         <div className="grid gap-4 lg:grid-cols-2">
           {athletes.map((a) => {
             const as = assessments.find((x) => x.athlete_id === a.id);
-            const paid = payments.find((x) => x.athlete_id === a.id);
+            const paid = enrolledPays.find((x) => x.athlete_id === a.id);
+            const lapsed = !paid && payments.some((x) => x.athlete_id === a.id && x.plan_key !== 'drop_in');
             const cls = settings.classes.find((c) => c.key === as?.recommended_plan);
             const filled = as ? settings.metrics.filter((m) => as.metrics?.[m.key]) : [];
             return (
@@ -146,9 +144,9 @@ export default function Home() {
                   )}
                   {cls && <p><span className="font-semibold">Class that fits their season:</span> {cls.name}</p>}
                   <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
-                    {paid ? <p><span className="font-semibold text-green-700">Enrolled.</span> Workouts, nutrition and their training plan are unlocked.</p>
-                      : <p>Enroll {a.first_name} to unlock workouts, nutrition and their training plan{settings.enrollment ? ` · ${money(settings.enrollment.amount_cents)}` : ''}.</p>}
-                    {!paid && <Button size="sm" onClick={() => enroll(a)} disabled={paying === a.id}>{paying === a.id ? 'One moment…' : 'Enroll and pay'}</Button>}
+                    {paid ? <p><span className="font-semibold text-green-700">Enrolled{paid.plan_key !== 'enrollment' ? `: ${paid.description.split(' · ')[0]}` : ''}.</span>{paid.covers_until ? ` Paid through ${new Date(paid.covers_until).toLocaleDateString()}.` : ''} Workouts, nutrition and their training plan are unlocked.</p>
+                      : <p>{lapsed ? `${a.first_name}'s enrollment has lapsed. Renew` : `Enroll ${a.first_name}`} to unlock workouts, nutrition and their training plan.</p>}
+                    {!paid && <EnrollButton athlete={a} cfg={settings.enrollment} recommendedKey={as?.recommended_plan} label={lapsed ? 'Renew' : undefined} />}
                   </div>
                 </CardContent>
               </Card>
@@ -159,7 +157,7 @@ export default function Home() {
 
       <AthleteForm open={!!editing} onOpenChange={(o) => !o && setEditing(null)} mode="parent_edit" athlete={editing} onSaved={() => setReload((n) => n + 1)} />
 
-      {user?.role !== 'admin' && athletes.length > 0 && !payments.length ? null : (<>
+      {user?.role !== 'admin' && athletes.length > 0 && !enrolledPays.length ? null : (<>
       {/* Quick stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>

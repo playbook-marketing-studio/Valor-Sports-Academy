@@ -43,10 +43,20 @@ export function appOrigin(req: Request) {
   return (Deno.env.get("APP_URL") || "http://localhost:5173").replace(/\/$/, "");
 }
 
-export type Enrollment = { name: string; amount_cents: number; placeholder?: boolean };
-/** The one product Stripe charges: enrollment (content is included). Config, not code. */
-export async function enrollment(): Promise<Enrollment | null> {
+export type Program = { key: string; name: string; amount_cents: number };
+export type EnrollmentConfig = {
+  billing: "one_time" | "monthly";   // switch pending Omar/Corey: how a program is charged
+  placeholder?: boolean;
+  programs: Program[];                // what a family enrolls in; content is included
+  drop_in?: { name: string; amount_cents: number } | null; // always one time, never unlocks content
+};
+export async function enrollmentConfig(): Promise<EnrollmentConfig> {
   const { data } = await admin.from("settings").select("value").eq("key", "enrollment").maybeSingle();
-  const v = data?.value as Enrollment | undefined;
-  return v && Number.isFinite(v.amount_cents) && v.amount_cents > 0 ? v : null;
+  const v = (data?.value || {}) as Partial<EnrollmentConfig>;
+  return { billing: v.billing === "monthly" ? "monthly" : "one_time", placeholder: !!v.placeholder, programs: Array.isArray(v.programs) ? v.programs : [], drop_in: v.drop_in ?? null };
+}
+/** Monthly coverage: one month from `from`, plus a few days' grace so a late renewal doesn't lock a kid out. */
+export const GRACE_DAYS = 3;
+export function monthFrom(from: Date) {
+  const d = new Date(from); d.setUTCMonth(d.getUTCMonth() + 1); d.setUTCDate(d.getUTCDate() + GRACE_DAYS); return d.toISOString();
 }

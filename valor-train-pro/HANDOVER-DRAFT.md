@@ -10,7 +10,7 @@ A cold lead from a Meta ad never makes an account or pays anything up front. The
 2. **The booking shows up in the app on its own.** Staff open Assessments and see each Saturday's list, plus anyone who asked for a different time. Every row has call, text, check-in and no-show buttons.
 3. **During the assessment, a coach opens the athlete.** They record the test numbers, what to work on first, the class that fits their season, and notes.
 4. **After the assessment, staff tap "Get parent login".** A QR code comes up. The parent scans it, sets a password and lands on their kid's page with the results already there. Staff can also text or email the link. It works once, for 24 hours.
-5. **The family enrolls.** Enrollment is the one thing Valor charges for, a single one-time payment. Workouts, nutrition and training plans are included with it. There is no subscription. Staff take it on the spot:
+5. **The family enrolls in a program.** Workouts, nutrition and training plans are included with enrollment; there's no separate content subscription. Staff take payment on the spot:
    - **Card:** tap "show QR to scan". The parent pays on their own phone with card, Apple Pay or Google Pay.
    - **Cash, Venmo or other:** tap the matching button, and the app records who marked it paid.
 
@@ -32,7 +32,14 @@ Demo: `DEMO.md` has a 10-minute walkthrough and a seed/purge script with familie
 
 The assessment itself is always free, and nothing charges for booking one. Families can enroll on the spot with the staff QR code, cash or Venmo. They can also enroll later from their phone with **Enroll and pay**, or from a payment link staff text them.
 
-**Enrollment price** is a config value. Staff edit it on the **Enrollment** screen, along with the list of classes a coach can recommend. It's a **$199 placeholder** and shows a reminder to staff until Corey gives the real number.
+**Payment model is a switch, pending Omar and Corey (9/23).** On the **Enrollment** screen, staff set:
+- **Billing:** "Monthly" or "One time".
+  - **Monthly:** the card renews each month through Stripe. Cash or Venmo covers one month, and access stops when a month isn't paid.
+  - **One time:** a single payment enrolls them.
+- **Programs and prices:** "Use the website's monthly programs" loads $199, $99 and $299 a month in one tap.
+- **Drop-in price:** always one time, and it never unlocks content.
+
+Live today it's **One time with a single $199 placeholder enrollment**, marked as a placeholder so staff see a reminder. Switching is a settings change, not a code change.
 
 
 Roles: `admin` (Corey, Michael, staff), `parent`, `athlete` (athlete logins are v1.1).
@@ -65,7 +72,7 @@ App edge functions: `ingest-booking` (site bookings in), `staff` (parent login l
 - **Assessment tests:** the five tests (10-yard sprint, 40-yard dash, pro agility, vertical, broad jump) are a placeholder list. Corey should confirm what they actually run. It's one settings row, no code change.
 - **SMS reminders:** v2, needs a texting provider and has usage costs.
 - **v1.1 (week of 9/28):** coach-to-athlete assignment and athlete logins. There is no content tier or subscription; content is included with enrollment (Omar 9/23).
-- **Question for Omar/Corey:** the site's programs page advertises monthly class prices ($199, $99, $299 a month). The app now charges one one-time enrollment. If monthly dues still apply, they're collected outside this app for now.
+- **Waiting on Omar/Corey:** monthly or one-time billing, and the real programs and prices. Either answer is a change on the Enrollment screen. Both modes were tested 9/23: enroll unlocks, a lapsed month locks, a drop-in doesn't unlock.
 - **Staff edits don't flow back to the portal.** Check-in and no-show marked in the app don't update the Playbook portal's Leads tab.
 - **Test data to delete before launch:** run `node scripts/demo-data.mjs purge`. It removes every `@valortrainpro.test` family. Then delete the admin-test@valortrainpro.test login and its `staff_allowlist` row, and Omar's own test booking (heyomarvega@gmail.com).
 - **Current members aren't in the app yet.** Kids already training at Valor need to be added one at a time with **Add athlete**, or a spreadsheet import could be built. Corey's roster decides which.
@@ -74,7 +81,7 @@ App edge functions: `ingest-booking` (site bookings in), `staff` (parent login l
 
 1. **Stripe keys** (test mode first) into the vault as `VALOR_STRIPE_SECRET_KEY` and `VALOR_STRIPE_WEBHOOK_SECRET`. The publishable key isn't needed, because checkout is hosted by Stripe. Then run:
    `supabase secrets set STRIPE_SECRET_KEY=sk_test_… STRIPE_WEBHOOK_SECRET=whsec_… --project-ref gpotwyuttkkygvxzktep`
-   Webhook URL: `https://gpotwyuttkkygvxzktep.supabase.co/functions/v1/stripe-webhook`. Events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded`.
+   Webhook URL: `https://gpotwyuttkkygvxzktep.supabase.co/functions/v1/stripe-webhook`. Events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `invoice.paid` (monthly renewals), `charge.refunded`.
 2. **Michael's Gmail app password.** It turns on site self-booking and can also power the app's emails.
 3. **The app domain** (e.g. `app.valorsportsacademywa.com`). It goes into Supabase Auth site URL and redirect list, plus the `APP_URL` secret.
 4. **Corey's staff email list**, for `staff_allowlist`. Today it holds omar@playbookmarketing.studio, coreybibe30@gmail.com and mbibe@eou.edu.

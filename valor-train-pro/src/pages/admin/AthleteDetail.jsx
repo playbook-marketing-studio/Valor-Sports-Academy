@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
 import { fmtSlot, money } from '@/lib/slots';
-import { athleteName, loadSettings, smsHref, telHref } from '@/lib/valor';
+import { athleteName, countsAsEnrollment, defaultProgram, loadSettings, monthFromNow, priceLabel, smsHref, telHref } from '@/lib/valor';
 import { loginState } from './Athletes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AthleteForm from '@/components/AthleteForm';
@@ -143,10 +143,11 @@ function ParentLogin({ athlete, onChanged }) {
   );
 }
 
-// ── payment (enrollment: one product, content included) ───────────────
-function Payment({ athlete, enrollment }) {
+// ── payment (program enrollment, content included; billing is a config switch) ──
+function Payment({ athlete, cfg, recommendedKey }) {
   const { user } = useAuth();
   const [rows, setRows] = useState([]);
+  const [key, setKey] = useState('');
   const [checkout, setCheckout] = useState(null); // {url, payment_id}
   const [busy, setBusy] = useState('');
   const [note, setNote] = useState('');
@@ -159,15 +160,22 @@ function Payment({ athlete, enrollment }) {
   }, [athlete.id]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => () => clearInterval(poll.current), []);
+  useEffect(() => { if (!key && cfg) setKey(defaultProgram(cfg, recommendedKey)?.key || ''); }, [cfg, recommendedKey, key]);
 
-  const enrolled = rows.some((r) => r.status === 'paid');
+  if (!cfg) return null;
+  const monthly = cfg.billing === 'monthly';
+  const options = [...cfg.programs, ...(cfg.drop_in ? [{ key: 'drop_in', ...cfg.drop_in }] : [])];
+  const chosen = options.find((p) => p.key === key);
+  const current = rows.find(countsAsEnrollment);
+  const lapsed = !current && rows.some((r) => r.status === 'paid' && r.plan_key !== 'drop_in');
+  const isDropIn = key === 'drop_in';
+  const blocked = !chosen || (!!current && !isDropIn);
   const paidNow = checkout && rows.find((r) => r.id === checkout.payment_id)?.status === 'paid';
-  const price = enrollment ? money(enrollment.amount_cents) : '';
 
   const showCardQr = async () => {
     setBusy('card');
     try {
-      const r = await callFn('staff', { body: { action: 'take_payment', athlete_id: athlete.id } });
+      const r = await callFn('staff', { body: { action: 'take_payment', athlete_id: athlete.id, plan_key: key } });
       if (r.already_enrolled) { toast({ title: `${athlete.first_name} is already enrolled` }); await load(); }
       else if (r.configured === false) toast({ title: 'Card payments are not connected yet', description: r.message });
       else {
@@ -184,37 +192,46 @@ function Payment({ athlete, enrollment }) {
   };
 
   const record = async (method) => {
-    if (!enrollment) return;
+    if (!chosen) return;
     setBusy(method);
+    const recurring = monthly && !isDropIn;
     const { error } = await supabase.from('payments').insert({
-      athlete_id: athlete.id, parent_id: athlete.parent_id, plan_key: 'enrollment',
-      description: `${enrollment.name} · ${athleteName(athlete)}`, amount_cents: enrollment.amount_cents,
+      athlete_id: athlete.id, parent_id: athlete.parent_id, plan_key: chosen.key,
+      description: `${chosen.name} · ${athleteName(athlete)}`, amount_cents: chosen.amount_cents,
       kind: 'one_time', method, status: 'paid', paid_at: new Date().toISOString(), recorded_by: user.id, note: note.trim() || null,
+      covers_until: recurring ? monthFromNow() : null,
     });
     setBusy('');
     if (error) return toast({ title: 'Could not record it', description: error.message });
     setNote(''); await load();
-    toast({ title: `${athlete.first_name} is enrolled`, description: `${METHOD_LABEL[method]} · ${price}. Workouts and nutrition are unlocked.` });
+    toast({ title: isDropIn ? 'Drop-in recorded' : `${athlete.first_name} is enrolled`, description: `${METHOD_LABEL[method]} · ${priceLabel(cfg, chosen)}${recurring ? ' · covers one month' : ''}${isDropIn ? '' : '. Workouts and nutrition are unlocked.'}` });
   };
   const voidRow = async (r) => {
-    if (!window.confirm('Undo this payment? The athlete loses access to workouts and nutrition until they are marked paid again.')) return;
+    if (!window.confirm('Undo this payment? If it was their enrollment, they lose access to workouts and nutrition until marked paid again.')) return;
     const { error } = await supabase.from('payments').update({ status: 'canceled' }).eq('id', r.id);
     if (error) toast({ title: 'Could not undo', description: error.message }); else load();
   };
 
   return (
     <Card>
-      <CardHeader className="pb-3"><CardTitle className="text-lg">3. Enrollment</CardTitle></CardHeader>
+      <CardHeader className="pb-3"><CardTitle className="text-lg">3. Enrollment</CardTitle><p className="mt-1 text-xs text-muted-foreground">Workouts, nutrition and training plans are included. Billing: {monthly ? 'monthly' : 'one time'}.</p></CardHeader>
       <CardContent className="space-y-4">
-        {!enrollment ? <p className="text-sm text-muted-foreground">Set the enrollment price on the Enrollment screen first.</p> : (
+        {cfg.placeholder && <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">Placeholder prices and billing. Set the real ones on the Enrollment screen once Corey confirms them.</p>}
+        {current && <p className="flex items-center gap-2 text-sm font-semibold text-green-700"><CheckCircle2 className="h-5 w-5" /> Enrolled{current.plan_key !== 'enrollment' ? `: ${current.description.split(' · ')[0]}` : ''}{current.covers_until ? ` · paid through ${new Date(current.covers_until).toLocaleDateString()}` : ''}</p>}
+        {lapsed && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-800">Enrollment lapsed. {athlete.first_name}'s family is locked out of workouts and nutrition until they renew.</p>}
+        {!options.length ? <p className="text-sm text-muted-foreground">Add a program on the Enrollment screen first.</p> : (
           <>
-            <div className="flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2 text-sm">
-              <span>{enrollment.name} · <span className="font-semibold">{price}</span> one time · workouts, nutrition and training plans included</span>
-            </div>
-            {enrollment.placeholder && <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">Placeholder price. Set the real one on the Enrollment screen once Corey confirms it.</p>}
-            {enrolled ? (
-              <p className="flex items-center gap-2 text-sm font-semibold text-green-700"><CheckCircle2 className="h-5 w-5" /> Enrolled. {athlete.first_name}'s family has full access.</p>
-            ) : (
+            {(options.length > 1) && (
+              <div className="space-y-1">
+                <Label>{current ? 'Something else' : 'Program'}</Label>
+                <Select value={key} onValueChange={setKey}>
+                  <SelectTrigger><SelectValue placeholder="Pick one" /></SelectTrigger>
+                  <SelectContent>{options.map((p) => <SelectItem key={p.key} value={p.key} disabled={!!current && p.key !== 'drop_in'}>{p.name} · {priceLabel(cfg, p)}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            )}
+            {options.length === 1 && chosen && <div className="rounded-lg bg-muted/60 px-3 py-2 text-sm">{chosen.name} · <span className="font-semibold">{priceLabel(cfg, chosen)}</span></div>}
+            {!blocked && (
               <>
                 <div className="grid grid-cols-3 gap-2">
                   <Button onClick={showCardQr} disabled={!!busy} className="col-span-3 gap-2">{busy === 'card' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Smartphone className="h-4 w-4" />} Card: show QR to scan</Button>
@@ -223,6 +240,7 @@ function Payment({ athlete, enrollment }) {
                   <Button variant="outline" onClick={() => record('other')} disabled={!!busy} className="gap-2">Other</Button>
                 </div>
                 <Input placeholder="Note (optional): Venmo name, check number, card on the reader" value={note} onChange={(e) => setNote(e.target.value)} />
+                {monthly && !isDropIn && <p className="text-xs text-muted-foreground">Card renews every month on its own. Cash or Venmo covers one month; record it again next month.</p>}
               </>
             )}
           </>
@@ -233,7 +251,7 @@ function Payment({ athlete, enrollment }) {
               <div key={r.id} className="flex items-center justify-between gap-2 px-3 py-2">
                 <div className="min-w-0">
                   <p className="truncate">{r.description.split(' · ')[0]} · {money(r.amount_cents)}</p>
-                  <p className="text-xs text-muted-foreground">{METHOD_LABEL[r.method]} · {r.status === 'paid' ? `paid ${new Date(r.paid_at).toLocaleDateString()}` : r.status}{r.note ? ` · ${r.note}` : ''}</p>
+                  <p className="text-xs text-muted-foreground">{METHOD_LABEL[r.method]}{r.kind === 'subscription' ? ' · monthly' : ''} · {r.status === 'paid' ? `paid ${new Date(r.paid_at).toLocaleDateString()}${r.covers_until ? `, through ${new Date(r.covers_until).toLocaleDateString()}` : ''}` : r.status}{r.note ? ` · ${r.note}` : ''}</p>
                 </div>
                 {r.status === 'paid' && r.method !== 'card' && <Button size="sm" variant="ghost" onClick={() => voidRow(r)}>Undo</Button>}
               </div>
@@ -243,7 +261,7 @@ function Payment({ athlete, enrollment }) {
       </CardContent>
       <Dialog open={!!checkout} onOpenChange={(o) => { if (!o) { setCheckout(null); clearInterval(poll.current); } }}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>{enrollment ? `${enrollment.name} · ${price}` : 'Enrollment'}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{chosen ? `${chosen.name} · ${priceLabel(cfg, chosen)}` : 'Enrollment'}</DialogTitle></DialogHeader>
           {checkout && (paidNow ? (
             <div className="flex flex-col items-center gap-2 py-6 text-center"><Check className="h-10 w-10 text-green-600" /><p className="font-semibold">Paid. Welcome to Valor.</p></div>
           ) : (
@@ -419,15 +437,17 @@ export default function AthleteDetail() {
   const [athlete, setAthlete] = useState(null);
   const [booking, setBooking] = useState(null);
   const [settings, setSettings] = useState({ enrollment: null, classes: [], metrics: [] });
+  const [recKey, setRecKey] = useState('');
   const [form, setForm] = useState(null); // 'edit' | 'sibling'
   const navigate = useNavigate();
 
   const load = useCallback(async () => {
-    const [{ data: a }, { data: b }] = await Promise.all([
+    const [{ data: a }, { data: b }, { data: as }] = await Promise.all([
       supabase.from('athletes_admin').select('*').eq('id', id).maybeSingle(),
       supabase.from('bookings').select('*').eq('athlete_id', id).order('slot_start', { ascending: false, nullsFirst: false }).limit(1).maybeSingle(),
+      supabase.from('assessments').select('recommended_plan').eq('athlete_id', id).order('date', { ascending: false }).limit(1).maybeSingle(),
     ]);
-    setAthlete(a); setBooking(b);
+    setAthlete(a); setBooking(b); setRecKey(as?.recommended_plan || '');
   }, [id]);
   useEffect(() => { load(); loadSettings().then(setSettings); }, [load]);
 
@@ -469,7 +489,7 @@ export default function AthleteDetail() {
             <Results athlete={athlete} booking={booking} classes={settings.classes} metrics={settings.metrics} onSaved={load} />
             <div className="space-y-6">
               <ParentLogin athlete={athlete} onChanged={load} />
-              <Payment athlete={athlete} enrollment={settings.enrollment} />
+              <Payment athlete={athlete} cfg={settings.enrollment} recommendedKey={recKey} />
             </div>
           </div>
         </TabsContent>

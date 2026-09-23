@@ -3,17 +3,18 @@
 //   POST {action:"invite_parent", athlete_id}
 //        → a one-tap login link for the parent (invite for a new account, magic link
 //          for an existing one). Staff show it as a QR, text it or email it. Valid 24h.
-//   POST {action:"take_payment", athlete_id}
-//        → Stripe Checkout for ENROLLMENT: one product, one-time charge, price from
-//          settings "enrollment" (content is included, no subscription). Returns {url}
-//          for the QR / link. {configured:false} until STRIPE_SECRET_KEY is set; cash /
-//          Venmo are recorded straight from the app. {already_enrolled:true} if paid.
+//   POST {action:"take_payment", athlete_id, plan_key}
+//        → Stripe Checkout for a program (enrollment; content included) or "drop_in".
+//          settings.enrollment.billing decides the model: "monthly" = recurring monthly
+//          price (Stripe subscription), "one_time" = single charge. Drop-in is always one
+//          time. Returns {url} for the QR / link; {configured:false} until
+//          STRIPE_SECRET_KEY is set; {already_enrolled:true} if a program is already paid.
 //        A PARENT may call take_payment for their own athlete (pay later from their phone);
 //        everything else is staff only.
 // Deploy: supabase functions deploy staff --no-verify-jwt --project-ref gpotwyuttkkygvxzktep --use-api
 // ════════════════════════════════════════════════════════════════════════
 import Stripe from "npm:stripe@17.7.0";
-import { admin, appOrigin, bad, cors, enrollment, json, userFromRequest } from "../_shared/common.ts";
+import { admin, appOrigin, bad, cors, enrollmentConfig, json, userFromRequest } from "../_shared/common.ts";
 
 async function inviteParent(req: Request, athleteId: string) {
   const { data: a } = await admin.from("athletes").select("*").eq("id", athleteId).maybeSingle();
@@ -48,39 +49,53 @@ async function inviteParent(req: Request, athleteId: string) {
   return json({ link, email, existing_account: !!prof, expires_hours: 24 });
 }
 
-async function takePayment(req: Request, staffId: string | null, athleteId: string) {
-  const product = await enrollment();
-  if (!product) return bad("set the enrollment price first");
+async function takePayment(req: Request, staffId: string | null, athleteId: string, planKey: string) {
+  const cfg = await enrollmentConfig();
+  const isDropIn = planKey === "drop_in";
+  const program = isDropIn ? (cfg.drop_in ? { key: "drop_in", ...cfg.drop_in } : null)
+    : (cfg.programs.find((p) => p.key === planKey) || (cfg.programs.length === 1 ? cfg.programs[0] : null));
+  if (!program || !(program.amount_cents >= 50)) return bad("pick a program with a price");
+  const monthly = !isDropIn && cfg.billing === "monthly";
+
   const { data: a } = await admin.from("athletes").select("*").eq("id", athleteId).maybeSingle();
   if (!a) return bad("athlete not found", 404);
-  const { data: paid } = await admin.from("payments").select("id").eq("athlete_id", a.id).eq("status", "paid").limit(1).maybeSingle();
-  if (paid) return json({ already_enrolled: true });
+  if (!isDropIn) {
+    const { data: on } = await admin.rpc("athlete_enrolled", { aid: a.id });
+    if (on === true) return json({ already_enrolled: true });
+  }
   const key = Deno.env.get("STRIPE_SECRET_KEY");
   if (!key) return json({ configured: false, message: "Card payments are not connected yet. Record cash or Venmo for now." });
 
   const athlete = [a.first_name, a.last_name].filter(Boolean).join(" ");
   const { data: pay, error } = await admin.from("payments").insert({
-    athlete_id: a.id, parent_id: a.parent_id, plan_key: "enrollment", description: `${product.name} · ${athlete}`,
-    amount_cents: product.amount_cents, kind: "one_time", method: "card", status: "pending", recorded_by: staffId,
+    athlete_id: a.id, parent_id: a.parent_id, plan_key: program.key, description: `${program.name} · ${athlete}`,
+    amount_cents: program.amount_cents, kind: monthly ? "subscription" : "one_time", method: "card", status: "pending", recorded_by: staffId,
   }).select("*").single();
   if (error) return bad(error.message, 500);
 
   const stripe = new Stripe(key, { apiVersion: "2025-02-24.acacia", httpClient: Stripe.createFetchHttpClient() });
   const origin = appOrigin(req);
-  const meta = { payment_id: pay.id, athlete_id: a.id };
+  const meta = { payment_id: pay.id, athlete_id: a.id, plan_key: program.key };
   try {
     const session = await stripe.checkout.sessions.create({
-      mode: "payment",
+      mode: monthly ? "subscription" : "payment",
       customer_email: a.parent_email || undefined,
       client_reference_id: pay.id,
-      line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: product.amount_cents, product_data: { name: `Valor Sports Academy: ${product.name}`, description: athlete } } }],
+      line_items: [{
+        quantity: 1,
+        price_data: {
+          currency: "usd", unit_amount: program.amount_cents,
+          product_data: { name: `Valor Sports Academy: ${program.name}`, description: athlete },
+          ...(monthly ? { recurring: { interval: "month" as const } } : {}),
+        },
+      }],
       metadata: meta,
-      payment_intent_data: { metadata: meta },
+      ...(monthly ? { subscription_data: { metadata: meta } } : { payment_intent_data: { metadata: meta } }),
       success_url: `${origin}/paid?p=${pay.id}`,
       cancel_url: `${origin}/paid?p=${pay.id}&canceled=1`,
     });
     await admin.from("payments").update({ stripe_checkout_session_id: session.id }).eq("id", pay.id);
-    return json({ configured: true, url: session.url, payment_id: pay.id });
+    return json({ configured: true, url: session.url, payment_id: pay.id, billing: monthly ? "monthly" : "one_time" });
   } catch (e) {
     await admin.from("payments").update({ status: "canceled", note: `Stripe error: ${(e as Error).message}`.slice(0, 300) }).eq("id", pay.id);
     return bad(`Stripe error: ${(e as Error).message}`, 502);
@@ -103,7 +118,7 @@ Deno.serve(async (req) => {
         const { data: a } = await admin.from("athletes").select("parent_id").eq("id", athleteId).maybeSingle();
         if (!a || a.parent_id !== user.id) return bad("not your athlete", 403);
       }
-      return await takePayment(req, isStaff ? user.id : null, athleteId);
+      return await takePayment(req, isStaff ? user.id : null, athleteId, String(body.plan_key || ""));
     }
     if (!isStaff) return bad("staff only", 403);
     if (body.action === "invite_parent") return await inviteParent(req, athleteId);
