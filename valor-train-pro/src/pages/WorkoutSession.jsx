@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Timer, RotateCcw, Check } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+import { latestMaxes } from '@/lib/maxes';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,10 +48,7 @@ export default function WorkoutSession() {
         base44.entities.OneRepMax.list('-date', 200),
       ]);
       setWorkout(w);
-      const rmMap = {};
-      maxes.forEach((m) => { if (!rmMap[m.exercise_name] || m.date > rmMap[m.exercise_name].date) rmMap[m.exercise_name] = m; });
-      const map = {};
-      Object.entries(rmMap).forEach(([k, v]) => { map[k] = v.weight; });
+      const map = latestMaxes(maxes, w.athlete_id || null);
       setEntries((w.exercises || []).map((ex) => {
         const target = ex.intensity && map[ex.name] ? Math.round((map[ex.name] * ex.intensity) / 100) : 0;
         return { name: ex.name, sets: ex.sets, reps: ex.reps, weight: target, notes: ex.notes || '' };
@@ -73,6 +71,7 @@ export default function WorkoutSession() {
     try {
       await base44.entities.WorkoutLog.create({
         workout_id: workout.id,
+        athlete_id: workout.athlete_id || null,
         workout_title: workout.title,
         date: today,
         week: workout.week,

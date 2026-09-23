@@ -12,7 +12,9 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import WeeklyPlan from '@/components/WeeklyPlan';
 
 export default function Progress() {
-  const [maxes, setMaxes] = useState([]);
+  const [allMaxes, setAllMaxes] = useState([]);
+  const [athletes, setAthletes] = useState([]);
+  const [who, setWho] = useState(null); // athlete id, or null = my own lifts
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -29,16 +31,20 @@ export default function Progress() {
 
   const load = async () => {
     setLoading(true);
-    const [data, plan] = await Promise.all([
-      base44.entities.OneRepMax.list('-date', 200),
+    const [data, plan, kids] = await Promise.all([
+      base44.entities.OneRepMax.list('-date', 500),
       base44.entities.Workout.filter({ program: 'In-Season I' }, 'date', 100),
+      base44.entities.Athlete.list('first_name', 20).catch(() => []),
     ]);
-    setMaxes(data);
+    setAllMaxes(data);
+    setAthletes(kids);
+    setWho((cur) => cur ?? (kids.find((k) => data.some((m) => m.athlete_id === k.id)) || kids[0])?.id ?? null);
     setPlanWorkouts(plan);
     setLoading(false);
   };
 
   useEffect(() => { load(); }, []);
+  const maxes = useMemo(() => allMaxes.filter((m) => (who ? m.athlete_id === who : !m.athlete_id)), [allMaxes, who]);
 
   const chartData = useMemo(() => {
     const byExercise = {};
@@ -80,7 +86,7 @@ export default function Progress() {
   const save = async () => {
     setSaving(true);
     try {
-      await base44.entities.OneRepMax.create(form);
+      await base44.entities.OneRepMax.create({ ...form, athlete_id: who });
       setOpen(false);
       setForm({ exercise_name: '', weight: 0, date: new Date().toISOString().slice(0, 10), notes: '' });
       await load();
@@ -97,7 +103,7 @@ export default function Progress() {
   const saveCoreLifts = async () => {
     const entries = coreLifts
       .filter((name) => coreForm[name] > 0)
-      .map((name) => ({ exercise_name: name, weight: coreForm[name], date: coreForm.date, notes: '' }));
+      .map((name) => ({ exercise_name: name, weight: coreForm[name], date: coreForm.date, notes: '', athlete_id: who }));
     if (entries.length === 0) return;
     setCoreSaving(true);
     try {
@@ -154,6 +160,14 @@ export default function Progress() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {athletes.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {[...athletes.map((a) => ({ id: a.id, label: a.first_name })), { id: null, label: 'Me' }].map((x) => (
+            <button key={x.id || 'me'} onClick={() => setWho(x.id)} className={`rounded-full px-4 py-1.5 text-sm font-medium ${who === x.id ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>{x.label}</button>
+          ))}
+        </div>
+      )}
 
       <WeeklyPlan workouts={planWorkouts} latest1rm={latest1rm} />
 

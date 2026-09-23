@@ -6,6 +6,7 @@ import WorkoutDayCard from '@/components/WorkoutDayCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import NewWorkoutDialog from '@/components/NewWorkoutDialog';
+import { latestMaxes } from '@/lib/maxes';
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -13,29 +14,33 @@ export default function Workouts() {
   const [planWorkouts, setPlanWorkouts] = useState([]);
   const [customWorkouts, setCustomWorkouts] = useState([]);
   const [logs, setLogs] = useState([]);
-  const [latest1rm, setLatest1rm] = useState({});
+  const [allMaxes, setAllMaxes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [week, setWeek] = useState(1);
+  const [athletes, setAthletes] = useState([]);
+  const [who, setWho] = useState('all');
   const navigate = useNavigate();
 
   const load = async () => {
     setLoading(true);
-    const [all, maxes, allLogs] = await Promise.all([
-      base44.entities.Workout.list('-date', 200),
-      base44.entities.OneRepMax.list('-date', 200),
-      base44.entities.WorkoutLog.list('-date', 200),
+    const [all, maxes, allLogs, kids] = await Promise.all([
+      base44.entities.Workout.list('-date', 500),
+      base44.entities.OneRepMax.list('-date', 500),
+      base44.entities.WorkoutLog.list('-date', 500),
+      base44.entities.Athlete.list('first_name', 20).catch(() => []),
     ]);
-    const plan = all.filter((w) => w.program === 'In-Season I');
+    setAthletes(kids);
+    // a plan = anything with a week number: coach-built workouts for an athlete, or the In-Season template
+    const plan = all.filter((w) => w.week != null || w.program === 'In-Season I');
     setPlanWorkouts(plan);
-    setCustomWorkouts(all.filter((w) => w.program !== 'In-Season I'));
+    setCustomWorkouts(all.filter((w) => !(w.week != null || w.program === 'In-Season I')));
     setLogs(allLogs);
-    const rmMap = {};
-    maxes.forEach((m) => {
-      if (!rmMap[m.exercise_name] || m.date > rmMap[m.exercise_name].date) rmMap[m.exercise_name] = m;
-    });
-    const map = {};
-    Object.entries(rmMap).forEach(([k, v]) => { map[k] = v.weight; });
-    setLatest1rm(map);
+    setAllMaxes(maxes);
+    // families with several athletes: open on the first one who has a plan
+    if (kids.length > 1) {
+      const first = kids.find((k) => plan.some((w) => w.athlete_id === k.id));
+      if (first) setWho(first.id);
+    }
     const weeks = [...new Set(plan.map((w) => w.week))].sort();
     const current = weeks.find((w) => {
       const ws = plan.filter((p) => p.week === w);
@@ -49,8 +54,9 @@ export default function Workouts() {
 
   useEffect(() => { load(); }, []);
 
-  const weeks = useMemo(() => [...new Set(planWorkouts.map((w) => w.week))].sort((a, b) => a - b), [planWorkouts]);
-  const weekWorkouts = useMemo(() => planWorkouts.filter((w) => w.week === week), [planWorkouts, week]);
+  const mine = useMemo(() => (who === 'all' ? planWorkouts : planWorkouts.filter((w) => w.athlete_id === who)), [planWorkouts, who]);
+  const weeks = useMemo(() => [...new Set(mine.map((w) => w.week))].sort((a, b) => a - b), [mine]);
+  const weekWorkouts = useMemo(() => mine.filter((w) => w.week === week), [mine, week]);
 
   const dayOrder = { Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6, Sunday: 7 };
   const groupedDays = useMemo(() => {
@@ -72,10 +78,19 @@ export default function Workouts() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-2xl tracking-tight lg:text-3xl">Workouts</h1>
-          <p className="mt-1 text-sm text-muted-foreground">In-Season plan · log your live numbers</p>
+          <p className="mt-1 text-sm text-muted-foreground">Your plan from Valor coaches · log your live numbers</p>
         </div>
         <NewWorkoutDialog onCreated={load} />
       </div>
+
+      {/* Athlete selector (families with more than one athlete) */}
+      {athletes.length > 1 && (
+        <div className="flex flex-wrap gap-2">
+          {[{ id: 'all', first_name: 'Everyone' }, ...athletes].map((a) => (
+            <button key={a.id} onClick={() => setWho(a.id)} className={cn('rounded-full px-4 py-1.5 text-sm font-medium', who === a.id ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground hover:text-foreground')}>{a.first_name}</button>
+          ))}
+        </div>
+      )}
 
       {/* Week selector */}
       <div className="flex flex-wrap gap-2">
@@ -97,6 +112,8 @@ export default function Workouts() {
         <div className="flex justify-center py-20">
           <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" />
         </div>
+      ) : weeks.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-border py-12 text-center text-sm text-muted-foreground">No workouts yet. Your coach adds them here after the assessment.</p>
       ) : (
         <div className="space-y-6">
           {groupedDays.map(({ day, label, workouts }) => (
@@ -107,7 +124,7 @@ export default function Workouts() {
               </div>
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {workouts.map((w) => (
-                  <WorkoutDayCard key={w.id} workout={w} latest1rm={latest1rm} isCompleted={isCompleted} onLog={(w) => navigate(`/workout/${w.id}`)} />
+                  <WorkoutDayCard key={w.id} workout={w} latest1rm={latestMaxes(allMaxes, w.athlete_id || null)} isCompleted={isCompleted} onLog={(w) => navigate(`/workout/${w.id}`)} />
                 ))}
               </div>
             </div>

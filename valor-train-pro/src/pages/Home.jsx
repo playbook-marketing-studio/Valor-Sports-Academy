@@ -5,6 +5,8 @@ import { base44 } from '@/api/base44Client';
 import { money } from '@/lib/slots';
 import { loadSettings, DEFAULT_METRICS } from '@/lib/valor';
 import { supabase } from '@/api/supabaseClient';
+import AthleteForm from '@/components/AthleteForm';
+import { Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function Home() {
@@ -14,6 +16,8 @@ export default function Home() {
   const [assessments, setAssessments] = useState([]);
   const [payments, setPayments] = useState([]);
   const [settings, setSettings] = useState({ plans: [], metrics: DEFAULT_METRICS });
+  const [editing, setEditing] = useState(null);
+  const [reload, setReload] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -54,7 +58,7 @@ export default function Home() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [reload]);
 
   const firstName = user?.full_name?.split(' ')[0] || 'Athlete';
   const hour = new Date().getHours();
@@ -111,7 +115,10 @@ export default function Home() {
             return (
               <Card key={a.id}>
                 <CardHeader className="pb-2">
-                  <CardTitle className="font-display text-2xl">{a.first_name} {a.last_name || ''}</CardTitle>
+                  <div className="flex items-start justify-between">
+                    <CardTitle className="font-display text-2xl">{a.first_name} {a.last_name || ''}</CardTitle>
+                    <button onClick={() => setEditing(a)} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"><Pencil className="h-3 w-3" /> Edit</button>
+                  </div>
                   <p className="text-xs text-muted-foreground">{[a.age && `Age ${a.age}`, a.sport].filter(Boolean).join(' · ')}</p>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
@@ -144,6 +151,8 @@ export default function Home() {
           })}
         </div>
       )}
+
+      <AthleteForm open={!!editing} onOpenChange={(o) => !o && setEditing(null)} mode="parent_edit" athlete={editing} onSaved={() => setReload((n) => n + 1)} />
 
       {/* Quick stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

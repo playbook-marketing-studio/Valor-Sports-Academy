@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, Search } from 'lucide-react';
+import { Loader2, Plus, Search, UserPlus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import AthleteForm from '@/components/AthleteForm';
 import { supabase } from '@/api/supabaseClient';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,24 +16,44 @@ export function loginState(a) {
   return { label: 'No login yet', cls: 'bg-muted text-muted-foreground' };
 }
 
+const STAGES = [['active', 'All active'], ['booked', 'Booked'], ['assessed', 'Assessed'], ['enrolled', 'Enrolled'], ['archived', 'Archived']];
+const STAGE_STYLE = { booked: 'bg-muted text-muted-foreground', assessed: 'bg-amber-100 text-amber-900', enrolled: 'bg-green-100 text-green-800', archived: 'bg-muted text-muted-foreground line-through' };
+
 export default function AdminAthletes() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
+  const [stage, setStage] = useState('active');
+  const [form, setForm] = useState(null); // 'add' | 'walk_in'
 
   useEffect(() => {
-    supabase.from('athletes_admin').select('*').order('created_at', { ascending: false }).limit(1000)
+    supabase.from('athletes_admin').select('*').order('created_at', { ascending: false }).limit(2000)
       .then(({ data }) => { setRows(data || []); setLoading(false); });
   }, []);
 
   const term = q.trim().toLowerCase();
-  const shown = rows.filter((a) => !term || [a.first_name, a.last_name, a.parent_name, a.parent_email, a.parent_login_email, a.sport].join(' ').toLowerCase().includes(term));
+  const count = (k) => rows.filter((a) => (k === 'active' ? a.stage !== 'archived' : a.stage === k)).length;
+  const shown = rows
+    .filter((a) => (stage === 'active' ? a.stage !== 'archived' : a.stage === stage))
+    .filter((a) => !term || [a.first_name, a.last_name, a.parent_name, a.parent_email, a.parent_login_email, a.sport, a.school].join(' ').toLowerCase().includes(term));
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-3xl lg:text-4xl">Athletes</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Everyone who has booked or walked in. Open one to record results, send the parent a login or take payment.</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="font-display text-3xl lg:text-4xl">Athletes</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Everyone who has booked, walked in or trains here. Open one to edit them, build their workouts, log progress or take payment.</p>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => setForm('add')} className="gap-2"><UserPlus className="h-4 w-4" /> Add athlete</Button>
+          <Button size="sm" onClick={() => setForm('walk_in')} className="gap-2"><Plus className="h-4 w-4" /> Walk-in</Button>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {STAGES.map(([k, l]) => (
+          <button key={k} onClick={() => setStage(k)} className={cn('rounded-full px-4 py-1.5 text-sm font-medium', stage === k ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground')}>{l} <span className="opacity-70">{count(k)}</span></button>
+        ))}
       </div>
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -49,17 +72,19 @@ export default function AdminAthletes() {
                       <span className="ml-2 text-xs text-muted-foreground">{[a.age && `age ${a.age}`, a.sport, a.parent_name].filter(Boolean).join(' · ')}</span>
                     </div>
                     <div className="flex flex-wrap gap-2 text-xs">
+                      <span className={cn('rounded-full px-2 py-0.5 font-medium capitalize', STAGE_STYLE[a.stage])}>{a.stage}</span>
                       <span className={cn('rounded-full px-2 py-0.5 font-medium', ls.cls)}>{ls.label}</span>
-                      <span className={cn('rounded-full px-2 py-0.5 font-medium', a.last_paid_plan ? 'bg-green-100 text-green-800' : 'bg-muted text-muted-foreground')}>{a.last_paid_plan ? a.last_paid_plan.split(' · ')[0] : 'Not signed up'}</span>
+                      {a.last_paid_plan && <span className="rounded-full border border-border px-2 py-0.5 font-medium">{a.last_paid_plan.split(' · ')[0]}</span>}
                     </div>
                   </CardContent>
                 </Card>
               </Link>
             );
           })}
-          {shown.length === 0 && <p className="py-16 text-center text-sm text-muted-foreground">No athletes yet.</p>}
+          {shown.length === 0 && <p className="py-16 text-center text-sm text-muted-foreground">No athletes here.</p>}
         </div>
       )}
+      <AthleteForm open={!!form} onOpenChange={(o) => !o && setForm(null)} mode={form || 'add'} onSaved={(id) => id && navigate(`/admin/athletes/${id}`)} />
     </div>
   );
 }

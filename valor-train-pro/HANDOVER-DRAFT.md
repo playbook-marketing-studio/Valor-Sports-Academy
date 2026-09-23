@@ -14,7 +14,19 @@ A cold lead from a Meta ad never makes an account or pays anything up front. The
    - **Card:** tap "show QR to scan". The parent pays on their own phone with card, Apple Pay or Google Pay. Monthly programs renew on their own.
    - **Cash, Venmo or other:** tap the matching button, and the app records who marked it paid.
 
-Walk-ins with no booking: tap "Walk-in" on the Assessments screen. The waiver stays on paper in person.
+Walk-ins with no booking: tap "Walk-in" on the Assessments or Athletes screen. If the parent already has a login, for example a sibling, the new athlete links to it automatically. The waiver stays on paper in person.
+
+## After they sign up: where athletes get edited
+
+Everything about one athlete lives on their page (**Athletes**, then the athlete). It has four tabs:
+- **Assessment day:** results, parent login QR, payment. "Start a re-test" records a new set of results without overwriting the first.
+- **Profile:** edit athlete and parent details, see siblings and add one, archive (nothing is deleted).
+- **Training:** the coach builds workouts for this athlete by week, edits them, and copies a week forward. A check mark means the kid logged it.
+- **Progress:** test results over time and max lifts. Workout target weights use this athlete's latest maxes.
+
+Parents see all of it on their phone: results and program on Home, the coach's plan on Workouts, lifts on Progress. They pick the kid when they have more than one. They can fix their kid's basic details, but not coach notes or payments. The **Athletes** roster filters by Booked, Assessed, Enrolled and Archived.
+
+Demo: `DEMO.md` has a 10-minute walkthrough and a seed/purge script with families at every stage.
 
 Programs and prices come from the site's programs page and live in the app settings.
 
@@ -56,7 +68,8 @@ App edge functions: `ingest-booking` (site bookings in), `staff` (parent login l
 - **SMS reminders:** v2, needs a texting provider and has usage costs.
 - **v1.1 (week of 9/28):** coach-to-athlete assignment, athlete logins, and a Stripe customer portal so parents can manage their card and cancel.
 - **Staff edits don't flow back to the portal.** Check-in and no-show marked in the app don't update the Playbook portal's Leads tab.
-- **Test data to delete before launch:** parents parent-test@, riley-demo@, sam-demo@valortrainpro.test; admin admin-test@valortrainpro.test (also in `staff_allowlist`); Omar's own test booking (heyomarvega@gmail.com).
+- **Test data to delete before launch:** run `node scripts/demo-data.mjs purge`. It removes every `@valortrainpro.test` family. Then delete the admin-test@valortrainpro.test login and its `staff_allowlist` row, and Omar's own test booking (heyomarvega@gmail.com).
+- **Current members aren't in the app yet.** Kids already training at Valor need to be added one at a time with **Add athlete**, or a spreadsheet import could be built. Corey's roster decides which.
 
 ## What Omar must supply
 

@@ -1,12 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Loader2, MessageSquare, Phone, Plus, RefreshCw, Search, UserCheck, UserX } from 'lucide-react';
 import { supabase } from '@/api/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import AthleteForm from '@/components/AthleteForm';
 import { toast } from '@/components/ui/use-toast';
 import { fmtTime } from '@/lib/slots';
 import { smsHref, telHref } from '@/lib/valor';
@@ -19,51 +18,6 @@ const reqDay = (ymd) => (ymd ? new Intl.DateTimeFormat('en-US', { timeZone: 'UTC
 const STATUS_STYLE = { booked: 'bg-muted', requested: 'bg-amber-100 text-amber-900', attended: 'bg-green-100 text-green-800', no_show: 'bg-rose-100 text-rose-800', canceled: 'bg-muted text-muted-foreground line-through' };
 const STATUS_LABEL = { booked: 'Booked', requested: 'Wants a time', attended: 'Checked in', no_show: 'No-show', canceled: 'Canceled' };
 const SOURCE_LABEL = { meta: 'Meta ad', facebook: 'Meta ad', instagram: 'Instagram', google: 'Google' };
-
-function WalkInDialog({ open, onOpenChange, onDone }) {
-  const blank = { first_name: '', last_name: '', age: '', sport: '', parent_name: '', parent_email: '', parent_phone: '' };
-  const [f, setF] = useState(blank);
-  const [busy, setBusy] = useState(false);
-  const set = (k) => (e) => { const v = e.target.value; setF((x) => ({ ...x, [k]: v })); };
-  const save = async (e) => {
-    e.preventDefault();
-    setBusy(true);
-    const email = f.parent_email.trim().toLowerCase();
-    const { data: a, error } = await supabase.from('athletes').insert({
-      first_name: f.first_name.trim(), last_name: f.last_name.trim() || null, age: Number(f.age) || null, sport: f.sport.trim() || null,
-      parent_name: f.parent_name.trim() || null, parent_email: email || null, parent_phone: f.parent_phone.trim() || null,
-    }).select('id').single();
-    if (!error) {
-      await supabase.from('bookings').insert({
-        athlete_id: a.id, origin: 'walk_in', status: 'attended', checked_in_at: new Date().toISOString(),
-        athlete_first_name: f.first_name.trim(), athlete_last_name: f.last_name.trim() || null, athlete_age: Number(f.age) || null, sport: f.sport.trim() || null,
-        parent_name: f.parent_name.trim() || 'Parent', parent_email: email || '', parent_phone: f.parent_phone.trim() || null,
-      });
-    }
-    setBusy(false);
-    if (error) return toast({ title: 'Could not add the athlete', description: error.message });
-    setF(blank); onOpenChange(false); onDone(a.id);
-  };
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader><DialogTitle>Add a walk-in</DialogTitle></DialogHeader>
-        <form onSubmit={save} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><Label>Athlete first name</Label><Input required value={f.first_name} onChange={set('first_name')} /></div>
-            <div className="space-y-1"><Label>Last name</Label><Input value={f.last_name} onChange={set('last_name')} /></div>
-            <div className="space-y-1"><Label>Age</Label><Input type="number" value={f.age} onChange={set('age')} /></div>
-            <div className="space-y-1"><Label>Sport</Label><Input value={f.sport} onChange={set('sport')} /></div>
-            <div className="col-span-2 space-y-1"><Label>Parent name</Label><Input required value={f.parent_name} onChange={set('parent_name')} /></div>
-            <div className="space-y-1"><Label>Parent email</Label><Input type="email" required value={f.parent_email} onChange={set('parent_email')} /></div>
-            <div className="space-y-1"><Label>Parent phone</Label><Input type="tel" value={f.parent_phone} onChange={set('parent_phone')} /></div>
-          </div>
-          <DialogFooter><Button type="submit" disabled={busy}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add and open'}</Button></DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 export default function AdminBookings() {
   const navigate = useNavigate();
@@ -102,6 +56,20 @@ export default function AdminBookings() {
   }, [rows, past, term, todayKey]);
   const walkIns = rows.filter((r) => !r.slot_start && r.origin === 'walk_in' && match(r));
 
+  // older rows (day-1 app bookings) have no athlete yet; make one from the booking
+  const ensureAthlete = async (r) => {
+    if (r.athlete_id) return r.athlete_id;
+    const { data: a, error } = await supabase.from('athletes').insert({
+      parent_id: r.parent_id, first_name: r.athlete_first_name, last_name: r.athlete_last_name, age: r.athlete_age, sport: r.sport,
+      parent_name: r.parent_name, parent_email: r.parent_email || null, parent_phone: r.parent_phone,
+    }).select('id').single();
+    if (error) { toast({ title: 'Could not create the athlete', description: error.message }); return null; }
+    await supabase.from('bookings').update({ athlete_id: a.id }).eq('id', r.id);
+    setRows((xs) => xs.map((x) => (x.id === r.id ? { ...x, athlete_id: a.id } : x)));
+    return a.id;
+  };
+  const openAthlete = async (r) => { const id = await ensureAthlete(r); if (id) navigate(`/admin/athletes/${id}`); };
+
   const setStatus = async (r, status) => {
     setBusy(r.id);
     const patch = { status, checked_in_at: status === 'attended' ? new Date().toISOString() : r.checked_in_at };
@@ -109,7 +77,7 @@ export default function AdminBookings() {
     setBusy('');
     if (error) return toast({ title: 'Update failed', description: error.message });
     setRows((xs) => xs.map((x) => (x.id === r.id ? { ...x, ...patch } : x)));
-    if (status === 'attended' && r.athlete_id) navigate(`/admin/athletes/${r.athlete_id}`);
+    if (status === 'attended') openAthlete(r);
   };
 
   const Row = ({ r }) => (
@@ -118,7 +86,7 @@ export default function AdminBookings() {
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             {r.slot_start && <span className="w-20 font-display text-lg">{fmtTime(new Date(r.slot_start))}</span>}
-            <Link to={r.athlete_id ? `/admin/athletes/${r.athlete_id}` : '#'} className="font-semibold hover:text-primary">{r.athlete_first_name} {r.athlete_last_name || ''}</Link>
+            <button onClick={() => openAthlete(r)} className="font-semibold hover:text-primary">{r.athlete_first_name} {r.athlete_last_name || ''}</button>
             {r.athlete_age && <span className="text-xs text-muted-foreground">age {r.athlete_age}</span>}
             {r.sport && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{r.sport}</span>}
             <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', STATUS_STYLE[r.status])}>{STATUS_LABEL[r.status] || r.status}</span>
@@ -134,7 +102,7 @@ export default function AdminBookings() {
           {r.status !== 'attended' && r.status !== 'canceled' && <Button size="sm" onClick={() => setStatus(r, 'attended')} disabled={busy === r.id} className="gap-1"><UserCheck className="h-4 w-4" /> Check in</Button>}
           {r.status === 'booked' && <Button size="sm" variant="outline" onClick={() => setStatus(r, 'no_show')} disabled={busy === r.id} className="gap-1"><UserX className="h-4 w-4" /> No-show</Button>}
           {(r.status === 'attended' || r.status === 'no_show') && <Button size="sm" variant="ghost" onClick={() => setStatus(r, 'booked')} disabled={busy === r.id}>Undo</Button>}
-          {r.athlete_id && <Button asChild size="sm" variant="outline"><Link to={`/admin/athletes/${r.athlete_id}`}>Open</Link></Button>}
+          <Button size="sm" variant="outline" onClick={() => openAthlete(r)}>Open</Button>
         </div>
       </CardContent>
     </Card>
@@ -185,7 +153,7 @@ export default function AdminBookings() {
           {days.length === 0 && (past || requests.length === 0) && <p className="py-16 text-center text-sm text-muted-foreground">{past ? 'No past assessments yet.' : 'No upcoming assessments. New website bookings show up here on their own.'}</p>}
         </div>
       )}
-      <WalkInDialog open={walkIn} onOpenChange={setWalkIn} onDone={(id) => navigate(`/admin/athletes/${id}`)} />
+      <AthleteForm open={walkIn} onOpenChange={setWalkIn} mode="walk_in" onSaved={(id) => id && navigate(`/admin/athletes/${id}`)} />
     </div>
   );
 }

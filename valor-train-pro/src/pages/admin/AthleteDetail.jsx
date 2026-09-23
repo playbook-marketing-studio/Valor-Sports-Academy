@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Banknote, Check, Copy, Loader2, Mail, MessageSquare, Phone, QrCode, Save, Smartphone } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Archive, ArchiveRestore, ArrowLeft, Banknote, Check, CheckCircle2, Copy, CopyPlus, Loader2, Mail, MessageSquare, Pencil, Phone, Plus, QrCode, Save, Smartphone, Trash2, UserPlus } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { supabase, callFn } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
@@ -15,6 +15,9 @@ import { toast } from '@/components/ui/use-toast';
 import { fmtSlot, money } from '@/lib/slots';
 import { athleteName, loadSettings, planLabel, smsHref, telHref } from '@/lib/valor';
 import { loginState } from './Athletes';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import AthleteForm from '@/components/AthleteForm';
+import WorkoutEditor from '@/components/WorkoutEditor';
 import { cn } from '@/lib/utils';
 
 const METHOD_LABEL = { card: 'Card', cash: 'Cash', venmo: 'Venmo', other: 'Other' };
@@ -37,9 +40,13 @@ function Results({ athlete, booking, plans, metrics, onSaved }) {
     supabase.from('assessments').select('*').eq('athlete_id', athlete.id).order('date', { ascending: false }).limit(1).maybeSingle()
       .then(({ data }) => { if (data) { setRec(data); setForm({ metrics: data.metrics || {}, work_on: data.work_on || '', recommended_plan: data.recommended_plan || '', notes: data.notes || '' }); } });
   }, [athlete.id]);
+  const startRetest = () => {
+    setRec(null);
+    setForm({ metrics: {}, work_on: '', recommended_plan: form.recommended_plan, notes: '' });
+  };
   const save = async () => {
     setBusy(true);
-    const values = { ...form, athlete_id: athlete.id, booking_id: booking?.id || null };
+    const values = { ...form, athlete_id: athlete.id, booking_id: rec ? rec.booking_id : (booking?.id || null) };
     const res = rec ? await supabase.from('assessments').update(values).eq('id', rec.id).select('*').single()
       : await supabase.from('assessments').insert(values).select('*').single();
     setBusy(false);
@@ -50,13 +57,19 @@ function Results({ athlete, booking, plans, metrics, onSaved }) {
   const setMetric = (k, v) => setForm((f) => ({ ...f, metrics: { ...f.metrics, [k]: v } }));
   return (
     <Card>
-      <CardHeader className="pb-3"><CardTitle className="text-lg">1. Assessment results</CardTitle></CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <div>
+          <CardTitle className="text-lg">1. Assessment results</CardTitle>
+          <p className="mt-1 text-xs text-muted-foreground">{rec ? `Editing the ${new Date(rec.date + 'T12:00:00').toLocaleDateString()} results` : 'New results, dated today'}</p>
+        </div>
+        {rec && <Button size="sm" variant="outline" onClick={startRetest}>Start a re-test</Button>}
+      </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {metrics.map((m) => (
             <div key={m.key} className="space-y-1">
-              <Label className="text-xs">{m.label}{m.unit ? ` (${m.unit})` : ''}</Label>
-              <Input inputMode="decimal" value={form.metrics[m.key] ?? ''} onChange={(e) => setMetric(m.key, e.target.value)} />
+              <Label htmlFor={`m-${m.key}`} className="text-xs">{m.label}{m.unit ? ` (${m.unit})` : ''}</Label>
+              <Input id={`m-${m.key}`} inputMode="decimal" value={form.metrics[m.key] ?? ''} onChange={(e) => setMetric(m.key, e.target.value)} />
             </div>
           ))}
         </div>
@@ -236,12 +249,168 @@ function Payment({ athlete, plans, suggested }) {
   );
 }
 
+
+// ── profile ───────────────────────────────────────────────────────────────
+function ProfileTab({ athlete, onEdit, onSibling }) {
+  const [siblings, setSiblings] = useState([]);
+  useEffect(() => {
+    const email = athlete.parent_email || athlete.parent_login_email;
+    let q = supabase.from('athletes').select('id, first_name, last_name, age, sport').neq('id', athlete.id);
+    q = athlete.parent_id ? q.eq('parent_id', athlete.parent_id) : email ? q.ilike('parent_email', email) : null;
+    if (q) q.then(({ data }) => setSiblings(data || []));
+  }, [athlete]);
+  const row = (label, value) => value ? <div className="flex justify-between gap-4 border-b border-border py-2 text-sm last:border-0"><span className="text-muted-foreground">{label}</span><span className="text-right">{value}</span></div> : null;
+  return (
+    <div className="grid gap-6 lg:grid-cols-2">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-lg">Athlete</CardTitle><Button size="sm" variant="outline" onClick={onEdit} className="gap-1"><Pencil className="h-3 w-3" /> Edit</Button></CardHeader>
+        <CardContent>
+          {row('Name', athleteName(athlete))}{row('Age', athlete.age)}{row('Birthday', athlete.birthdate && new Date(athlete.birthdate + 'T12:00:00').toLocaleDateString())}
+          {row('Sport', athlete.sport)}{row('Position', athlete.position)}{row('School', athlete.school)}{row('Grad year', athlete.grad_year)}
+          {athlete.notes && <p className="mt-3 rounded-lg bg-muted/60 p-3 text-sm"><span className="font-semibold">Coach notes: </span>{athlete.notes}</p>}
+        </CardContent>
+      </Card>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-lg">Parent</CardTitle></CardHeader>
+          <CardContent>
+            {row('Name', athlete.parent_name)}{row('Email', athlete.parent_email)}{row('Phone', athlete.parent_phone)}
+            {row('Login', athlete.parent_login_email ? `${athlete.parent_login_email}${athlete.parent_last_sign_in_at ? ' · active' : ' · not logged in yet'}` : 'none yet')}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-lg">Siblings</CardTitle><Button size="sm" variant="outline" onClick={onSibling} className="gap-1"><UserPlus className="h-3 w-3" /> Add sibling</Button></CardHeader>
+          <CardContent className="space-y-1 text-sm">
+            {siblings.length === 0 && <p className="text-muted-foreground">None. Siblings share the parent's login.</p>}
+            {siblings.map((x) => <Link key={x.id} to={`/admin/athletes/${x.id}`} className="block rounded-lg px-2 py-1.5 hover:bg-muted">{athleteName(x)} <span className="text-xs text-muted-foreground">{[x.age && `age ${x.age}`, x.sport].filter(Boolean).join(' · ')}</span></Link>)}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ── training (coach-assigned workouts) ────────────────────────────────────
+function TrainingTab({ athlete }) {
+  const [rows, setRows] = useState([]);
+  const [done, setDone] = useState({});
+  const [editing, setEditing] = useState(null); // null | 'new' | workout
+  const load = useCallback(async () => {
+    const { data } = await supabase.from('workouts').select('*').eq('athlete_id', athlete.id).order('date', { ascending: true });
+    setRows(data || []);
+    const ids = (data || []).map((w) => w.id);
+    if (ids.length) {
+      const { data: logs } = await supabase.from('workout_logs').select('workout_id, date').in('workout_id', ids);
+      setDone(Object.fromEntries((logs || []).map((l) => [l.workout_id, l.date])));
+    } else setDone({});
+  }, [athlete.id]);
+  useEffect(() => { load(); }, [load]);
+
+  const weeks = [...new Set(rows.map((w) => w.week || 1))].sort((a, b) => a - b);
+  const nextWeek = weeks.length ? Math.max(...weeks) : 1;
+  const remove = async (w) => { if (!window.confirm(`Delete "${w.title}"?`)) return; await supabase.from('workouts').delete().eq('id', w.id); load(); };
+  const copyWeek = async (wk) => {
+    const src = rows.filter((w) => (w.week || 1) === wk);
+    const plus7 = (d) => { const x = new Date(d + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() + 7); return x.toISOString().slice(0, 10); };
+    const { error } = await supabase.from('workouts').insert(src.map(({ id: _i, created_at: _c, updated_at: _u, owner_id: _o, ...w }) => ({ ...w, week: wk + 1, date: plus7(w.date), title: w.title })));
+    if (error) toast({ title: 'Could not copy', description: error.message }); else { toast({ title: `Week ${wk} copied to week ${wk + 1}` }); load(); }
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">Workouts built here show up on {athlete.first_name}'s Workouts page. A check mark means they logged it.</p>
+        <Button onClick={() => setEditing('new')} className="gap-2"><Plus className="h-4 w-4" /> New workout</Button>
+      </div>
+      {rows.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">No workouts yet.</p>}
+      {weeks.map((wk) => (
+        <section key={wk} className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="font-display text-xl">Week {wk}</h3>
+            <Button size="sm" variant="ghost" onClick={() => copyWeek(wk)} className="gap-1"><CopyPlus className="h-4 w-4" /> Copy to week {wk + 1}</Button>
+          </div>
+          {rows.filter((w) => (w.week || 1) === wk).map((w) => (
+            <Card key={w.id}>
+              <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="font-semibold">{done[w.id] && <CheckCircle2 className="mr-1 inline h-4 w-4 text-green-600" />}{w.title} <span className="text-xs font-normal text-muted-foreground">{w.day} {new Date(w.date + 'T12:00:00').toLocaleDateString()} · {w.category}</span></p>
+                  <p className="truncate text-xs text-muted-foreground">{(w.exercises || []).map((e) => `${e.name} ${e.sets}x${e.reps}${e.intensity ? ` @${e.intensity}%` : e.weight ? ` @${e.weight}` : ''}`).join(' · ')}</p>
+                </div>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="outline" onClick={() => setEditing(w)} className="gap-1"><Pencil className="h-3 w-3" /> Edit</Button>
+                  <Button size="sm" variant="ghost" onClick={() => remove(w)} aria-label="Delete"><Trash2 className="h-4 w-4" /></Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </section>
+      ))}
+      <WorkoutEditor open={!!editing} onOpenChange={(o) => !o && setEditing(null)} athlete={athlete} workout={editing === 'new' ? null : editing} defaultWeek={nextWeek} onSaved={load} />
+    </div>
+  );
+}
+
+// ── progress (re-tests + 1RMs) ────────────────────────────────────────────
+function ProgressTab({ athlete, metrics }) {
+  const [tests, setTests] = useState([]);
+  const [maxes, setMaxes] = useState([]);
+  const [f, setF] = useState({ exercise_name: '', weight: '', date: new Date().toISOString().slice(0, 10) });
+  const load = useCallback(async () => {
+    const [{ data: t }, { data: m }] = await Promise.all([
+      supabase.from('assessments').select('*').eq('athlete_id', athlete.id).order('date', { ascending: true }),
+      supabase.from('one_rep_maxes').select('*').eq('athlete_id', athlete.id).order('date', { ascending: false }),
+    ]);
+    setTests(t || []); setMaxes(m || []);
+  }, [athlete.id]);
+  useEffect(() => { load(); }, [load]);
+  const addMax = async (e) => {
+    e.preventDefault();
+    const { error } = await supabase.from('one_rep_maxes').insert({ athlete_id: athlete.id, exercise_name: f.exercise_name.trim(), weight: Number(f.weight), date: f.date });
+    if (error) return toast({ title: 'Could not save', description: error.message });
+    setF({ ...f, exercise_name: '', weight: '' }); load();
+  };
+  const delMax = async (id) => { await supabase.from('one_rep_maxes').delete().eq('id', id); load(); };
+  const shown = metrics.filter((m) => tests.some((t) => t.metrics?.[m.key]));
+  return (
+    <div className="grid gap-6 lg:grid-cols-2">
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-lg">Test results over time</CardTitle><p className="text-xs text-muted-foreground">Add a re-test from the Assessment day tab.</p></CardHeader>
+        <CardContent className="overflow-x-auto">
+          {tests.length === 0 ? <p className="text-sm text-muted-foreground">No results yet.</p> : (
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-xs text-muted-foreground"><th className="py-1 pr-3 font-medium">Test</th>{tests.map((t) => <th key={t.id} className="py-1 pr-3 font-medium">{new Date(t.date + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</th>)}</tr></thead>
+              <tbody>{shown.map((m) => <tr key={m.key} className="border-t border-border"><td className="py-1.5 pr-3">{m.label}</td>{tests.map((t) => <td key={t.id} className="py-1.5 pr-3 font-medium">{t.metrics?.[m.key] ? `${t.metrics[m.key]}${m.unit ? ` ${m.unit}` : ''}` : '–'}</td>)}</tr>)}</tbody>
+            </table>
+          )}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-lg">Max lifts</CardTitle><p className="text-xs text-muted-foreground">Workout targets use the latest max for each lift.</p></CardHeader>
+        <CardContent className="space-y-3">
+          <form onSubmit={addMax} className="grid grid-cols-6 gap-2">
+            <Input className="col-span-3" required placeholder="Lift, e.g. Back squat" value={f.exercise_name} onChange={(e) => setF({ ...f, exercise_name: e.target.value })} />
+            <Input className="col-span-1 px-2" required type="number" placeholder="lbs" value={f.weight} onChange={(e) => setF({ ...f, weight: e.target.value })} />
+            <Input className="col-span-2" type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} />
+            <Button type="submit" size="sm" className="col-span-6 sm:col-span-2">Add max</Button>
+          </form>
+          <div className="divide-y divide-border text-sm">
+            {maxes.map((m) => <div key={m.id} className="flex items-center justify-between py-1.5"><span>{m.exercise_name} <span className="font-semibold">{m.weight} lbs</span> <span className="text-xs text-muted-foreground">{new Date(m.date + 'T12:00:00').toLocaleDateString()}</span></span><button onClick={() => delMax(m.id)} className="text-muted-foreground hover:text-destructive" aria-label="Delete"><Trash2 className="h-4 w-4" /></button></div>)}
+            {maxes.length === 0 && <p className="text-muted-foreground">No maxes logged.</p>}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function AthleteDetail() {
   const { id } = useParams();
   const [athlete, setAthlete] = useState(null);
   const [booking, setBooking] = useState(null);
   const [settings, setSettings] = useState({ plans: [], metrics: [] });
   const [suggested, setSuggested] = useState('');
+  const [form, setForm] = useState(null); // 'edit' | 'sibling'
+  const navigate = useNavigate();
 
   const load = useCallback(async () => {
     const [{ data: a }, { data: b }, { data: as }] = await Promise.all([
@@ -255,6 +424,12 @@ export default function AthleteDetail() {
 
   if (!athlete) return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   const phone = athlete.parent_phone;
+  const archive = async () => {
+    const archived_at = athlete.archived_at ? null : new Date().toISOString();
+    if (archived_at && !window.confirm(`Archive ${athlete.first_name}? They drop off the roster but nothing is deleted.`)) return;
+    const { error } = await supabase.from('athletes').update({ archived_at }).eq('id', athlete.id);
+    if (error) toast({ title: 'Could not update', description: error.message }); else load();
+  };
 
   return (
     <div className="space-y-6">
@@ -266,15 +441,35 @@ export default function AthleteDetail() {
           {athlete.parent_name || 'Parent'}{athlete.parent_email ? ` · ${athlete.parent_email}` : ''}{phone ? ` · ${phone}` : ''}
           {booking?.slot_start ? ` · assessment ${fmtSlot(booking.slot_start)}` : ''}{booking?.quiz_result ? ` · quiz ${booking.quiz_result}` : ''}
         </p>
-        {phone && <div className="mt-3 flex gap-2"><Button asChild size="sm" variant="secondary"><a href={telHref(phone)}><Phone className="h-4 w-4" /> Call</a></Button><Button asChild size="sm" variant="secondary"><a href={smsHref(phone, '')}><MessageSquare className="h-4 w-4" /> Text</a></Button></div>}
-      </div>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Results athlete={athlete} booking={booking} plans={settings.plans} metrics={settings.metrics} onSaved={(r) => r.recommended_plan && setSuggested(r.recommended_plan)} />
-        <div className="space-y-6">
-          <ParentLogin athlete={athlete} onChanged={load} />
-          <Payment athlete={athlete} plans={settings.plans} suggested={suggested} />
+        <div className="mt-3 flex flex-wrap gap-2">
+          {phone && <Button asChild size="sm" variant="secondary"><a href={telHref(phone)}><Phone className="h-4 w-4" /> Call</a></Button>}
+          {phone && <Button asChild size="sm" variant="secondary"><a href={smsHref(phone, '')}><MessageSquare className="h-4 w-4" /> Text</a></Button>}
+          <Button size="sm" variant="secondary" onClick={() => setForm('edit')}><Pencil className="h-4 w-4" /> Edit</Button>
+          <Button size="sm" variant="secondary" onClick={archive}>{athlete.archived_at ? <><ArchiveRestore className="h-4 w-4" /> Restore</> : <><Archive className="h-4 w-4" /> Archive</>}</Button>
         </div>
+        {athlete.archived_at && <p className="mt-3 text-xs text-[#ff7484]">Archived {new Date(athlete.archived_at).toLocaleDateString()}</p>}
       </div>
+      <Tabs defaultValue="day">
+        <TabsList className="h-auto flex-wrap rounded-full bg-muted p-1">
+          {[['day', 'Assessment day'], ['profile', 'Profile'], ['training', 'Training'], ['progress', 'Progress']].map(([v, l]) => (
+            <TabsTrigger key={v} value={v} className="rounded-full px-4 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">{l}</TabsTrigger>
+          ))}
+        </TabsList>
+        <TabsContent value="day" className="mt-5">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Results athlete={athlete} booking={booking} plans={settings.plans} metrics={settings.metrics} onSaved={(r) => r.recommended_plan && setSuggested(r.recommended_plan)} />
+            <div className="space-y-6">
+              <ParentLogin athlete={athlete} onChanged={load} />
+              <Payment athlete={athlete} plans={settings.plans} suggested={suggested} />
+            </div>
+          </div>
+        </TabsContent>
+        <TabsContent value="profile" className="mt-5"><ProfileTab athlete={athlete} onEdit={() => setForm('edit')} onSibling={() => setForm('sibling')} /></TabsContent>
+        <TabsContent value="training" className="mt-5"><TrainingTab athlete={athlete} /></TabsContent>
+        <TabsContent value="progress" className="mt-5"><ProgressTab athlete={athlete} metrics={settings.metrics} /></TabsContent>
+      </Tabs>
+      <AthleteForm open={!!form} onOpenChange={(o) => !o && setForm(null)} mode={form || 'edit'} athlete={athlete}
+        onSaved={(newId) => { if (form === 'sibling' && newId) navigate(`/admin/athletes/${newId}`); else load(); }} />
     </div>
   );
 }
