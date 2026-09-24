@@ -75,7 +75,7 @@ Roles: `admin` (Corey, Michael, staff), `parent`, `athlete` (athlete logins are 
 | Code | `valor-sports-academy/valor-train-pro/`, branch `product/train-pro-v1` |
 | Database, logins, functions | Supabase project `valor-train-pro`, ref `gpotwyuttkkygvxzktep` (Omar's org, free plan; move to a Valor org later) |
 | Site booking to app | The site's booking function (Playbook project) copies every booking to the app's `ingest-booking` function. Switch: secrets `TRAINPRO_INGEST_URL` + `TRAINPRO_INGEST_KEY` on the Playbook project. Resync: `push_app` action. |
-| Preview | Vercel preview on Omar's account (link in the Train Pro memory note; it changes on every deploy). Real host should be Netlify next to the site. |
+| App | **https://valor-train-pro.vercel.app** (Vercel production, Omar's account, stable address). **app.valorsportsacademywa.com** is attached and goes live once one DNS record is added in Wix: CNAME `app` → `cname.vercel-dns.com`. Previews for testing still get throwaway `valor-train-…vercel.app` links. |
 | Keys | Vault `playbook/.env`: `VALOR_TRAINPRO_SUPABASE_*`, `VALOR_TRAINPRO_INGEST_KEY` |
 
 App edge functions: `ingest-booking` (site bookings in), `staff` (parent login link, card payment QR), `stripe-webhook` (marks card payments paid, marks refunds).
@@ -107,6 +107,6 @@ App edge functions: `ingest-booking` (site bookings in), `staff` (parent login l
    `supabase secrets set STRIPE_SECRET_KEY=sk_test_… STRIPE_WEBHOOK_SECRET=whsec_… --project-ref gpotwyuttkkygvxzktep`
    Webhook URL: `https://gpotwyuttkkygvxzktep.supabase.co/functions/v1/stripe-webhook`. Events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded`.
 2. **Michael's Gmail app password.** It turns on site self-booking and can also power the app's emails.
-3. **The app domain** (e.g. `app.valorsportsacademywa.com`). It goes into Supabase Auth site URL and redirect list, plus the `APP_URL` secret.
+3. **One DNS record for the app domain.** Valor's DNS is in Wix: add CNAME host `app`, value `cname.vercel-dns.com`. That's Michael or Corey's Wix login. The domain is already attached in Vercel and allowed in Supabase Auth. Once it resolves, switch the Supabase Auth site URL and the `APP_URL` secret to `https://app.valorsportsacademywa.com`.
 4. **Corey's staff email list**, for `staff_allowlist`. Today it holds omar@playbookmarketing.studio, coreybibe30@gmail.com and mbibe@eou.edu.
 5. **Corey's actual assessment tests**, and the real **enrollment price**. It goes on the Enrollment screen; no code change.
