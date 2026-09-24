@@ -114,6 +114,19 @@ function ParentLogin({ athlete, onChanged }) {
     setBusy(false);
   };
   const msg = invite ? `Hi ${first}, here's your Valor login for ${athlete.first_name}'s training, results and payments: ${invite.link}` : '';
+  const [sending, setSending] = useState(false);
+  const emailIt = async () => {
+    setSending(true);
+    try {
+      if (!athlete.parent_id && email.trim().toLowerCase() !== (athlete.parent_email || '')) {
+        await supabase.from('athletes').update({ parent_email: email.trim().toLowerCase() }).eq('id', athlete.id);
+      }
+      const r = await callFn('staff', { body: { action: 'email_parent_login', athlete_id: athlete.id } });
+      if (r.configured === false) toast({ title: 'Login emails are not on yet', description: r.message });
+      else { toast({ title: 'Login emailed', description: `Sent to ${r.email}. It works once, for 24 hours.` }); onChanged(); }
+    } catch (e) { toast({ title: 'Could not send the email', description: e.message }); }
+    setSending(false);
+  };
 
   return (
     <Card>
@@ -126,8 +139,11 @@ function ParentLogin({ athlete, onChanged }) {
         {!athlete.parent_id && (
           <div className="space-y-1"><Label className="text-xs">Parent email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
         )}
-        <Button onClick={create} disabled={busy || !email} className="gap-2">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />} {athlete.invited_at || athlete.parent_id ? 'New login link' : 'Get parent login'}</Button>
-        <p className="text-xs text-muted-foreground">Shows a QR code for the parent to scan on the spot, or text or email them the link. It works once, for 24 hours.</p>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={create} disabled={busy || !email} className="gap-2">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />} {athlete.invited_at || athlete.parent_id ? 'New login QR' : 'Show login QR'}</Button>
+          <Button variant="outline" onClick={emailIt} disabled={sending || !email} className="gap-2">{sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />} Email it to them</Button>
+        </div>
+        <p className="text-xs text-muted-foreground">At the gym, show the QR code. Otherwise email it; it comes from Valor with a button to set their password. Either way it works once, for 24 hours.</p>
       </CardContent>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">

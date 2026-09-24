@@ -3,6 +3,8 @@
 //   POST {action:"invite_parent", athlete_id}
 //        → a one-tap login link for the parent (invite for a new account, magic link
 //          for an existing one). Staff show it as a QR, text it or email it. Valid 24h.
+//   POST {action:"email_parent_login", athlete_id}
+//        → the app emails the login itself (Valor-branded, from Valor's Gmail). Off until AUTH_EMAIL_ENABLED=true.
 //   POST {action:"take_payment", athlete_id, plan_key}
 //        → one-time Stripe Checkout for a class or class pack (settings.enrollment.items).
 //          No subscriptions. A paid class/pack unlocks content until its classes are used
@@ -13,6 +15,7 @@
 // Deploy: supabase functions deploy staff --no-verify-jwt --project-ref gpotwyuttkkygvxzktep --use-api
 // ════════════════════════════════════════════════════════════════════════
 import Stripe from "npm:stripe@17.7.0";
+import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import { admin, appOrigin, bad, cors, enrollmentConfig, json, userFromRequest } from "../_shared/common.ts";
 
 async function inviteParent(req: Request, athleteId: string) {
@@ -37,7 +40,7 @@ async function inviteParent(req: Request, athleteId: string) {
   } else {
     const { data, error } = await admin.auth.admin.generateLink({
       type: "invite", email,
-      options: { redirectTo, data: { full_name: a.parent_name, phone: a.parent_phone, role: "parent" } },
+      options: { redirectTo, data: { full_name: a.parent_name, phone: a.parent_phone, role: "parent", athlete_first_name: a.first_name } },
     });
     if (error) return bad(error.message, 500);
     link = data.properties?.action_link;
@@ -46,6 +49,41 @@ async function inviteParent(req: Request, athleteId: string) {
   }
   await admin.from("athletes").update({ invited_at: new Date().toISOString() }).eq("id", a.id);
   return json({ link, email, existing_account: !!prof, expires_hours: 24 });
+}
+
+/**
+ * Email the parent their login (Valor-branded templates, sent from Valor's Gmail via Supabase Auth SMTP).
+ * New parent: invite email (creates the account). Existing parent: one-tap login email.
+ * Off until AUTH_EMAIL_ENABLED=true (set by scripts/enable_login_emails.sh once SMTP is connected).
+ */
+async function emailParentLogin(req: Request, athleteId: string) {
+  if (Deno.env.get("AUTH_EMAIL_ENABLED") !== "true") {
+    return json({ configured: false, message: "Login emails switch on once Valor's Gmail is connected. Use the QR code or Text for now." });
+  }
+  const { data: a } = await admin.from("athletes").select("*").eq("id", athleteId).maybeSingle();
+  if (!a) return bad("athlete not found", 404);
+  let email = (a.parent_email || "").toLowerCase();
+  if (a.parent_id) {
+    const { data: p } = await admin.from("profiles").select("email").eq("id", a.parent_id).maybeSingle();
+    email = (p?.email || email).toLowerCase();
+  }
+  if (!email) return bad("add the parent's email first");
+  const redirectTo = `${appOrigin(req)}/welcome`;
+  const { data: prof } = await admin.from("profiles").select("id, role").ilike("email", email).maybeSingle();
+  if (!prof) {
+    const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
+      redirectTo, data: { full_name: a.parent_name, phone: a.parent_phone, role: "parent", athlete_first_name: a.first_name },
+    });
+    if (error) return bad(error.message, 502);
+    if (data.user?.id) await admin.from("athletes").update({ parent_id: data.user.id }).eq("id", a.id).is("parent_id", null);
+  } else {
+    if (!a.parent_id && prof.role === "parent") await admin.from("athletes").update({ parent_id: prof.id }).eq("id", a.id);
+    const anon = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { auth: { persistSession: false } });
+    const { error } = await anon.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo, shouldCreateUser: false } });
+    if (error) return bad(error.message, 502);
+  }
+  await admin.from("athletes").update({ invited_at: new Date().toISOString() }).eq("id", a.id);
+  return json({ sent: true, email, existing_account: !!prof });
 }
 
 async function takePayment(req: Request, staffId: string | null, athleteId: string, planKey: string) {
@@ -107,6 +145,7 @@ Deno.serve(async (req) => {
     }
     if (!isStaff) return bad("staff only", 403);
     if (body.action === "invite_parent") return await inviteParent(req, athleteId);
+    if (body.action === "email_parent_login") return await emailParentLogin(req, athleteId);
     return bad("unknown action", 404);
   } catch (e) {
     console.error(e);

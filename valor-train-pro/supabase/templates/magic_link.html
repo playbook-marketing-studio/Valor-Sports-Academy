@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Log in to Valor</title></head>
+<body style="margin:0;padding:0;background:#eceae4;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eceae4;padding:24px 12px;">
+  <tr><td align="center">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:18px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;color:#16140f;">
+      <tr><td style="background:#16140f;padding:22px 28px;">
+        <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+          <td style="padding-right:12px;"><img src="https://app.valorsportsacademywa.com/images/logo-emblem.png" width="44" height="48" alt="Valor Sports Academy" style="display:block;border:0;"></td>
+          <td style="color:#ffffff;font-size:20px;font-weight:bold;letter-spacing:.5px;line-height:1;">Valor<br><span style="font-size:10px;font-weight:bold;letter-spacing:3px;color:#ff7484;">SPORTS ACADEMY</span></td>
+        </tr></table>
+      </td></tr>
+      <tr><td style="padding:30px 28px 8px 28px;font-size:16px;line-height:1.55;">
+        <h1 style="margin:0 0 14px 0;font-size:24px;line-height:1.2;color:#16140f;">Log in to Valor</h1>
+        <p style="margin:0 0 12px 0;">{{ if .Data.full_name }}Hi {{ .Data.full_name }},{{ else }}Hi there,{{ end }}</p><p style="margin:0;">Here's your link to log in. No password needed.</p>
+      </td></tr>
+      <tr><td style="padding:10px 28px 6px 28px;">
+        <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#c8102e;color:#ffffff;text-decoration:none;font-weight:bold;font-size:16px;padding:14px 26px;border-radius:999px;">Log in</a>
+      </td></tr>
+      <tr><td style="padding:14px 28px 26px 28px;font-size:13px;line-height:1.5;color:#56514a;">
+        <p style="margin:0;">The link works once, for 24 hours. Didn't ask for it? You can ignore this email.</p>
+        <p style="margin:10px 0 0 0;">Button not working? Copy this link into your browser:<br><a href="{{ .ConfirmationURL }}" style="color:#c8102e;word-break:break-all;">{{ .ConfirmationURL }}</a></p>
+      </td></tr>
+      <tr><td style="background:#f6f5f1;padding:16px 28px;font-size:12px;line-height:1.5;color:#56514a;">
+        Valor Sports Academy · 1973 Fowler St, Richland, WA 99352 · 509-987-4612<br>Train with purpose. Rise with Valor.
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>

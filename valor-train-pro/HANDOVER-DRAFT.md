@@ -101,6 +101,21 @@ App edge functions: `ingest-booking` (site bookings in), `staff` (parent login l
 - **Test data to delete before launch:** run `node scripts/demo-data.mjs purge`. It removes every `@valortrainpro.test` family. Then delete the admin-test@valortrainpro.test login and its `staff_allowlist` row, and Omar's own test booking (heyomarvega@gmail.com).
 - **Current members aren't in the app yet.** Kids already training at Valor need to be added one at a time with **Add athlete**, or a spreadsheet import could be built. Corey's roster decides which.
 
+## Switches Omar runs (one command each)
+
+**Login emails (and website self-booking).** When Michael gives you the Gmail app password (steps in the guide), add these to the vault:
+`VALOR_GMAIL_USER=valorsportsacademywa@gmail.com` and `VALOR_GMAIL_APP_PASSWORD=<16 letters>`. Then run
+`scripts/enable_login_emails.sh`, or `scripts/enable_login_emails.sh --bookings` to also turn on the website's Saturday picker and emails.
+It connects Supabase Auth to Gmail SMTP, uploads the Valor-branded templates in `supabase/templates/` (Supabase only allows custom templates once custom SMTP is on), raises the email limit from 2 to 30 an hour, and turns on the app's **Email it to them** button. Until then, staff use the QR code, Text, or copy-link.
+
+**Stripe.** Once Valor adds you to their Stripe account as a Developer:
+1. Test mode, then Developers → API keys → copy the secret key into the vault as `VALOR_STRIPE_SECRET_KEY`.
+2. Run `scripts/connect_stripe.sh`. It creates the webhook for the app, stores its signing secret, and sets both Supabase secrets.
+3. Test: pay with card 4242 4242 4242 4242 from an athlete's Card QR. The screen should flip to Paid and the family unlock.
+4. Go live: switch Stripe to live mode, put the `sk_live_…` key in the vault as `VALOR_STRIPE_SECRET_KEY`, remove the old `VALOR_STRIPE_WEBHOOK_SECRET` line, and run the script again. Live mode gets its own webhook.
+
+Client guide for Corey and Michael: https://claude.ai/artifact/26JV2WkKepnixaWozvZp7F (private until shared from its Share menu).
+
 ## What Omar must supply
 
 1. **Stripe keys** (test mode first) into the vault as `VALOR_STRIPE_SECRET_KEY` and `VALOR_STRIPE_WEBHOOK_SECRET`. The publishable key isn't needed, because checkout is hosted by Stripe. Then run:
