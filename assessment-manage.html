@@ -31,6 +31,12 @@
   .bk-chip { border:1.5px solid var(--line); background:#fff; border-radius: 999px; padding: 10px 16px; font: inherit; font-weight:700; font-size:.95rem; color: var(--ink); cursor:pointer; }
   .bk-chip[disabled] { opacity:.4; cursor:not-allowed; text-decoration: line-through; }
   .bk-chip.sel { border-color: var(--red); background: var(--red); color:#fff; }
+  .bk-chip.cur, .bk-chip.cur[disabled] { opacity:1; text-decoration:none; cursor:default; border-color: var(--ink); background: var(--paper-2); }
+  .mg-note { background: var(--paper-2); color: var(--ink); font-weight:700; border-radius: 12px; padding: 12px 14px; margin: 0 0 16px; }
+  .result__cta[hidden] { display:none; }
+  #mgCancel[hidden], .mg-ask[hidden] { display:none; }
+  .mg-ask { display:flex; flex-wrap:wrap; gap: 10px; margin-top: 4px; }
+  .bk-sub a { color: var(--red); font-weight:700; }
   .bk-confirm { width:100%; justify-content:center; }
   .bk-confirm[disabled] { opacity:.5; cursor:not-allowed; }
   .bk-alt { color: var(--muted); font-size:.95rem; margin-top: 18px; }
@@ -73,6 +79,7 @@
       <p class="bk-sub" id="mgLoading">Looking up your booking&hellip;</p>
 
       <div id="mgView" hidden>
+        <p class="mg-note" id="mgNote" role="status" hidden></p>
         <span class="result__badge" id="mgBadge">Booked</span>
         <p class="bk-when" id="mgWhen"></p>
         <p class="bk-sub" id="mgText"></p>
@@ -84,14 +91,18 @@
         <div id="mgMove" style="margin-top:26px;padding-top:20px;border-top:1px solid var(--line)">
           <h3 class="bk-h">Move it to another time</h3>
           <div id="mgSlots" class="bk-days"></div>
-          <button type="button" id="mgConfirm" class="btn btn--lg bk-confirm" disabled>Move to this time</button>
+          <button type="button" id="mgConfirm" class="btn btn--lg bk-confirm" disabled>Pick a new time above</button>
           <p class="quiz-err" id="mgErr"></p>
         </div>
 
         <div class="mg-cancel" id="mgCancelBox">
           <h3 class="bk-h">Cannot make it at all?</h3>
           <p class="bk-sub">Cancel and the time opens up for another family. You can book again any time from the <a href="/assessment#book" style="color:var(--red);font-weight:700">assessment page</a>.</p>
-          <button type="button" id="mgCancel" class="btn btn--outline">Cancel this booking</button>
+          <button type="button" id="mgCancel" class="btn btn--glass">Cancel this booking</button>
+          <div class="mg-ask" id="mgCancelAsk" hidden>
+            <button type="button" id="mgCancelYes" class="btn">Yes, cancel it</button>
+            <button type="button" id="mgCancelNo" class="btn btn--glass">Keep my time</button>
+          </div>
           <p class="quiz-err" id="mgCancelErr"></p>
         </div>
         <p class="bk-alt">Questions? Call or text <a href="tel:+15099874612">509-987-4612</a>.</p>
@@ -125,7 +136,13 @@
   var BK_API = 'https://jggwanbbfaygsjobzjcj.supabase.co/functions/v1/assessment-booking';
   var token = new URLSearchParams(location.search).get('t') || '';
   var el = function (id) { return document.getElementById(id); };
-  var selected = null, current = null;
+  var selected = null, current = null, justMoved = false;
+  var fmtDay = function(s){ var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ''); if (!m) return s || ''; return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); };
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  function confirmLabel() {
+    el('mgConfirm').textContent = selected ? 'Move to ' + selected.label : 'Pick a new time above';
+    el('mgConfirm').disabled = !selected;
+  }
 
   function showGone(title, text) {
     el('mgLoading').hidden = true; el('mgView').hidden = true; el('mgGone').hidden = false;
@@ -133,7 +150,7 @@
     if (text) el('mgGoneText').textContent = text;
   }
   function renderSlots(days) {
-    var box = el('mgSlots'); box.innerHTML = ''; selected = null; el('mgConfirm').disabled = true;
+    var box = el('mgSlots'); box.innerHTML = ''; selected = null; confirmLabel();
     if (!days || !days.length) { box.innerHTML = '<p class="bk-sub">No open times right now. Call or text 509-987-4612 and we will find one.</p>'; return; }
     days.forEach(function (d) {
       var wrap = document.createElement('div'); wrap.className = 'bk-day';
@@ -141,10 +158,15 @@
       var chips = document.createElement('div'); chips.className = 'bk-chips';
       d.slots.forEach(function (sl) {
         var c = document.createElement('button'); c.type = 'button'; c.className = 'bk-chip'; c.textContent = sl.label;
-        c.disabled = !sl.open || (current && current.slot_start === sl.start);
+        c.disabled = !sl.open;
+        if (current && current.slot_start === sl.start) {
+          // The parent's own time: marked, not struck through like a taken one.
+          c.disabled = true; c.classList.add('cur'); c.textContent = sl.label + ' \u00b7 yours';
+          c.setAttribute('aria-label', sl.label + ', your current time');
+        }
         c.addEventListener('click', function () {
           box.querySelectorAll('.bk-chip').forEach(function (x) { x.classList.remove('sel'); });
-          c.classList.add('sel'); selected = sl.start; el('mgConfirm').disabled = false; el('mgErr').classList.remove('show');
+          c.classList.add('sel'); selected = { start: sl.start, label: d.label + ' at ' + sl.label }; confirmLabel(); el('mgErr').classList.remove('show');
         });
         chips.appendChild(c);
       });
@@ -161,23 +183,29 @@
     }
     if (b.status === 'requested') {
       el('mgBadge').textContent = 'Time requested';
-      el('mgWhen').textContent = b.requested_day + ' · ' + b.requested_window;
+      el('mgWhen').textContent = fmtDay(b.requested_day) + ' · ' + b.requested_window;
       el('mgText').textContent = 'Nothing is booked yet. A coach will text or call to confirm. If one of the open Saturday times below works, grab it and you are set.';
       el('mgCal').hidden = true;
     } else {
       el('mgBadge').textContent = active ? 'Booked' : b.status;
       el('mgWhen').textContent = b.when || '';
-      el('mgText').textContent = (b.athlete_name ? b.athlete_name + "'s free assessment. " : '') + '1973 Fowler St, Richland, next to the Chef\'Store. Bring athletic clothes, training shoes and water.';
+      el('mgText').innerHTML = (b.athlete_name ? esc(b.athlete_name) + "'s free assessment. " : '') + '1973 Fowler St, Richland, next to the Chef\'Store (<a href="https://maps.app.goo.gl/3G2hn786vTxUXi756" target="_blank" rel="noopener">map</a>). You and your athlete come in together. Bring athletic clothes, training shoes and water.';
       el('mgCal').hidden = false; el('mgGoogle').href = b.google_url || '#'; el('mgApple').href = b.ics_url || '#';
     }
     var past = b.slot_start && new Date(b.slot_start).getTime() < Date.now();
     el('mgMove').hidden = past || (b.status !== 'requested' && !active);
     el('mgCancelBox').hidden = past || (b.status !== 'requested' && !active);
     renderSlots(days);
+    var note = el('mgNote');
+    if (justMoved && b.when) { note.textContent = 'Done. Your assessment is now ' + b.when + '.'; note.hidden = false; }
+    else note.hidden = true;
+    justMoved = false;
   }
+  // Bring the booking card (not the page hero) to just under the fixed header.
+  function toCard() { var c = el('mgCard'); window.scrollTo({ top: Math.max(0, c.getBoundingClientRect().top + window.pageYOffset - 88), behavior: 'smooth' }); }
   function load() {
-    if (!token) { showGone(); return; }
-    fetch(BK_API + '?action=manage&t=' + encodeURIComponent(token)).then(function (r) { return r.json(); })
+    if (!token) { showGone(); return Promise.resolve(); }
+    return fetch(BK_API + '?action=manage&t=' + encodeURIComponent(token)).then(function (r) { return r.json(); })
       .then(function (d) { if (!d.booking) { showGone(); return; } render(d.booking, d.days); })
       .catch(function () { showGone('Something went wrong loading your booking.', 'Try again in a minute, or call or text 509-987-4612.'); });
   }
@@ -187,20 +215,23 @@
   el('mgConfirm').addEventListener('click', function () {
     if (!selected) return;
     var btn = el('mgConfirm'), err = el('mgErr'); btn.disabled = true; btn.textContent = 'Moving…'; err.classList.remove('show');
-    post({ action: 'reschedule', t: token, slot_start: selected }).then(function (d) {
-      btn.textContent = 'Move to this time';
-      if (d.ok && d.booking) { load(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    post({ action: 'reschedule', t: token, slot_start: selected.start }).then(function (d) {
+      if (d.ok && d.booking) { justMoved = true; load().then(toCard); return; }
+      confirmLabel();
       err.textContent = d.error || 'That did not go through. Try another time or call 509-987-4612.'; err.classList.add('show');
-      if (d.code === 'taken' || d.code === 'invalid') load(); else btn.disabled = false;
-    }).catch(function () { btn.textContent = 'Move to this time'; btn.disabled = false; err.textContent = 'That did not go through. Try again or call 509-987-4612.'; err.classList.add('show'); });
+      if (d.code === 'taken' || d.code === 'invalid') load();
+    }).catch(function () { confirmLabel(); err.textContent = 'That did not go through. Try again or call 509-987-4612.'; err.classList.add('show'); });
   });
-  el('mgCancel').addEventListener('click', function () {
-    if (!confirm('Cancel this assessment booking?')) return;
-    var btn = el('mgCancel'), err = el('mgCancelErr'); btn.disabled = true; btn.textContent = 'Canceling…';
+  // Two-step cancel on the page itself (the browser's confirm() box reads like an error).
+  el('mgCancel').addEventListener('click', function () { el('mgCancel').hidden = true; el('mgCancelAsk').hidden = false; });
+  el('mgCancelNo').addEventListener('click', function () { el('mgCancelAsk').hidden = true; el('mgCancel').hidden = false; });
+  el('mgCancelYes').addEventListener('click', function () {
+    var btn = el('mgCancelYes'), err = el('mgCancelErr'); btn.disabled = true; btn.textContent = 'Canceling\u2026'; err.classList.remove('show');
+    var reset = function (msg) { btn.disabled = false; btn.textContent = 'Yes, cancel it'; err.textContent = msg; err.classList.add('show'); };
     post({ action: 'cancel', t: token }).then(function (d) {
-      if (d.ok) { showGone('Canceled. The time is open again.', 'Want a new time? Book again from the assessment page, or call or text 509-987-4612.'); return; }
-      btn.disabled = false; btn.textContent = 'Cancel this booking'; err.textContent = d.error || 'That did not go through. Call 509-987-4612.'; err.classList.add('show');
-    }).catch(function () { btn.disabled = false; btn.textContent = 'Cancel this booking'; err.textContent = 'That did not go through. Call 509-987-4612.'; err.classList.add('show'); });
+      if (d.ok) { showGone('Canceled. The time is open again.', 'Want a new time? Book again from the assessment page, or call or text 509-987-4612.'); toCard(); return; }
+      reset(d.error || 'That did not go through. Call 509-987-4612.');
+    }).catch(function () { reset('That did not go through. Call 509-987-4612.'); });
   });
   load();
 </script>
