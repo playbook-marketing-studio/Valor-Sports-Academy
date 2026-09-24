@@ -36,3 +36,34 @@ export async function saveCoachLog(workout, userId, entries) {
   if (res.error) throw res.error;
   return logged.length;
 }
+
+/**
+ * Push template changes to athletes already on it: replaces their UPCOMING workouts (today on)
+ * that nobody has logged. Past and logged workouts stay as they are. Returns counts.
+ */
+export async function resyncAssignments(template) {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: asgs } = await supabase.from('program_assignments').select('*').eq('template_id', template.id);
+  let replaced = 0, kept = 0;
+  for (const a of asgs || []) {
+    const { data: ws } = await supabase.from('workouts').select('id, week, day_key, date').eq('assignment_id', a.id);
+    const ids = (ws || []).map((w) => w.id);
+    const { data: logs } = ids.length ? await supabase.from('workout_logs').select('workout_id').in('workout_id', ids) : { data: [] };
+    const logged = new Set((logs || []).map((l) => l.workout_id));
+    const drop = (ws || []).filter((w) => w.date >= today && !logged.has(w.id));
+    if (drop.length) {
+      const { error } = await supabase.from('workouts').delete().in('id', drop.map((w) => w.id));
+      if (error) throw error;
+    }
+    const keep = new Set((ws || []).filter((w) => !drop.includes(w)).map((w) => `${w.week}|${w.day_key}`));
+    kept += keep.size;
+    const fresh = buildWorkouts(template, a.athlete_id, a.id, a.start_date, a.day_weekdays || {})
+      .filter((w) => w.date >= today && !keep.has(`${w.week}|${w.day_key}`));
+    if (fresh.length) {
+      const { error } = await supabase.from('workouts').insert(fresh);
+      if (error) throw error;
+    }
+    replaced += fresh.length;
+  }
+  return { athletes: (asgs || []).length, replaced, kept };
+}

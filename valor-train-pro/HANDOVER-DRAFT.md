@@ -36,7 +36,7 @@ Scripts:
 Worth checking with Corey:
 - The workbook itself says its targets were transcribed from his program images and to spot-check weeks 1-2. A few superset targets read oddly, e.g. Spikes "3 x 60%".
 - Roster typos: "Basketballl" and "Plubmer / Hockey".
-- Not built: editing a program inside the app. Change it in the workbook and re-import, or edit per athlete. Printable cards are not built; the phone replaces them.
+- **Editing programs in the app:** open a program and tap **Edit**. Every week's target is editable in the table. Staff can also add, remove and reorder exercises, change a block's weeks and name, and add or remove days. **Duplicate** makes next season's version and **New program** starts from blank. On save, the app offers to update the upcoming workouts for athletes already on it. Past workouts and anything logged stay as they are. Printable cards are not built; the phone replaces them.
 
 ## After they sign up: where athletes get edited
 
