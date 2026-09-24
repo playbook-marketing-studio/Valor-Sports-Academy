@@ -504,6 +504,9 @@
   /* ── Step 2: pick a Saturday slot (Playbook booking function) ── */
   var BK_API = 'https://jggwanbbfaygsjobzjcj.supabase.co/functions/v1/assessment-booking';
   var bkContact = null, bkSelected = null, bkEmailOn = false;
+  // Tester preview: /assessment?booking=<key> lets Omar, Corey and Michael use the
+  // slot picker while the public switch is still off. The key lives in kv booking:valor.
+  var bkPreview = (function () { try { return new URLSearchParams(location.search).get('booking') || ''; } catch (e) { return ''; } })();
   var bkEl = function (id) { return document.getElementById(id); };
 
   function bkAttribution() {
@@ -534,7 +537,7 @@
     });
   }
   function bkLoad() {
-    return fetch(BK_API + '?action=slots').then(function (r) { return r.json(); })
+    return fetch(BK_API + '?action=slots' + (bkPreview ? '&preview=' + encodeURIComponent(bkPreview) : '')).then(function (r) { return r.json(); })
       .then(function (d) {
         if (!d || !d.enabled || !d.days || !d.days.length) { bkShowFallback(); return; }
         bkEmailOn = !!d.email;
@@ -554,6 +557,7 @@
     bkLoad();
   }
   function bkPost(payload) {
+    if (bkPreview) payload.preview = bkPreview;
     return fetch(BK_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       .then(function (r) { return r.json().then(function (d) { d.__status = r.status; return d; }); });
   }
