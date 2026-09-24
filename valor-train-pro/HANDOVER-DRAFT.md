@@ -114,7 +114,7 @@ It connects Supabase Auth to Gmail SMTP, uploads the Valor-branded templates in 
 3. Test: pay with card 4242 4242 4242 4242 from an athlete's Card QR. The screen should flip to Paid and the family unlock.
 4. Go live: switch Stripe to live mode, put the `sk_live_…` key in the vault as `VALOR_STRIPE_SECRET_KEY`, remove the old `VALOR_STRIPE_WEBHOOK_SECRET` line, and run the script again. Live mode gets its own webhook.
 
-Client guide for Corey and Michael: https://claude.ai/artifact/26JV2WkKepnixaWozvZp7F (private until shared from its Share menu).
+Client guide for Corey and Michael (Playbook deck): https://www.playbookmarketing.studio/proposals/valor-sports-academy/train-pro/ (password `richland`, PDF download on the deck). Older plain version: https://claude.ai/artifact/26JV2WkKepnixaWozvZp7F.
 
 ## What Omar must supply
 
