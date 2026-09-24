@@ -21,7 +21,9 @@ import WorkoutSession from '@/pages/WorkoutSession';
 import AdminBookings from '@/pages/admin/Bookings';
 import AdminAthletes from '@/pages/admin/Athletes';
 import AthleteDetail from '@/pages/admin/AthleteDetail';
-import AdminPrograms from '@/pages/admin/Programs';
+import AdminEnrollment from '@/pages/admin/Enrollment';
+import { ProgramsList, ProgramDetail } from '@/pages/admin/Programs';
+import ClassLog from '@/pages/admin/ClassLog';
 import RequireEnrollment from '@/components/RequireEnrollment';
 import Welcome from '@/pages/public/Welcome';
 import Paid from '@/pages/public/Paid';
@@ -79,8 +81,10 @@ const AuthenticatedApp = () => {
             <Route path="/admin/bookings" element={<AdminBookings />} />
             <Route path="/admin/athletes" element={<AdminAthletes />} />
             <Route path="/admin/athletes/:id" element={<AthleteDetail />} />
-            <Route path="/admin/enrollment" element={<AdminPrograms />} />
-            <Route path="/admin/programs" element={<Navigate to="/admin/enrollment" replace />} />
+            <Route path="/admin/enrollment" element={<AdminEnrollment />} />
+            <Route path="/admin/programs" element={<ProgramsList />} />
+            <Route path="/admin/programs/:id" element={<ProgramDetail />} />
+            <Route path="/admin/log" element={<ClassLog />} />
           </Route>
         </Route>
       </Route>

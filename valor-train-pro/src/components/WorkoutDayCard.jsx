@@ -26,7 +26,7 @@ export default function WorkoutDayCard({ workout, latest1rm, isCompleted, onLog 
       </div>
 
       <CardContent className="p-0">
-        {workout.description && <p className="px-5 pt-4 text-xs text-muted-foreground">{workout.description}</p>}
+        {workout.description && <p className="whitespace-pre-line px-5 pt-4 text-xs text-muted-foreground">{workout.description}</p>}
         <div className="divide-y divide-border">
           {workout.exercises?.map((ex, i) => {
             const target = ex.intensity && latest1rm[ex.name] ? Math.round((latest1rm[ex.name] * ex.intensity) / 100) : null;
@@ -34,11 +34,13 @@ export default function WorkoutDayCard({ workout, latest1rm, isCompleted, onLog 
               <div key={i} className="flex items-center gap-3 px-5 py-3">
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">{i + 1}</span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{ex.name}</p>
-                  {ex.notes && <p className="truncate text-xs text-muted-foreground">{ex.notes}</p>}
+                  <p className="truncate font-medium">{ex.name}{ex.group && ex.group !== 'primary' && <span className="ml-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{ex.group}</span>}</p>
+                  {ex.notes && ex.notes !== ex.target && <p className="truncate text-xs text-muted-foreground">{ex.notes}</p>}
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="rounded-md bg-muted px-2 py-1 font-medium">{ex.sets}×{ex.reps}</span>
+                  {ex.target && !ex.intensity
+                    ? <span className="rounded-md bg-muted px-2 py-1 font-medium">{ex.sets ? `${ex.sets} sets · ` : ''}{ex.target}</span>
+                    : ex.sets || ex.reps ? <span className="rounded-md bg-muted px-2 py-1 font-medium">{ex.sets}×{ex.reps}</span> : null}
                   {ex.intensity ? (
                     <span className="font-semibold text-primary">{target ? `${target}lbs` : `${ex.intensity}%`}</span>
                   ) : null}

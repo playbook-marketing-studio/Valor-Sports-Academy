@@ -4,6 +4,7 @@
 //   node scripts/demo-data.mjs purge
 // Needs VALOR_TRAINPRO_SUPABASE_SERVICE_ROLE_KEY and VALOR_TRAINPRO_INGEST_KEY (vault).
 // Upcoming bookings go through the ingest-booking function, the same path the website uses.
+import { buildWorkouts } from '../src/lib/programs-core.js';
 const URL_ = 'https://gpotwyuttkkygvxzktep.supabase.co';
 const SVC = process.env.VALOR_TRAINPRO_SUPABASE_SERVICE_ROLE_KEY;
 const INGEST = process.env.VALOR_TRAINPRO_INGEST_KEY;
@@ -47,7 +48,7 @@ async function purge() {
   const ids = athletes.map((a) => a.id);
   if (ids.length) {
     const inList = `(${ids.join(',')})`;
-    for (const t of ['payments', 'assessments', 'workout_logs', 'workouts', 'one_rep_maxes', 'bookings']) await rest('DELETE', `${t}?athlete_id=in.${inList}`, null, 'return=minimal');
+    for (const t of ['payments', 'assessments', 'class_visits', 'workout_logs', 'workouts', 'program_assignments', 'one_rep_maxes', 'bookings']) await rest('DELETE', `${t}?athlete_id=in.${inList}`, null, 'return=minimal');
   }
   await rest('DELETE', `bookings?parent_email=ilike.*${encodeURIComponent(DOMAIN)}`, null, 'return=minimal');
   await rest('DELETE', `athletes?parent_email=ilike.*${encodeURIComponent(DOMAIN)}`, null, 'return=minimal');
@@ -111,23 +112,29 @@ async function seed() {
   await fetch(`${URL_}/auth/v1/token?grant_type=password`, { method: 'POST', headers: { apikey: SVC, 'content-type': 'application/json' }, body: JSON.stringify({ email: 'dana.hill' + DOMAIN, password: pw }) }); // sets "last signed in"
   const [mp] = await pay(marcus.id, dana.id, 'inseason_2x', 'Marcus Hill', 'card', atPT(lastSat, 11, 10), { stripe_customer_id: 'cus_demo_dana', note: 'demo', classes_used: 2 });
   for (const d of [addDays(lastSat, 2), addDays(lastSat, 4)]) await rest('POST', 'class_visits', { athlete_id: marcus.id, payment_id: mp.id, visited_at: atPT(d, 18, 0), logged_by: staff.id });
-  for (const [ex, w] of [['Back squat', 245], ['Bench press', 185], ['Hang clean', 165], ['Trap bar deadlift', 315]]) await rest('POST', 'one_rep_maxes', { athlete_id: marcus.id, owner_id: staff.id, exercise_name: ex, weight: w, date: lastSat });
-  const wk1Mon = addDays(lastSat, 2), wk1Wed = addDays(lastSat, 4);
-  const lower = [{ name: 'Back squat', sets: 4, reps: 5, intensity: 75 }, { name: 'Hang clean', sets: 4, reps: 3, intensity: 70 }, { name: 'Box jump', sets: 3, reps: 5, notes: '30 in box' }, { name: 'Nordic curl', sets: 3, reps: 6, notes: 'slow on the way down' }];
-  const upper = [{ name: 'Bench press', sets: 4, reps: 6, intensity: 72 }, { name: 'Trap bar deadlift', sets: 3, reps: 5, intensity: 75 }, { name: 'Med ball chest pass', sets: 3, reps: 8 }, { name: 'Copenhagen plank', sets: 3, reps: 1, notes: '20 sec each side' }];
-  const w = await rest('POST', 'workouts', [
-    { athlete_id: marcus.id, owner_id: staff.id, program: 'Valor plan', week: 1, day: 'Monday', date: wk1Mon, title: 'Lower body power', category: 'Power', description: 'Warm up with the hip series first.', exercises: lower },
-    { athlete_id: marcus.id, owner_id: staff.id, program: 'Valor plan', week: 1, day: 'Wednesday', date: wk1Wed, title: 'Upper body strength', category: 'Strength', description: null, exercises: upper },
-    { athlete_id: marcus.id, owner_id: staff.id, program: 'Valor plan', week: 2, day: 'Monday', date: addDays(wk1Mon, 7), title: 'Lower body power', category: 'Power', description: null, exercises: lower.map((e) => (e.intensity ? { ...e, intensity: e.intensity + 5 } : e)) },
-    { athlete_id: marcus.id, owner_id: staff.id, program: 'Valor plan', week: 2, day: 'Wednesday', date: addDays(wk1Wed, 7), title: 'Upper body strength', category: 'Strength', description: null, exercises: upper.map((e) => (e.intensity ? { ...e, intensity: e.intensity + 5 } : e)) },
-  ]);
-  await rest('POST', 'workout_logs', { owner_id: dana.id, athlete_id: marcus.id, workout_id: w[0].id, workout_title: w[0].title, date: wk1Mon, week: 1, day: 'Monday', logged_exercises: [{ name: 'Back squat', sets: 4, reps: 5, weight: 185 }, { name: 'Hang clean', sets: 4, reps: 3, weight: 115 }] });
+  for (const [ex, w] of [['Squat', 245], ['Bench Press', 185], ['Hang Clean', 165], ['Clean Pull', 205], ['Deadlift', 315]]) await rest('POST', 'one_rep_maxes', { athlete_id: marcus.id, owner_id: staff.id, exercise_name: ex, weight: w, date: lastSat });
+  // Corey's in-season program (imported from his workbook) for Marcus, from the Monday after his assessment
+  const [tpl] = await rest('GET', `program_templates?select=*&season=eq.in_season&order=created_at&limit=1`);
+  const wk1Mon = addDays(lastSat, 2);
+  let marcusAsg = null;
+  if (tpl) {
+    [marcusAsg] = await rest('POST', 'program_assignments', { template_id: tpl.id, athlete_id: marcus.id, start_date: wk1Mon, created_by: staff.id });
+    const ws = await rest('POST', 'workouts', buildWorkouts(tpl, marcus.id, marcusAsg.id, wk1Mon).map((w) => ({ ...w, owner_id: staff.id })));
+    const mon1 = ws.find((w) => w.week === 1 && w.day_key === 'mon');
+    if (mon1) await rest('POST', 'workout_logs', { owner_id: staff.id, athlete_id: marcus.id, workout_id: mon1.id, workout_title: mon1.title, date: mon1.date, week: 1, day: mon1.day, logged_exercises: [{ name: 'Hang Clean', sets: 5, reps: 3, weight: 95 }, { name: 'Squat', sets: 5, reps: 5, weight: 135 }, { name: 'DB Bench Press', reps: 10, weight: 40 }] });
+  }
 
   // 3. Tyler: Marcus's brother, walked in last Saturday, paid cash, same parent login
   const [tyler] = await rest('POST', 'athletes', { parent_id: dana.id, first_name: 'Tyler', last_name: 'Hill', age: 12, sport: 'Football', parent_name: 'Dana Hill', parent_email: 'dana.hill' + DOMAIN, parent_phone: '509-555-0117' });
   const [tb] = await rest('POST', 'bookings', { athlete_id: tyler.id, parent_id: dana.id, origin: 'walk_in', status: 'attended', checked_in_at: atPT(lastSat, 10, 40), athlete_first_name: 'Tyler', athlete_last_name: 'Hill', athlete_age: 12, sport: 'Football', parent_name: 'Dana Hill', parent_email: 'dana.hill' + DOMAIN, parent_phone: '509-555-0117' });
   await rest('POST', 'assessments', { athlete_id: tyler.id, booking_id: tb.id, date: lastSat, coach_id: staff.id, metrics: { sprint_10yd: '2.02', sprint_40yd: '6.10', pro_agility: '5.35', vertical_in: '16', broad_jump_in: '70' }, work_on: 'Arm action when he sprints, and basic squat pattern.', recommended_plan: 'inseason_1x' });
   await pay(tyler.id, dana.id, 'inseason_1x', 'Tyler Hill', 'cash', atPT(lastSat, 11, 12));
+  if (tpl) {
+    const [ta] = await rest('POST', 'program_assignments', { template_id: tpl.id, athlete_id: tyler.id, start_date: wk1Mon, created_by: staff.id });
+    await rest('POST', 'workouts', buildWorkouts(tpl, tyler.id, ta.id, wk1Mon).map((w) => ({ ...w, owner_id: staff.id })));
+  }
+  await rest('PATCH', `athletes?id=eq.${marcus.id}`, { season: 'in_season', frequency: '2x/week', class_days: 'Mon / Wed (PM1)', nutrition_plan: true });
+  await rest('PATCH', `athletes?id=eq.${tyler.id}`, { season: 'in_season', frequency: '1x/week', class_days: 'Mon (PM1)' });
 
   // 4. Ethan: assessed, login sent, hasn't paid yet (the follow-up case)
   const ethan = await athleteByEmail('kim.brown' + DOMAIN, 'Ethan');

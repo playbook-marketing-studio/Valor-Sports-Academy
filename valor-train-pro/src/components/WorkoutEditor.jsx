@@ -37,9 +37,10 @@ export default function WorkoutEditor({ open, onOpenChange, athlete, workout = n
     e.preventDefault();
     setBusy(true);
     const values = {
-      athlete_id: athlete.id, program: 'Valor plan', title: f.title.trim(), date: f.date, week: Number(f.week) || 1, day: dayOf(f.date),
+      athlete_id: athlete.id, program: workout?.program || 'Valor plan', title: f.title.trim(), date: f.date, week: Number(f.week) || 1, day: dayOf(f.date),
       category: f.category, description: f.description.trim() || null,
-      exercises: ex.filter((x) => x.name.trim()).map((x) => ({ name: x.name.trim(), sets: n(x.sets), reps: n(x.reps), intensity: n(x.intensity), weight: n(x.weight), notes: x.notes?.trim() || '' })),
+      // keep program fields (group, prescription, target) when a coach edits an assigned workout
+      exercises: ex.filter((x) => x.name.trim()).map((x) => ({ ...x, name: x.name.trim(), sets: n(x.sets), reps: n(x.reps), intensity: n(x.intensity), weight: n(x.weight), notes: x.notes?.trim() || '' })),
     };
     const res = workout ? await supabase.from('workouts').update(values).eq('id', workout.id) : await supabase.from('workouts').insert(values);
     setBusy(false);

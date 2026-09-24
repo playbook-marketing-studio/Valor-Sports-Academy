@@ -49,6 +49,7 @@ What the seed creates:
    - **Home:** all three kids, their results and their programs.
    - **Workouts:** Marcus's plan from the coach, with target weights from his own maxes. Tap a workout to log it; the coach sees the check mark.
    - **Progress:** per-kid lifts.
-9. **The roster.** On **Athletes**, filter by Booked, Assessed (the follow-ups), Enrolled or Archived.
+9. **Corey's workbook, replaced.** Open **Programs** and show his in-season program week by week. Marcus and Tyler are already on it. Open **Class log**, Monday, week 1: Marcus's Hang Clean and Squat are logged, and the gray hints are targets from his maxes. Type a weight for Tyler and click away; it saves. Then show Dana's phone, where Monday week 1 has Marcus's target weights.
+10. **The roster.** On **Athletes**, filter by Booked, Assessed (the follow-ups), Enrolled or Archived.
 
 Afterwards, run `node scripts/demo-data.mjs purge` to remove every demo family.

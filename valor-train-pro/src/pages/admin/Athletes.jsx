@@ -25,6 +25,7 @@ export default function AdminAthletes() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [stage, setStage] = useState('active');
+  const [season, setSeason] = useState('');
   const [form, setForm] = useState(null); // 'add' | 'walk_in'
 
   useEffect(() => {
@@ -36,6 +37,7 @@ export default function AdminAthletes() {
   const count = (k) => rows.filter((a) => (k === 'active' ? a.stage !== 'archived' : a.stage === k)).length;
   const shown = rows
     .filter((a) => (stage === 'active' ? a.stage !== 'archived' : a.stage === stage))
+    .filter((a) => !season || a.season === season)
     .filter((a) => !term || [a.first_name, a.last_name, a.parent_name, a.parent_email, a.parent_login_email, a.sport, a.school].join(' ').toLowerCase().includes(term));
 
   return (
@@ -54,6 +56,9 @@ export default function AdminAthletes() {
         {STAGES.map(([k, l]) => (
           <button key={k} onClick={() => setStage(k)} className={cn('rounded-full px-4 py-1.5 text-sm font-medium', stage === k ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground')}>{l} <span className="opacity-70">{count(k)}</span></button>
         ))}
+        <select aria-label="Season" value={season} onChange={(e) => setSeason(e.target.value)} className="ml-auto h-9 rounded-full border border-input bg-background px-3 text-sm">
+          <option value="">All seasons</option><option value="in_season">In-season</option><option value="off_season">Off-season</option>
+        </select>
       </div>
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -69,7 +74,7 @@ export default function AdminAthletes() {
                   <CardContent className="flex flex-col gap-1 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <span className="font-semibold">{athleteName(a)}</span>
-                      <span className="ml-2 text-xs text-muted-foreground">{[a.age && `age ${a.age}`, a.sport, a.parent_name].filter(Boolean).join(' · ')}</span>
+                      <span className="ml-2 text-xs text-muted-foreground">{[a.age && `age ${a.age}`, a.sport, a.season === 'in_season' ? 'in-season' : a.season === 'off_season' ? 'off-season' : '', a.frequency, a.class_days, a.nutrition_plan ? 'nutrition plan' : ''].filter(Boolean).join(' · ')}</span>
                     </div>
                     <div className="flex flex-wrap gap-2 text-xs">
                       <span className={cn('rounded-full px-2 py-0.5 font-medium capitalize', STAGE_STYLE[a.stage])}>{a.stage}</span>

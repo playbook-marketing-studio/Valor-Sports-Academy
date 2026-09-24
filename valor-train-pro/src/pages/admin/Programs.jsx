@@ -1,77 +1,122 @@
-import React, { useEffect, useState } from 'react';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { ArrowLeft, Loader2, UserPlus } from 'lucide-react';
 import { supabase } from '@/api/supabaseClient';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from '@/components/ui/use-toast';
+import { Card, CardContent } from '@/components/ui/card';
+import AssignProgramDialog from '@/components/AssignProgramDialog';
+import { weekdayName } from '@/lib/programs';
+import { athleteName } from '@/lib/valor';
+import { cn } from '@/lib/utils';
 
-const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 40) || `item_${Date.now()}`;
-const blankNum = (v) => (v === '' || v == null ? null : Number(v));
+const GROUP_STYLE = { primary: 'bg-primary/10 text-primary', superset: 'bg-muted', finisher: 'bg-amber-100 text-amber-900', extra: 'bg-sky-100 text-sky-900', other: 'bg-muted' };
 
-/**
- * settings.enrollment = { placeholder, note, items: [{ key, name, amount_cents, classes, expires_days }] }
- * Classes and class packs, sold one time the way Valor sells at the gym (no subscriptions).
- * A paid item unlocks workouts, nutrition and training plans until its classes are used or it expires.
- */
-export default function AdminEnrollment() {
-  const [cfg, setCfg] = useState(null);
-  const [busy, setBusy] = useState(false);
-
+export function ProgramsList() {
+  const [rows, setRows] = useState(null);
+  const [counts, setCounts] = useState({});
   useEffect(() => {
-    supabase.from('settings').select('value').eq('key', 'enrollment').maybeSingle().then(({ data }) => {
-      const e = data?.value || {};
-      setCfg({
-        placeholder: !!e.placeholder, note: e.note || '',
-        items: (e.items || []).map((x) => ({ ...x, price: ((x.amount_cents || 0) / 100).toString(), classes: x.classes ?? '', expires_days: x.expires_days ?? '' })),
-      });
+    supabase.from('program_templates').select('id, name, season, weeks, days, source').order('created_at').then(({ data }) => setRows(data || []));
+    supabase.from('program_assignments').select('template_id').then(({ data }) => {
+      const c = {}; (data || []).forEach((r) => { c[r.template_id] = (c[r.template_id] || 0) + 1; }); setCounts(c);
     });
   }, []);
-
-  const upd = (i, k, v) => setCfg((c) => ({ ...c, items: c.items.map((x, j) => (j === i ? { ...x, [k]: v } : x)) }));
-  const save = async () => {
-    const items = cfg.items.filter((x) => x.name.trim()).map((x) => ({
-      key: x.key || slug(x.name), name: x.name.trim(), amount_cents: Math.round(Number(x.price) * 100),
-      classes: blankNum(x.classes), expires_days: blankNum(x.expires_days),
-    }));
-    if (!items.length || items.some((x) => !Number.isFinite(x.amount_cents) || x.amount_cents < 50)) return toast({ title: 'Each item needs a name and a price of at least $0.50' });
-    if (items.some((x) => (x.classes !== null && !(x.classes > 0)) || (x.expires_days !== null && !(x.expires_days > 0)))) return toast({ title: 'Classes and expiry must be blank or a positive number' });
-    setBusy(true);
-    const { error } = await supabase.from('settings').upsert({ key: 'enrollment', updated_at: new Date().toISOString(), value: { placeholder: cfg.placeholder, note: cfg.placeholder ? cfg.note : '', items } });
-    setBusy(false);
-    if (error) return toast({ title: 'Could not save', description: error.message });
-    toast({ title: 'Saved', description: 'Applies to the next purchase. Packs already bought keep what they paid for.' });
-  };
-
-  if (!cfg) return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+  if (!rows) return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="space-y-6">
       <div>
-        <h1 className="font-display text-3xl lg:text-4xl">Enrollment</h1>
-        <p className="mt-1 text-sm text-muted-foreground">The assessment is free. After it, families buy a class or a class pack, one time, the way they would at the front desk. Workouts, nutrition and training plans are included until the classes are used up or the pack expires.</p>
+        <h1 className="font-display text-3xl lg:text-4xl">Programs</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Write a program once, put a whole group on it. Each athlete gets their own dated workouts with targets from their own maxes.</p>
       </div>
-      {cfg.placeholder && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"><span className="font-semibold">Confirm with Corey.</span> {cfg.note}</p>}
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-lg">Classes and packs</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
-          <div className="grid grid-cols-12 gap-2 px-1 text-[11px] font-medium text-muted-foreground">
-            <span className="col-span-6">Name</span><span className="col-span-2">Price ($)</span><span className="col-span-1">Classes</span><span className="col-span-2">Expires after (days)</span>
-          </div>
-          {cfg.items.map((x, i) => (
-            <div key={x.key || i} className="grid grid-cols-12 items-center gap-2">
-              <Input aria-label="Name" className="col-span-6" value={x.name} onChange={(e) => upd(i, 'name', e.target.value)} />
-              <Input aria-label="Price" className="col-span-2" inputMode="decimal" value={x.price} onChange={(e) => upd(i, 'price', e.target.value)} />
-              <Input aria-label="Classes" className="col-span-1 px-2" inputMode="numeric" placeholder="∞" value={x.classes} onChange={(e) => upd(i, 'classes', e.target.value)} />
-              <Input aria-label="Expires after days" className="col-span-2" inputMode="numeric" placeholder="never" value={x.expires_days} onChange={(e) => upd(i, 'expires_days', e.target.value)} />
-              <button className="col-span-1 justify-self-center text-muted-foreground hover:text-destructive" onClick={() => setCfg({ ...cfg, items: cfg.items.filter((_, j) => j !== i) })} aria-label="Remove"><Trash2 className="h-4 w-4" /></button>
-            </div>
-          ))}
-          <p className="px-1 text-xs text-muted-foreground">Leave classes blank for unlimited. Leave expiry blank for never.</p>
-          <Button variant="outline" size="sm" className="gap-1" onClick={() => setCfg({ ...cfg, items: [...cfg.items, { key: '', name: '', price: '', classes: '', expires_days: '' }] })}><Plus className="h-3 w-3" /> Add class or pack</Button>
-          <label className="flex items-center gap-2 border-t border-border pt-3 text-sm"><input type="checkbox" checked={cfg.placeholder} onChange={(e) => setCfg({ ...cfg, placeholder: e.target.checked })} /> Placeholder: shows "confirm with Corey" to staff</label>
-        </CardContent>
-      </Card>
-      <Button onClick={save} disabled={busy}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}</Button>
+      <div className="grid gap-4 md:grid-cols-2">
+        {rows.map((t) => (
+          <Link key={t.id} to={`/admin/programs/${t.id}`}>
+            <Card className="h-full transition hover:border-primary/50"><CardContent className="p-5">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{t.season === 'off_season' ? 'Off-season' : 'In-season'} · {t.weeks} weeks</p>
+              <h2 className="mt-1 font-display text-2xl">{t.name}</h2>
+              <p className="mt-2 text-sm text-muted-foreground">{t.days.map((d) => d.label).join(' · ')}</p>
+              <p className="mt-3 text-xs text-muted-foreground">{counts[t.id] || 0} athlete{counts[t.id] === 1 ? '' : 's'} assigned{t.source ? ` · imported from ${t.source}` : ''}</p>
+            </CardContent></Card>
+          </Link>
+        ))}
+        {!rows.length && <p className="text-sm text-muted-foreground">No programs yet. Import Corey's workbook with scripts/import_programs.py.</p>}
+      </div>
+    </div>
+  );
+}
+
+export function ProgramDetail() {
+  const { id } = useParams();
+  const [t, setT] = useState(null);
+  const [assigned, setAssigned] = useState([]);
+  const [dayKey, setDayKey] = useState('');
+  const [assignOpen, setAssignOpen] = useState(false);
+  const load = useCallback(async () => {
+    const [{ data: tpl }, { data: asg }] = await Promise.all([
+      supabase.from('program_templates').select('*').eq('id', id).maybeSingle(),
+      supabase.from('program_assignments').select('id, start_date, athlete:athletes(id, first_name, last_name)').eq('template_id', id).order('created_at'),
+    ]);
+    setT(tpl); setAssigned(asg || []); if (tpl && !dayKey) setDayKey(tpl.days[0]?.key);
+  }, [id, dayKey]);
+  useEffect(() => { load(); }, [load]);
+  if (!t) return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+  const day = t.days.find((d) => d.key === dayKey) || t.days[0];
+  const weeks = Array.from({ length: t.weeks }, (_, i) => i + 1);
+  const blocks = [...new Set(day.exercises.map((e) => `${e.weeks[0]}-${e.weeks[e.weeks.length - 1]}|${e.block}`))];
+
+  return (
+    <div className="space-y-6">
+      <Link to="/admin/programs" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Programs</Link>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{t.season === 'off_season' ? 'Off-season' : 'In-season'} · {t.weeks} weeks</p>
+          <h1 className="font-display text-3xl lg:text-4xl">{t.name}</h1>
+          {t.description && <p className="mt-2 max-w-3xl text-sm text-muted-foreground">{t.description}</p>}
+        </div>
+        <div className="flex gap-2">
+          <Button asChild variant="outline" size="sm"><Link to={`/admin/log?program=${t.id}`}>Class log</Link></Button>
+          <Button size="sm" className="gap-2" onClick={() => setAssignOpen(true)}><UserPlus className="h-4 w-4" /> Assign athletes</Button>
+        </div>
+      </div>
+
+      <Card><CardContent className="flex flex-wrap items-center gap-2 p-4 text-sm">
+        <span className="font-semibold">On this program:</span>
+        {assigned.length ? assigned.map((a) => <Link key={a.id} to={`/admin/athletes/${a.athlete.id}`} className="rounded-full bg-muted px-3 py-1 hover:bg-primary/10">{athleteName(a.athlete)} <span className="text-xs text-muted-foreground">from {new Date(a.start_date + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span></Link>) : <span className="text-muted-foreground">nobody yet</span>}
+      </CardContent></Card>
+
+      <div className="flex flex-wrap gap-1">
+        {t.days.map((d) => <button key={d.key} onClick={() => setDayKey(d.key)} className={cn('rounded-full px-4 py-1.5 text-sm font-medium', d.key === day.key ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground')}>{d.label}</button>)}
+      </div>
+      {day.warmup && <p className="rounded-lg bg-muted/60 p-3 text-sm"><span className="font-semibold">Before lifting: </span>{day.warmup}</p>}
+
+      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <table className="w-full min-w-[900px] text-sm">
+          <thead><tr className="border-b border-border text-left text-xs text-muted-foreground">
+            <th className="sticky left-0 bg-card px-3 py-2 font-medium">Exercise</th><th className="px-2 py-2 font-medium">Sets / notes</th>
+            {weeks.map((w) => <th key={w} className="px-2 py-2 font-medium">Wk {w}</th>)}
+          </tr></thead>
+          <tbody>
+            {blocks.map((b) => {
+              const [range, label] = b.split('|');
+              const rows = day.exercises.filter((e) => `${e.weeks[0]}-${e.weeks[e.weeks.length - 1]}|${e.block}` === b);
+              return (
+                <React.Fragment key={b}>
+                  <tr className="bg-muted/50"><td colSpan={weeks.length + 2} className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider">Weeks {range}{label ? ` · ${label}` : ''}</td></tr>
+                  {rows.map((e, i) => (
+                    <tr key={i} className="border-b border-border last:border-0">
+                      <td className="sticky left-0 bg-card px-3 py-1.5 font-medium">{e.name}</td>
+                      <td className="px-2 py-1.5"><span className={cn('mr-1 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase', GROUP_STYLE[e.group])}>{e.group}</span><span className="text-xs text-muted-foreground">{e.prescription.replace(/^\w+\s*-\s*/, '')}</span></td>
+                      {weeks.map((w) => <td key={w} className={cn('px-2 py-1.5 text-xs', !e.weeks.includes(w) && 'bg-muted/40')}>{e.targets[String(w)] || ''}</td>)}
+                    </tr>
+                  ))}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {(day.cue || day.finish) && <div className="space-y-2 text-sm">{day.finish && <p>{day.finish}</p>}{day.cue && <p className="italic text-muted-foreground">Coach's cue: "{day.cue}"</p>}</div>}
+      <p className="text-xs text-muted-foreground">Day {day.label} defaults to {weekdayName(day.weekday)}; change it per athlete when you assign. Targets were transcribed from Corey's original program images in the workbook; spot-check weeks 1-2 before the season.</p>
+      <AssignProgramDialog open={assignOpen} onOpenChange={setAssignOpen} template={t} onDone={load} />
     </div>
   );
 }

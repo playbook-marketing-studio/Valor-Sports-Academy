@@ -16,6 +16,28 @@ A cold lead from a Meta ad never makes an account or pays anything up front. The
 
 Walk-ins with no booking: tap "Walk-in" on the Assessments or Athletes screen. If the parent already has a login, for example a sibling, the new athlete links to it automatically. The waiver stays on paper in person.
 
+## Replaces Corey's tracking workbook
+
+Corey's Excel workbook ("Valor Athlete Tracking Log, In-Season / Off-Season") maps onto the app like this:
+
+| Workbook tab | In the app |
+|---|---|
+| Roster (name, sport, frequency, days in, nutrition plan) | **Athletes**: each athlete has season, frequency, class days and nutrition plan, and the roster filters by season |
+| Program - Monday / Wednesday, Program - Day 1/2/3 | **Programs**: both programs are imported from the workbook, shown week by week like the tabs, with the warm-up and coach's cue |
+| (putting athletes on the program) | **Assign athletes** from a program, or from an athlete's Training tab. Pick the start Monday and which weekday each program day lands on, e.g. Tues/Thurs kids |
+| Monday Log / Wednesday Log / Day 1-3 Log | **Class log**: pick program, day and week, then type the weight each athlete used. Each row saves on its own. The gray hint is their target from their own max |
+| Weekly Athlete Cards (print and hand out) | The parent's phone: **Workouts** shows that week's session with the actual target weight, and they can log what they lifted |
+| "Percentages are of each athlete's most recent max" | Max lifts on each athlete's Progress tab. Targets update when a max is added. Lift names match regardless of capitalization |
+
+Scripts:
+- `python3 scripts/import_programs.py <workbook.xlsx>` loads or updates the programs.
+- `python3 scripts/import_roster.py <workbook.xlsx>` previews the 12 current athletes; add `--apply` to import them. It's a dry run by default, because these are real kids with no parent contact in the sheet.
+
+Worth checking with Corey:
+- The workbook itself says its targets were transcribed from his program images and to spot-check weeks 1-2. A few superset targets read oddly, e.g. Spikes "3 x 60%".
+- Roster typos: "Basketballl" and "Plubmer / Hockey".
+- Not built: editing a program inside the app. Change it in the workbook and re-import, or edit per athlete. Printable cards are not built; the phone replaces them.
+
 ## After they sign up: where athletes get edited
 
 Everything about one athlete lives on their page (**Athletes**, then the athlete). It has four tabs:

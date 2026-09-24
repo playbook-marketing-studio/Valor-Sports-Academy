@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { toast } from '@/components/ui/use-toast';
 
 const TITLES = { walk_in: 'Add a walk-in', add: 'Add an athlete', sibling: 'Add a sibling', edit: 'Edit athlete', parent_edit: 'Edit athlete' };
-const blank = { first_name: '', last_name: '', age: '', birthdate: '', sport: '', position: '', school: '', grad_year: '', notes: '', parent_name: '', parent_email: '', parent_phone: '' };
+const blank = { first_name: '', last_name: '', age: '', birthdate: '', sport: '', position: '', school: '', grad_year: '', season: '', frequency: '', class_days: '', nutrition_plan: false, notes: '', parent_name: '', parent_email: '', parent_phone: '' };
 
 /**
  * One form for every way an athlete gets created or changed.
@@ -30,7 +30,7 @@ export default function AthleteForm({ open, onOpenChange, mode = 'add', athlete 
     const parent = { parent_name: src.parent_name || '', parent_email: src.parent_email || src.parent_login_email || '', parent_phone: src.parent_phone || '' };
     if (mode === 'sibling') setF({ ...blank, ...parent });
     else if (mode === 'edit' || mode === 'parent_edit') {
-      setF(Object.fromEntries(Object.keys(blank).map((k) => [k, src[k] ?? ''])));
+      setF(Object.fromEntries(Object.keys(blank).map((k) => [k, src[k] ?? (k === 'nutrition_plan' ? false : '')])));
       setF((x) => ({ ...x, ...parent }));
     } else setF(blank);
   }, [open, mode, athlete]);
@@ -46,7 +46,7 @@ export default function AthleteForm({ open, onOpenChange, mode = 'add', athlete 
       first_name: f.first_name.trim(), last_name: f.last_name.trim() || null, age: num(f.age), birthdate: f.birthdate || null,
       sport: f.sport.trim() || null, position: f.position.trim() || null, school: f.school.trim() || null, grad_year: num(f.grad_year),
     };
-    if (staff) Object.assign(values, { notes: f.notes.trim() || null, parent_name: f.parent_name.trim() || null, parent_email: email || null, parent_phone: f.parent_phone.trim() || null });
+    if (staff) Object.assign(values, { season: f.season || null, frequency: f.frequency || null, class_days: f.class_days.trim() || null, nutrition_plan: !!f.nutrition_plan, notes: f.notes.trim() || null, parent_name: f.parent_name.trim() || null, parent_email: email || null, parent_phone: f.parent_phone.trim() || null });
 
     // link to an existing parent login with this email (siblings, returning families)
     if (staff && email && !athlete?.parent_id) {
@@ -103,6 +103,14 @@ export default function AthleteForm({ open, onOpenChange, mode = 'add', athlete 
           </div>
           {staff && (
             <>
+              <div className="grid grid-cols-2 gap-3 border-t border-border pt-4">
+                <div className="space-y-1"><Label htmlFor="af-season" className="text-xs">Season</Label>
+                  <select id="af-season" value={f.season || ''} onChange={set('season')} className="h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm"><option value="">Not set</option><option value="in_season">In-season</option><option value="off_season">Off-season</option></select></div>
+                <div className="space-y-1"><Label htmlFor="af-frequency" className="text-xs">Frequency</Label>
+                  <select id="af-frequency" value={f.frequency || ''} onChange={set('frequency')} className="h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm"><option value="">Not set</option><option>1x/week</option><option>2x/week</option><option>3x/week</option></select></div>
+                {field('class_days', 'Class days / time', { placeholder: 'e.g. Mon / Wed (PM1)' })}
+                <label className="flex items-end gap-2 pb-2 text-sm"><input type="checkbox" checked={!!f.nutrition_plan} onChange={(e) => { const v = e.target.checked; setF((x) => ({ ...x, nutrition_plan: v })); }} /> On a nutrition plan</label>
+              </div>
               <div className="grid grid-cols-2 gap-3 border-t border-border pt-4">
                 {field('parent_name', 'Parent / guardian name', { wide: true, required: mode === 'walk_in' })}
                 {field('parent_email', 'Parent email', { type: 'email', required: mode === 'walk_in' })}

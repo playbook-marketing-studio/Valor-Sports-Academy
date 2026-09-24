@@ -18,6 +18,9 @@ import { loginState } from './Athletes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AthleteForm from '@/components/AthleteForm';
 import WorkoutEditor from '@/components/WorkoutEditor';
+import AssignProgramDialog from '@/components/AssignProgramDialog';
+import CoachLogDialog from '@/components/CoachLogDialog';
+import { latestMaxes } from '@/lib/maxes';
 import { cn } from '@/lib/utils';
 
 const METHOD_LABEL = { card: 'Card', cash: 'Cash', venmo: 'Venmo', other: 'Other' };
@@ -298,6 +301,7 @@ function ProfileTab({ athlete, onEdit, onSibling }) {
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-lg">Athlete</CardTitle><Button size="sm" variant="outline" onClick={onEdit} className="gap-1"><Pencil className="h-3 w-3" /> Edit</Button></CardHeader>
         <CardContent>
           {row('Name', athleteName(athlete))}{row('Age', athlete.age)}{row('Birthday', athlete.birthdate && new Date(athlete.birthdate + 'T12:00:00').toLocaleDateString())}
+          {row('Season', athlete.season === 'in_season' ? 'In-season' : athlete.season === 'off_season' ? 'Off-season' : '')}{row('Frequency', athlete.frequency)}{row('Class days', athlete.class_days)}{row('Nutrition plan', athlete.nutrition_plan ? 'Yes' : '')}
           {row('Sport', athlete.sport)}{row('Position', athlete.position)}{row('School', athlete.school)}{row('Grad year', athlete.grad_year)}
           {athlete.notes && <p className="mt-3 rounded-lg bg-muted/60 p-3 text-sm"><span className="font-semibold">Coach notes: </span>{athlete.notes}</p>}
         </CardContent>
@@ -326,10 +330,19 @@ function ProfileTab({ athlete, onEdit, onSibling }) {
 function TrainingTab({ athlete }) {
   const [rows, setRows] = useState([]);
   const [done, setDone] = useState({});
+  const [assignments, setAssignments] = useState([]);
+  const [maxes, setMaxes] = useState({});
   const [editing, setEditing] = useState(null); // null | 'new' | workout
+  const [logging, setLogging] = useState(null);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const load = useCallback(async () => {
-    const { data } = await supabase.from('workouts').select('*').eq('athlete_id', athlete.id).order('date', { ascending: true });
-    setRows(data || []);
+    const [{ data }, { data: asg }, { data: mx }] = await Promise.all([
+      supabase.from('workouts').select('*').eq('athlete_id', athlete.id).order('date', { ascending: true }),
+      supabase.from('program_assignments').select('id, start_date, template:program_templates(id, name, weeks)').eq('athlete_id', athlete.id),
+      supabase.from('one_rep_maxes').select('*').eq('athlete_id', athlete.id),
+    ]);
+    setRows(data || []); setAssignments(asg || []); setMaxes(latestMaxes(mx || [], athlete.id));
     const ids = (data || []).map((w) => w.id);
     if (ids.length) {
       const { data: logs } = await supabase.from('workout_logs').select('workout_id, date').in('workout_id', ids);
@@ -338,46 +351,75 @@ function TrainingTab({ athlete }) {
   }, [athlete.id]);
   useEffect(() => { load(); }, [load]);
 
-  const weeks = [...new Set(rows.map((w) => w.week || 1))].sort((a, b) => a - b);
-  const nextWeek = weeks.length ? Math.max(...weeks) : 1;
+  const today = new Date().toISOString().slice(0, 10);
+  const visible = showAll ? rows : rows.filter((w) => w.date >= new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10)).slice(0, 12);
+  const weeks = [...new Set(visible.map((w) => `${w.program || 'Coach-built'}|${w.week || 1}`))];
+  const nextWeek = rows.length ? Math.max(...rows.map((w) => w.week || 1)) : 1;
   const remove = async (w) => { if (!window.confirm(`Delete "${w.title}"?`)) return; await supabase.from('workouts').delete().eq('id', w.id); load(); };
+  const unassign = async (a) => {
+    if (!window.confirm(`Take ${athlete.first_name} off ${a.template.name}? Their workouts from it are removed; anything already logged stays in their history.`)) return;
+    const { error } = await supabase.from('program_assignments').delete().eq('id', a.id);
+    if (error) toast({ title: 'Could not remove', description: error.message }); else load();
+  };
   const copyWeek = async (wk) => {
-    const src = rows.filter((w) => (w.week || 1) === wk);
+    const src = rows.filter((w) => !w.assignment_id && (w.week || 1) === wk);
     const plus7 = (d) => { const x = new Date(d + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() + 7); return x.toISOString().slice(0, 10); };
-    const { error } = await supabase.from('workouts').insert(src.map(({ id: _i, created_at: _c, updated_at: _u, owner_id: _o, ...w }) => ({ ...w, week: wk + 1, date: plus7(w.date), title: w.title })));
+    const { error } = await supabase.from('workouts').insert(src.map(({ id: _i, created_at: _c, updated_at: _u, owner_id: _o, ...w }) => ({ ...w, week: wk + 1, date: plus7(w.date) })));
     if (error) toast({ title: 'Could not copy', description: error.message }); else { toast({ title: `Week ${wk} copied to week ${wk + 1}` }); load(); }
   };
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground">Workouts built here show up on {athlete.first_name}'s Workouts page. A check mark means they logged it.</p>
-        <Button onClick={() => setEditing('new')} className="gap-2"><Plus className="h-4 w-4" /> New workout</Button>
-      </div>
+      <Card><CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-sm">
+          <p className="font-semibold">Programs</p>
+          {assignments.length ? assignments.map((a) => (
+            <p key={a.id} className="mt-1 flex flex-wrap items-center gap-2">
+              <Link to={`/admin/programs/${a.template.id}`} className="text-primary hover:underline">{a.template.name}</Link>
+              <span className="text-xs text-muted-foreground">from {new Date(a.start_date + 'T12:00:00').toLocaleDateString()}</span>
+              <button onClick={() => unassign(a)} className="text-xs text-muted-foreground hover:text-destructive">Remove</button>
+            </p>
+          )) : <p className="mt-1 text-muted-foreground">Not on a program. Assign one, or build workouts by hand.</p>}
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setAssignOpen(true)} className="gap-2"><CopyPlus className="h-4 w-4" /> Assign a program</Button>
+          <Button onClick={() => setEditing('new')} className="gap-2"><Plus className="h-4 w-4" /> New workout</Button>
+        </div>
+      </CardContent></Card>
+      <p className="text-sm text-muted-foreground">These show up on {athlete.first_name}'s Workouts page. Tap <span className="font-medium">Log</span> to enter the weight used; a check mark means it's logged by the coach or the athlete.</p>
       {rows.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">No workouts yet.</p>}
-      {weeks.map((wk) => (
-        <section key={wk} className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h3 className="font-display text-xl">Week {wk}</h3>
-            <Button size="sm" variant="ghost" onClick={() => copyWeek(wk)} className="gap-1"><CopyPlus className="h-4 w-4" /> Copy to week {wk + 1}</Button>
-          </div>
-          {rows.filter((w) => (w.week || 1) === wk).map((w) => (
-            <Card key={w.id}>
-              <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <p className="font-semibold">{done[w.id] && <CheckCircle2 className="mr-1 inline h-4 w-4 text-green-600" />}{w.title} <span className="text-xs font-normal text-muted-foreground">{w.day} {new Date(w.date + 'T12:00:00').toLocaleDateString()} · {w.category}</span></p>
-                  <p className="truncate text-xs text-muted-foreground">{(w.exercises || []).map((e) => `${e.name} ${e.sets}x${e.reps}${e.intensity ? ` @${e.intensity}%` : e.weight ? ` @${e.weight}` : ''}`).join(' · ')}</p>
-                </div>
-                <div className="flex gap-1">
-                  <Button size="sm" variant="outline" onClick={() => setEditing(w)} className="gap-1"><Pencil className="h-3 w-3" /> Edit</Button>
-                  <Button size="sm" variant="ghost" onClick={() => remove(w)} aria-label="Delete"><Trash2 className="h-4 w-4" /></Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </section>
-      ))}
+      {weeks.map((wk) => {
+        const [prog, n] = wk.split('|');
+        const inWeek = visible.filter((w) => `${w.program || 'Coach-built'}|${w.week || 1}` === wk);
+        const coachBuilt = inWeek.every((w) => !w.assignment_id);
+        return (
+          <section key={wk} className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="font-display text-xl">Week {n} <span className="font-body text-xs font-normal text-muted-foreground">· {prog}</span></h3>
+              {coachBuilt && <Button size="sm" variant="ghost" onClick={() => copyWeek(Number(n))} className="gap-1"><CopyPlus className="h-4 w-4" /> Copy to week {Number(n) + 1}</Button>}
+            </div>
+            {inWeek.map((w) => (
+              <Card key={w.id} className={cn(w.date === today && 'border-primary')}>
+                <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="font-semibold">{done[w.id] && <CheckCircle2 className="mr-1 inline h-4 w-4 text-green-600" />}{w.title} <span className="text-xs font-normal text-muted-foreground">{w.day} {new Date(w.date + 'T12:00:00').toLocaleDateString()}</span></p>
+                    <p className="truncate text-xs text-muted-foreground">{(w.exercises || []).map((e) => `${e.name} ${e.target || (e.sets ? `${e.sets}x${e.reps}` : '')}`).join(' · ')}</p>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button size="sm" onClick={() => setLogging(w)}>Log</Button>
+                    <Button size="sm" variant="outline" onClick={() => setEditing(w)} className="gap-1"><Pencil className="h-3 w-3" /> Edit</Button>
+                    <Button size="sm" variant="ghost" onClick={() => remove(w)} aria-label="Delete"><Trash2 className="h-4 w-4" /></Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </section>
+        );
+      })}
+      {rows.length > visible.length && <Button variant="ghost" onClick={() => setShowAll(true)}>Show all {rows.length} workouts</Button>}
       <WorkoutEditor open={!!editing} onOpenChange={(o) => !o && setEditing(null)} athlete={athlete} workout={editing === 'new' ? null : editing} defaultWeek={nextWeek} onSaved={load} />
+      <AssignProgramDialog open={assignOpen} onOpenChange={setAssignOpen} athleteIds={[athlete.id]} onDone={load} />
+      <CoachLogDialog open={!!logging} onOpenChange={(o) => !o && setLogging(null)} workout={logging} athleteName={athlete.first_name} maxes={maxes} onSaved={load} />
     </div>
   );
 }
@@ -404,6 +446,8 @@ function ProgressTab({ athlete, metrics }) {
   const delMax = async (id) => { await supabase.from('one_rep_maxes').delete().eq('id', id); load(); };
   const shown = metrics.filter((m) => tests.some((t) => t.metrics?.[m.key]));
   return (
+    <div className="space-y-6">
+    <WeightsUsed athleteId={athlete.id} />
     <div className="grid gap-6 lg:grid-cols-2">
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-lg">Test results over time</CardTitle><p className="text-xs text-muted-foreground">Add a re-test from the Assessment day tab.</p></CardHeader>
@@ -432,6 +476,32 @@ function ProgressTab({ athlete, metrics }) {
         </CardContent>
       </Card>
     </div>
+    </div>
+  );
+}
+
+/** Weight used per exercise per week, from coach and athlete logs (the workbook's Log tab for one athlete). */
+function WeightsUsed({ athleteId }) {
+  const [logs, setLogs] = useState([]);
+  useEffect(() => {
+    supabase.from('workout_logs').select('week, date, logged_exercises, workout:workouts(program, day)').eq('athlete_id', athleteId).order('date').then(({ data }) => setLogs(data || []));
+  }, [athleteId]);
+  const weeks = [...new Set(logs.map((l) => l.week).filter(Boolean))].sort((a, b) => a - b);
+  const table = {};
+  logs.forEach((l) => (l.logged_exercises || []).forEach((e) => { if (e.weight == null && !e.notes) return; (table[e.name] = table[e.name] || {})[l.week] = e.weight != null ? `${e.weight}` : e.notes; }));
+  const names = Object.keys(table);
+  return (
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-lg">Weight used by week</CardTitle><p className="text-xs text-muted-foreground">From the class log and the athlete's own logs.</p></CardHeader>
+      <CardContent className="overflow-x-auto">
+        {!names.length ? <p className="text-sm text-muted-foreground">Nothing logged yet.</p> : (
+          <table className="text-sm">
+            <thead><tr className="text-left text-xs text-muted-foreground"><th className="py-1 pr-4 font-medium">Exercise</th>{weeks.map((w) => <th key={w} className="px-2 py-1 font-medium">Wk {w}</th>)}</tr></thead>
+            <tbody>{names.map((n) => <tr key={n} className="border-t border-border"><td className="py-1.5 pr-4">{n}</td>{weeks.map((w) => <td key={w} className="px-2 py-1.5 font-medium">{table[n][w] ?? ''}</td>)}</tr>)}</tbody>
+          </table>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
