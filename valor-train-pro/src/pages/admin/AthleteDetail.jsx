@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Archive, ArchiveRestore, ArrowLeft, Banknote, Check, CheckCircle2, Copy, CopyPlus, Loader2, Mail, MessageSquare, Pencil, Phone, Plus, QrCode, Save, Smartphone, Trash2, UserPlus } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { supabase, callFn } from '@/api/supabaseClient';
@@ -16,6 +16,8 @@ import { fmtSlot, money } from '@/lib/slots';
 import { athleteName, classesLeft, countsAsEnrollment, defaultItem, loadSettings, priceLabel, smsHref, telHref } from '@/lib/valor';
 import { loginState } from './Athletes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { MoreHorizontal } from 'lucide-react';
 import AthleteForm from '@/components/AthleteForm';
 import WorkoutEditor from '@/components/WorkoutEditor';
 import AssignProgramDialog from '@/components/AssignProgramDialog';
@@ -395,7 +397,7 @@ function TrainingTab({ athlete }) {
         return (
           <section key={wk} className="space-y-2">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-xl">Week {n} <span className="font-body text-xs font-normal text-muted-foreground">· {prog}</span></h3>
+              <h3 className="font-display text-xl">Week {n} <span className="font-body text-xs font-normal normal-case tracking-normal text-muted-foreground">· {prog}</span></h3>
               {coachBuilt && <Button size="sm" variant="ghost" onClick={() => copyWeek(Number(n))} className="gap-1"><CopyPlus className="h-4 w-4" /> Copy to week {Number(n) + 1}</Button>}
             </div>
             {inWeek.map((w) => (
@@ -513,6 +515,8 @@ export default function AthleteDetail() {
   const [recKey, setRecKey] = useState('');
   const [form, setForm] = useState(null); // 'edit' | 'sibling'
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const tab = ['day', 'profile', 'training', 'progress'].includes(params.get('tab')) ? params.get('tab') : 'day';
 
   const load = useCallback(async () => {
     const [{ data: a }, { data: b }, { data: as }] = await Promise.all([
@@ -537,24 +541,30 @@ export default function AthleteDetail() {
     <div className="space-y-6">
       <Link to="/admin/bookings" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Assessments</Link>
       <div className="rounded-[22px] bg-[#16140f] p-6 text-white">
-        <p className="inline-flex items-center gap-3 text-xs font-bold uppercase tracking-[0.16em] text-[#ff7484]"><span className="inline-block h-0.5 w-7 rounded bg-[#ff7484]" />{[athlete.age && `Age ${athlete.age}`, athlete.sport].filter(Boolean).join(' · ') || 'Athlete'}</p>
-        <h1 className="mt-2 font-display text-4xl">{athleteName(athlete)}</h1>
+        <h1 className="font-display text-4xl">{athleteName(athlete)}</h1>
+        <p className="mt-1 text-sm text-white/80">{[athlete.age && `Age ${athlete.age}`, athlete.sport, athlete.season === 'in_season' ? 'In-season' : athlete.season === 'off_season' ? 'Off-season' : ''].filter(Boolean).join(' · ') || 'Athlete'}</p>
         <p className="mt-2 text-sm text-white/70">
           {athlete.parent_name || 'Parent'}{athlete.parent_email ? ` · ${athlete.parent_email}` : ''}{phone ? ` · ${phone}` : ''}
           {booking?.slot_start ? ` · assessment ${fmtSlot(booking.slot_start)}` : ''}{booking?.quiz_result ? ` · quiz ${booking.quiz_result}` : ''}
         </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {phone && <Button asChild size="sm" variant="secondary"><a href={telHref(phone)}><Phone className="h-4 w-4" /> Call</a></Button>}
-          {phone && <Button asChild size="sm" variant="secondary"><a href={smsHref(phone, '')}><MessageSquare className="h-4 w-4" /> Text</a></Button>}
-          <Button size="sm" variant="secondary" onClick={() => setForm('edit')}><Pencil className="h-4 w-4" /> Edit</Button>
-          <Button size="sm" variant="secondary" onClick={archive}>{athlete.archived_at ? <><ArchiveRestore className="h-4 w-4" /> Restore</> : <><Archive className="h-4 w-4" /> Archive</>}</Button>
+        <div className="mt-4 flex items-center gap-2">
+          {phone && <Button asChild size="icon" variant="secondary" className="h-11 w-11"><a href={telHref(phone)} aria-label={`Call ${athlete.parent_name || 'parent'}`}><Phone className="h-4 w-4" /></a></Button>}
+          {phone && <Button asChild size="icon" variant="secondary" className="h-11 w-11"><a href={smsHref(phone, '')} aria-label={`Text ${athlete.parent_name || 'parent'}`}><MessageSquare className="h-4 w-4" /></a></Button>}
+          <Button size="sm" variant="secondary" className="h-11 gap-1" onClick={() => setForm('edit')}><Pencil className="h-4 w-4" /> Edit</Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild><Button size="icon" variant="secondary" className="h-11 w-11" aria-label="More"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onSelect={() => setForm('sibling')}><UserPlus className="mr-2 h-4 w-4" /> Add a sibling</DropdownMenuItem>
+              <DropdownMenuItem onSelect={archive}>{athlete.archived_at ? <><ArchiveRestore className="mr-2 h-4 w-4" /> Restore</> : <><Archive className="mr-2 h-4 w-4" /> Archive</>}</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         {athlete.archived_at && <p className="mt-3 text-xs text-[#ff7484]">Archived {new Date(athlete.archived_at).toLocaleDateString()}</p>}
       </div>
-      <Tabs defaultValue="day">
-        <TabsList className="h-auto flex-wrap rounded-full bg-muted p-1">
+      <Tabs value={tab} onValueChange={(v) => { const p = new URLSearchParams(params); if (v === 'day') p.delete('tab'); else p.set('tab', v); setParams(p, { replace: true }); }}>
+        <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-full bg-muted p-1 sm:w-auto">
           {[['day', 'Assessment day'], ['profile', 'Profile'], ['training', 'Training'], ['progress', 'Progress']].map(([v, l]) => (
-            <TabsTrigger key={v} value={v} className="rounded-full px-4 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">{l}</TabsTrigger>
+            <TabsTrigger key={v} value={v} className="shrink-0 rounded-full px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">{l}</TabsTrigger>
           ))}
         </TabsList>
         <TabsContent value="day" className="mt-5">

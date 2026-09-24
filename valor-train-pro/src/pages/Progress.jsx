@@ -121,15 +121,15 @@ export default function Progress() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-2xl tracking-tight lg:text-3xl">Progress</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Track your 1-rep-max lifts over time</p>
+          <p className="mt-1 text-sm text-muted-foreground">Max lifts over time. Workout targets are a percent of these.</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2"><Plus className="h-4 w-4" /> Log 1RM</Button>
+            <Button className="gap-2"><Plus className="h-4 w-4" /> Add a max</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Log a 1-Rep Max</DialogTitle>
+              <DialogTitle>Add a max lift</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
               <div className="space-y-1.5">
@@ -173,35 +173,6 @@ export default function Progress() {
       <WeeklyPlan workouts={planWorkouts} latest1rm={latest1rm} />
 
       {/* Core lifts quick entry */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Log Core Lifts</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {coreLifts.map((name) => (
-              <div key={name} className="space-y-1.5">
-                <Label>{name}</Label>
-                <Input
-                  type="number"
-                  placeholder="lbs"
-                  value={coreForm[name] || ''}
-                  onChange={(e) => setCoreForm({ ...coreForm, [name]: Number(e.target.value) })}
-                />
-              </div>
-            ))}
-            <div className="space-y-1.5">
-              <Label>Date</Label>
-              <Input type="date" value={coreForm.date} onChange={(e) => setCoreForm({ ...coreForm, date: e.target.value })} />
-            </div>
-          </div>
-          <div className="mt-4 flex justify-end">
-            <Button onClick={saveCoreLifts} disabled={coreSaving || !coreLifts.some((n) => coreForm[n] > 0)}>
-              {coreSaving ? 'Saving...' : 'Save Core Lifts'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Chart */}
       {exercises.length > 0 && (
@@ -236,7 +207,7 @@ export default function Progress() {
       {/* Current maxes */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Current 1RM Records</CardTitle>
+          <CardTitle className="text-lg">Current max lifts</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -268,6 +239,33 @@ export default function Progress() {
           )}
         </CardContent>
       </Card>
+      <details className="rounded-xl border border-border bg-card">
+        <summary className="cursor-pointer select-none px-5 py-4 text-sm font-semibold">Log several lifts at once</summary>
+        <div className="px-5 pb-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {coreLifts.map((name) => (
+              <div key={name} className="space-y-1.5">
+                <Label>{name}</Label>
+                <Input
+                  type="number"
+                  placeholder="lbs"
+                  value={coreForm[name] || ''}
+                  onChange={(e) => setCoreForm({ ...coreForm, [name]: Number(e.target.value) })}
+                />
+              </div>
+            ))}
+            <div className="space-y-1.5">
+              <Label>Date</Label>
+              <Input type="date" value={coreForm.date} onChange={(e) => setCoreForm({ ...coreForm, date: e.target.value })} />
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button onClick={saveCoreLifts} disabled={coreSaving || !coreLifts.some((n) => coreForm[n] > 0)}>
+              {coreSaving ? 'Saving...' : 'Save Core Lifts'}
+            </Button>
+          </div>
+        </div>
+      </details>
     </div>
   );
 }

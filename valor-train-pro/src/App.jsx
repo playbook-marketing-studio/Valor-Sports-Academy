@@ -24,6 +24,11 @@ import AthleteDetail from '@/pages/admin/AthleteDetail';
 import AdminEnrollment from '@/pages/admin/Enrollment';
 import { ProgramsList, ProgramDetail } from '@/pages/admin/Programs';
 import ClassLog from '@/pages/admin/ClassLog';
+import Today from '@/pages/admin/Today';
+import { useAuth as useAuthForHome } from '@/lib/AuthContext';
+
+// Staff land on Today; parents on their athlete home.
+const HomeRoute = () => { const { user } = useAuthForHome(); return user?.role === 'admin' ? <Today /> : <Home />; };
 import RequireEnrollment from '@/components/RequireEnrollment';
 import Welcome from '@/pages/public/Welcome';
 import Paid from '@/pages/public/Paid';
@@ -69,7 +74,7 @@ const AuthenticatedApp = () => {
       <Route path="/paid" element={<Paid />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<HomeRoute />} />
           {/* included with enrollment: unpaid families get the enroll-and-pay screen */}
           <Route element={<RequireEnrollment />}>
             <Route path="/workouts" element={<Workouts />} />

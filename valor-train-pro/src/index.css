@@ -61,6 +61,7 @@
   /* Anton only ships one weight: display text is upright, uppercase, tight, like the site's h1-h3 */
   .font-display {
     font-weight: 400;
+    font-synthesis: none; /* Anton has one weight; never let the browser smear a fake bold */
     text-transform: uppercase;
     letter-spacing: .01em;
     line-height: .96;

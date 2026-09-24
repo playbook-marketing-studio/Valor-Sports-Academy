@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, MessageSquare, Phone, Plus, RefreshCw, Search, UserCheck, UserX } from 'lucide-react';
 import { supabase } from '@/api/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import AthleteForm from '@/components/AthleteForm';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/use-toast';
 import { fmtTime } from '@/lib/slots';
 import { smsHref, telHref } from '@/lib/valor';
@@ -26,7 +27,10 @@ export default function AdminBookings() {
   const [q, setQ] = useState('');
   const [past, setPast] = useState(false);
   const [busy, setBusy] = useState('');
-  const [walkIn, setWalkIn] = useState(false);
+  const [params] = useSearchParams();
+  const [walkIn, setWalkIn] = useState(params.get('walkin') === '1');
+  const [booking, setBooking] = useState(null); // request being turned into a booking
+  const [slot, setSlot] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -97,12 +101,21 @@ export default function AdminBookings() {
           <p className="text-xs text-muted-foreground">{r.parent_name} · {r.parent_email}{r.parent_phone ? ` · ${r.parent_phone}` : ''}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {r.parent_phone && <Button asChild size="sm" variant="outline"><a href={telHref(r.parent_phone)} aria-label="Call"><Phone className="h-4 w-4" /></a></Button>}
-          {r.parent_phone && <Button asChild size="sm" variant="outline"><a href={smsHref(r.parent_phone, `Hi ${r.parent_name?.split(' ')[0] || ''}, this is Valor Sports Academy about ${r.athlete_first_name}'s free assessment.`)} aria-label="Text"><MessageSquare className="h-4 w-4" /></a></Button>}
-          {r.status !== 'attended' && r.status !== 'canceled' && <Button size="sm" onClick={() => setStatus(r, 'attended')} disabled={busy === r.id} className="gap-1"><UserCheck className="h-4 w-4" /> Check in</Button>}
-          {r.status === 'booked' && <Button size="sm" variant="outline" onClick={() => setStatus(r, 'no_show')} disabled={busy === r.id} className="gap-1"><UserX className="h-4 w-4" /> No-show</Button>}
-          {(r.status === 'attended' || r.status === 'no_show') && <Button size="sm" variant="ghost" onClick={() => setStatus(r, 'booked')} disabled={busy === r.id}>Undo</Button>}
-          <Button size="sm" variant="outline" onClick={() => openAthlete(r)}>Open</Button>
+          {r.parent_phone && <Button asChild size="icon" variant="outline" className="h-10 w-10"><a href={telHref(r.parent_phone)} aria-label={`Call ${r.parent_name}`}><Phone className="h-4 w-4" /></a></Button>}
+          {r.status === 'requested' ? (
+            <>
+              {r.parent_phone && <Button asChild size="sm" className="h-10 gap-1"><a href={smsHref(r.parent_phone, `Hi ${r.parent_name?.split(' ')[0] || ''}, this is Valor Sports Academy. We can fit ${r.athlete_first_name}'s free assessment in. Does ${r.requested_window || 'that time'} on ${reqDay(r.requested_day)} work?`)}><MessageSquare className="h-4 w-4" /> Text to set a time</a></Button>}
+              <Button size="sm" variant="outline" className="h-10" onClick={() => { setBooking(r); setSlot(r.requested_day ? `${r.requested_day}T18:00` : ''); }}>Book a time</Button>
+            </>
+          ) : (
+            <>
+              {r.parent_phone && <Button asChild size="icon" variant="outline" className="h-10 w-10"><a href={smsHref(r.parent_phone, `Hi ${r.parent_name?.split(' ')[0] || ''}, this is Valor Sports Academy about ${r.athlete_first_name}'s free assessment.`)} aria-label={`Text ${r.parent_name}`}><MessageSquare className="h-4 w-4" /></a></Button>}
+              {r.status !== 'attended' && r.status !== 'canceled' && <Button size="sm" onClick={() => setStatus(r, 'attended')} disabled={busy === r.id} className="h-10 gap-1"><UserCheck className="h-4 w-4" /> Check in</Button>}
+            </>
+          )}
+          {r.status === 'booked' && <Button size="sm" variant="outline" onClick={() => setStatus(r, 'no_show')} disabled={busy === r.id} className="h-10 gap-1"><UserX className="h-4 w-4" /> No-show</Button>}
+          {(r.status === 'attended' || r.status === 'no_show') && <Button size="sm" variant="ghost" onClick={() => setStatus(r, 'booked')} disabled={busy === r.id} className="h-10">Undo</Button>}
+          <Button size="sm" variant="outline" className="hidden h-10 sm:inline-flex" onClick={() => openAthlete(r)}>Open</Button>
         </div>
       </CardContent>
     </Card>
@@ -113,7 +126,7 @@ export default function AdminBookings() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display text-3xl lg:text-4xl">Assessments</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Bookings from the website land here. Check athletes in, then open them to record results, send the parent a login and take payment.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Website bookings land here on their own.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={load} className="gap-2"><RefreshCw className="h-4 w-4" /> Refresh</Button>
@@ -137,13 +150,14 @@ export default function AdminBookings() {
         <div className="space-y-8">
           {!past && requests.length > 0 && (
             <section className="space-y-3">
-              <h2 className="font-display text-xl">Asked for a different time <span className="font-body text-sm text-muted-foreground">· text them to set one</span></h2>
+              <h2 className="font-display text-xl">Asked for a different time</h2>
+              <p className="-mt-1 text-sm text-muted-foreground">Text them to agree on a time, then book it.</p>
               {requests.map((r) => <Row key={r.id} r={r} />)}
             </section>
           )}
           {days.map((d) => (
             <section key={d.key} className="space-y-3">
-              <h2 className="font-display text-xl">{d.key === todayKey ? `Today · ${d.label}` : d.label} <span className="font-body text-sm text-muted-foreground">· {d.rows.filter((r) => r.status !== 'canceled').length} booked</span></h2>
+              <h2 className="font-display text-xl">{d.key === todayKey ? `Today · ${d.label}` : d.label} <span className="ml-1 font-body text-sm normal-case text-muted-foreground">{d.rows.filter((r) => r.status !== 'canceled').length} booked</span></h2>
               {d.rows.map((r) => <Row key={r.id} r={r} />)}
             </section>
           ))}
@@ -154,6 +168,20 @@ export default function AdminBookings() {
         </div>
       )}
       <AthleteForm open={walkIn} onOpenChange={setWalkIn} mode="walk_in" onSaved={(id) => id && navigate(`/admin/athletes/${id}`)} />
+      <Dialog open={!!booking} onOpenChange={(o) => !o && setBooking(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>Book {booking?.athlete_first_name}'s assessment</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Once {booking?.parent_name?.split(' ')[0] || 'the parent'} agrees to a time, set it here. It moves to the day's list.</p>
+          <Input type="datetime-local" aria-label="Assessment time" value={slot} onChange={(e) => setSlot(e.target.value)} />
+          <DialogFooter><Button disabled={!slot} onClick={async () => {
+            const start = new Date(slot); const end = new Date(start.getTime() + 30 * 60000);
+            const { error } = await supabase.from('bookings').update({ status: 'booked', slot_start: start.toISOString(), slot_end: end.toISOString() }).eq('id', booking.id);
+            if (error) return toast({ title: error.code === '23505' ? 'That time is already taken' : 'Could not book it', description: error.code === '23505' ? 'Pick another time.' : error.message });
+            toast({ title: `${booking.athlete_first_name} is booked`, description: start.toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) });
+            setBooking(null); load();
+          }}>Book this time</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

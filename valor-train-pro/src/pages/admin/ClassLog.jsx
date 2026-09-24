@@ -26,13 +26,35 @@ export default function ClassLog() {
   const tpl = templates.find((t) => t.id === templateId);
   const set = (k, v) => { const p = new URLSearchParams(params); if (v) p.set(k, v); else p.delete(k); setParams(p, { replace: true }); };
 
-  // default to this week of the program, today's day if it matches
+  // Open on what's happening now: a program with a class today, today's day, and the program's current week.
   useEffect(() => {
-    if (!tpl) return;
-    if (!dayKey) set('day', tpl.days[0].key);
-    if (!week) set('week', '1');
+    if (!templates.length) return;
+    (async () => {
+      let tid = templateId;
+      const today = new Date(); const ymd = today.toISOString().slice(0, 10);
+      if (!tid) {
+        const { data: ws } = await supabase.from('workouts').select('template_id').eq('date', ymd).not('template_id', 'is', null).limit(1);
+        tid = ws?.[0]?.template_id || templates[0].id;
+      }
+      const t = templates.find((x) => x.id === tid) || templates[0];
+      const p = new URLSearchParams(params); p.set('program', t.id);
+      if (!params.get('week')) {
+        const { data: asg } = await supabase.from('program_assignments').select('start_date').eq('template_id', t.id).order('start_date').limit(1);
+        const start = asg?.[0]?.start_date;
+        const wk = start ? Math.floor((new Date(ymd + 'T12:00:00Z') - new Date(start + 'T12:00:00Z')) / (7 * 86400000)) + 1 : 1;
+        p.set('week', String(Math.min(t.weeks, Math.max(1, wk))));
+      }
+      if (!params.get('day')) {
+        const wd = ((today.getDay() + 6) % 7) + 1; // 1 = Monday
+        const sorted = [...t.days].sort((a, b) => a.weekday - b.weekday);
+        // today's class, else the most recent one this week (logging after class), else the week's first
+        const pick = t.days.find((d) => d.weekday === wd) || [...sorted].reverse().find((d) => d.weekday < wd) || sorted[0];
+        p.set('day', pick.key);
+      }
+      if (p.toString() !== params.toString()) setParams(p, { replace: true });
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tpl]);
+  }, [templates, templateId]);
 
   const load = useCallback(async () => {
     if (!templateId || !dayKey || !week) return setRows(null);
@@ -57,18 +79,28 @@ export default function ClassLog() {
   }, [rows]);
 
   const saveRow = async (r) => {
+    const entries = Object.fromEntries(r.workout.exercises.map((e) => [e.name, { weight: vals[`${r.workout.id}|${e.name}`] ? Number(vals[`${r.workout.id}|${e.name}`]) : null }]));
+    if (!Object.values(entries).some((v) => v.weight != null)) return;
+    setSaved((s) => ({ ...s, [r.workout.id]: 'saving' }));
     try {
-      const entries = Object.fromEntries(r.workout.exercises.map((e) => [e.name, { weight: vals[`${r.workout.id}|${e.name}`] ? Number(vals[`${r.workout.id}|${e.name}`]) : null }]));
       await saveCoachLog(r.workout, user.id, entries);
-      setSaved((s) => ({ ...s, [r.workout.id]: true }));
-    } catch (e) { toast({ title: `Could not save ${athleteName(r.athlete)}`, description: e.message }); }
+      setSaved((s) => ({ ...s, [r.workout.id]: 'saved' }));
+    } catch (e) {
+      setSaved((s) => ({ ...s, [r.workout.id]: 'error' }));
+      toast({ title: `Could not save ${athleteName(r.athlete)}`, description: e.message });
+    }
   };
+  // gray hint: the kid's target weight from their own max, else the target as written ("x10", "Bodyweight")
+  const hint = (ex, maxes) => (ex.intensity && maxes[ex.name] ? `${Math.round((maxes[ex.name] * ex.intensity) / 100)}` : ex.intensity ? `${ex.intensity}%` : (ex.target || 'lb'));
+  const status = (id) => saved[id] === 'saving' ? <span className="text-muted-foreground">Saving…</span>
+    : saved[id] === 'saved' ? <span className="inline-flex items-center gap-1 text-green-700"><Check className="h-3 w-3" /> Saved</span>
+    : saved[id] === 'error' ? <span className="text-destructive">Not saved</span> : null;
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="font-display text-3xl lg:text-4xl">Class log</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Pick the program, day and week. Type the weight each athlete used; each row saves when you leave it. Gray hint = their target from their own max.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Type the weight each athlete used. It saves when you move to the next athlete. Gray numbers are their targets.</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <select aria-label="Program" value={templateId} onChange={(e) => { const p = new URLSearchParams(); if (e.target.value) p.set('program', e.target.value); setParams(p, { replace: true }); }} className="h-9 rounded-full border border-input bg-background px-3 text-sm">
@@ -85,7 +117,30 @@ export default function ClassLog() {
       {rows === undefined && <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}
       {rows && !rows.length && <p className="py-12 text-center text-sm text-muted-foreground">Nobody is on this program yet. <Link to={`/admin/programs/${templateId}`} className="text-primary">Assign athletes</Link>.</p>}
       {rows && rows.length > 0 && (
-        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <div className="space-y-3 sm:hidden">
+          {rows.map((r) => (
+            <div key={r.workout.id} className="rounded-xl border border-border bg-card" onBlur={(ev) => { if (!ev.currentTarget.contains(ev.relatedTarget)) saveRow(r); }}>
+              <div className="flex items-baseline justify-between gap-2 border-b border-border px-4 py-3">
+                <Link to={`/admin/athletes/${r.athlete.id}`} className="font-semibold hover:text-primary">{athleteName(r.athlete)}</Link>
+                <span className="text-xs">{status(r.workout.id) || <span className="text-muted-foreground">{new Date(r.workout.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>}</span>
+              </div>
+              <div className="divide-y divide-border">
+                {r.workout.exercises.map((ex) => {
+                  const k = `${r.workout.id}|${ex.name}`;
+                  return (
+                    <label key={ex.name} className="flex min-h-[52px] items-center justify-between gap-3 px-4 py-2">
+                      <span className="min-w-0"><span className="block truncate text-sm font-medium">{ex.name}</span><span className="block truncate text-xs text-muted-foreground">{ex.target || (ex.prescription || '').replace(/^\w+\s*-\s*/, '')}</span></span>
+                      <Input aria-label={`${athleteName(r.athlete)} ${ex.name}`} className="h-11 w-24 shrink-0 text-right" inputMode="decimal" placeholder={hint(ex, r.maxes)} value={vals[k] ?? ''} onChange={(ev) => setVals({ ...vals, [k]: ev.target.value })} />
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {rows && rows.length > 0 && (
+        <div className="hidden overflow-x-auto rounded-xl border border-border bg-card sm:block">
           <table className="text-sm">
             <thead><tr className="border-b border-border text-left text-xs">
               <th className="sticky left-0 z-10 min-w-[150px] bg-card px-3 py-2 font-medium text-muted-foreground">Athlete</th>
@@ -96,14 +151,13 @@ export default function ClassLog() {
                 <tr key={r.workout.id} className="border-b border-border last:border-0" onBlur={(ev) => { if (!ev.currentTarget.contains(ev.relatedTarget)) saveRow(r); }}>
                   <td className="sticky left-0 z-10 bg-card px-3 py-1.5">
                     <Link to={`/admin/athletes/${r.athlete.id}`} className="font-medium hover:text-primary">{athleteName(r.athlete)}</Link>
-                    <span className="block text-[11px] text-muted-foreground">{new Date(r.workout.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}{saved[r.workout.id] && <Check className="ml-1 inline h-3 w-3 text-green-600" />}</span>
+                    <span className="block text-[11px]">{status(r.workout.id) || <span className="text-muted-foreground">{new Date(r.workout.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>}</span>
                   </td>
                   {exercises.map((e) => {
                     const ex = r.workout.exercises.find((x) => x.name === e.name);
                     if (!ex) return <td key={e.name} className="bg-muted/40" />;
-                    const hint = ex.intensity && r.maxes[ex.name] ? `${Math.round((r.maxes[ex.name] * ex.intensity) / 100)}` : 'lb';
                     const k = `${r.workout.id}|${e.name}`;
-                    return <td key={e.name} className="px-1 py-1"><Input aria-label={`${athleteName(r.athlete)} ${e.name}`} className="h-8 px-2" inputMode="decimal" placeholder={hint} value={vals[k] ?? ''} onChange={(ev) => setVals({ ...vals, [k]: ev.target.value })} /></td>;
+                    return <td key={e.name} className="px-1 py-1"><Input aria-label={`${athleteName(r.athlete)} ${e.name}`} className="h-8 px-2" inputMode="decimal" placeholder={hint(ex, r.maxes)} value={vals[k] ?? ''} onChange={(ev) => setVals({ ...vals, [k]: ev.target.value })} /></td>;
                   })}
                 </tr>
               ))}

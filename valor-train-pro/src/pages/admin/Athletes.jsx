@@ -45,7 +45,7 @@ export default function AdminAthletes() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display text-3xl lg:text-4xl">Athletes</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Everyone who has booked, walked in or trains here. Open one to edit them, build their workouts, log progress or take payment.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Everyone who has booked, walked in or trains here.</p>
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => setForm('add')} className="gap-2"><UserPlus className="h-4 w-4" /> Add athlete</Button>

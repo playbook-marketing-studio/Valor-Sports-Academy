@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { startEnrollment } from '@/lib/enroll';
 import { defaultItem, priceLabel } from '@/lib/valor';
@@ -11,6 +11,8 @@ import { money } from '@/lib/slots';
 export default function EnrollButton({ athlete, cfg, recommendedKey, label }) {
   const initial = defaultItem(cfg, recommendedKey);
   const [key, setKey] = useState(initial?.key || '');
+  // the price list and the coach's recommendation load after first render; pick them up when they arrive
+  useEffect(() => { if (!key && initial?.key) setKey(initial.key); }, [initial?.key, key]);
   const [busy, setBusy] = useState(false);
   const program = cfg?.items?.find((p) => p.key === key);
   const needsPick = !initial && (cfg?.items?.length || 0) > 1;
