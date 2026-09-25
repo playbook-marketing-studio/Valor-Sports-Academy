@@ -61,7 +61,7 @@ export default function Today() {
       setD({
         today, label: longDay(now), classes: Object.values(classes), nextClass: nextWs?.[0]?.date || null,
         assessDay: firstDay, assessments: (books || []).filter((b) => ymd(new Date(b.slot_start)) === firstDay),
-        requests: reqs || [], followUps: roster || [],
+        requests: (reqs || []).filter((b) => !b.contacted_at), textedCount: (reqs || []).filter((b) => b.contacted_at).length, followUps: roster || [],
       });
     })();
   }, []);
@@ -110,11 +110,15 @@ export default function Today() {
       {d.requests.length > 0 && (
         <Section title="Waiting on a text" count={d.requests.length}>
           {d.requests.map((b) => (
-            <Row key={b.id} right={b.parent_phone && <Button asChild size="sm" variant="outline" className="gap-1"><a href={smsHref(b.parent_phone, askSms(b))}><MessageSquare className="h-4 w-4" /> Text</a></Button>}>
+            <Row key={b.id} right={b.parent_phone && <Button asChild size="sm" variant="outline" className="gap-1"><a href={smsHref(b.parent_phone, askSms(b))} onClick={() => supabase.from('bookings').update({ contacted_at: new Date().toISOString() }).eq('id', b.id).then(() => setD((x) => ({ ...x, requests: x.requests.filter((y) => y.id !== b.id), textedCount: (x.textedCount || 0) + 1 })))}><MessageSquare className="h-4 w-4" /> Text</a></Button>}>
               <div className="min-w-0"><p className="truncate font-medium">{b.athlete_first_name} {b.athlete_last_name || ''} <span className="font-normal text-muted-foreground">· {b.parent_name}</span></p><p className="truncate text-xs text-muted-foreground">{askText(b)}</p></div>
             </Row>
           ))}
         </Section>
+      )}
+
+      {d.textedCount > 0 && (
+        <p className="text-sm text-muted-foreground">{d.textedCount} texted, waiting to hear back. <Link to="/admin/bookings" className="font-medium text-primary hover:underline">See them in Assessments</Link></p>
       )}
 
       {d.followUps.length > 0 && (

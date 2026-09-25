@@ -11,7 +11,8 @@ import { toast } from '@/components/ui/use-toast';
 import { fmtTime } from '@/lib/slots';
 import { smsHref, telHref } from '@/lib/valor';
 import { cn } from '@/lib/utils';
-import { askSms, askText, reqDay, sourceLabel, STATUS_LABEL } from '@/lib/leads';
+import { askSms, askText, fmtContacted, reqDay, sourceLabel, STATUS_LABEL } from '@/lib/leads';
+import { ToastAction } from '@/components/ui/toast';
 
 const TZ = 'America/Los_Angeles';
 const dayKey = (iso) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
@@ -43,7 +44,8 @@ export default function AdminBookings() {
   const term = q.trim().toLowerCase();
   const match = (r) => !term || [r.athlete_first_name, r.athlete_last_name, r.parent_name, r.parent_email, r.parent_phone, r.sport].join(' ').toLowerCase().includes(term);
 
-  const requests = rows.filter((r) => r.status === 'requested' && match(r));
+  const requests = rows.filter((r) => r.status === 'requested' && !r.contacted_at && match(r));
+  const texted = rows.filter((r) => r.status === 'requested' && r.contacted_at && match(r));
   const days = useMemo(() => {
     const groups = {};
     rows.filter((r) => r.slot_start && r.status !== 'requested' && match(r)).forEach((r) => {
@@ -82,6 +84,18 @@ export default function AdminBookings() {
     if (status === 'attended') openAthlete(r);
   };
 
+  // Texting a lead moves them to "Texted, waiting to hear back" (Undo if it didn't go out).
+  const markContacted = async (r, when) => {
+    const { error } = await supabase.from('bookings').update({ contacted_at: when }).eq('id', r.id);
+    if (error) return toast({ title: 'Could not update', description: error.message });
+    setRows((xs) => xs.map((x) => (x.id === r.id ? { ...x, contacted_at: when } : x)));
+    if (when) toast({ title: `Marked ${r.athlete_first_name} as texted`, description: 'Moved to "Texted, waiting to hear back".', action: <ToastAction altText="Undo" onClick={() => markContacted(r, null)}>Undo</ToastAction> });
+  };
+  const notInterested = async (r) => {
+    if (!window.confirm(`Mark ${r.athlete_first_name} as not interested? They come off this list.`)) return;
+    setStatus(r, 'canceled');
+  };
+
   const Row = ({ r }) => (
     <Card>
       <CardContent className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
@@ -96,14 +110,17 @@ export default function AdminBookings() {
           </div>
           {r.quiz_result && <p className="text-xs text-muted-foreground">Quiz: {r.quiz_result}</p>}
           {r.status === 'requested' && <p className="text-sm">{askText(r)}</p>}
+          {r.status === 'requested' && r.contacted_at && <p className="text-xs font-medium text-amber-700 dark:text-amber-300">Texted {fmtContacted(r.contacted_at)}, waiting to hear back</p>}
           <p className="text-xs text-muted-foreground">{r.parent_name} · {r.parent_email}{r.parent_phone ? ` · ${r.parent_phone}` : ''}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {r.parent_phone && <Button asChild size="icon" variant="outline" className="h-10 w-10"><a href={telHref(r.parent_phone)} aria-label={`Call ${r.parent_name}`}><Phone className="h-4 w-4" /></a></Button>}
           {r.status === 'requested' ? (
             <>
-              {r.parent_phone && <Button asChild size="sm" className="h-10 gap-1"><a href={smsHref(r.parent_phone, askSms(r))}><MessageSquare className="h-4 w-4" /> Text to set a time</a></Button>}
-              <Button size="sm" variant="outline" className="h-10" onClick={() => { setBooking(r); setSlot(r.requested_day ? `${r.requested_day}T18:00` : ''); }}>Book a time</Button>
+              {r.parent_phone && <Button asChild size="sm" variant={r.contacted_at ? 'outline' : 'default'} className="h-10 gap-1"><a href={smsHref(r.parent_phone, askSms(r))} onClick={() => { if (!r.contacted_at) markContacted(r, new Date().toISOString()); }}><MessageSquare className="h-4 w-4" /> {r.contacted_at ? 'Text again' : 'Text to set a time'}</a></Button>}
+              {!r.contacted_at && <Button size="sm" variant="outline" className="h-10" onClick={() => markContacted(r, new Date().toISOString())}>Mark as texted</Button>}
+              <Button size="sm" variant={r.contacted_at ? 'default' : 'outline'} className="h-10" onClick={() => { setBooking(r); setSlot(r.requested_day ? `${r.requested_day}T18:00` : ''); }}>Book a time</Button>
+              <Button size="sm" variant="ghost" className="h-10 text-muted-foreground" onClick={() => notInterested(r)}>Not interested</Button>
             </>
           ) : (
             <>
@@ -148,9 +165,16 @@ export default function AdminBookings() {
         <div className="space-y-8">
           {!past && requests.length > 0 && (
             <section className="space-y-3">
-              <h2 className="font-display text-xl">Asked for a different time</h2>
-              <p className="-mt-1 text-sm text-muted-foreground">Text them to agree on a time, then book it.</p>
+              <h2 className="font-display text-xl">Waiting on a text <span className="ml-1 font-body text-sm normal-case text-muted-foreground">{requests.length}</span></h2>
+              <p className="-mt-1 text-sm text-muted-foreground">They want a free assessment but have no time yet. Tap Text to set a time; they move to the next list.</p>
               {requests.map((r) => <Row key={r.id} r={r} />)}
+            </section>
+          )}
+          {!past && texted.length > 0 && (
+            <section className="space-y-3">
+              <h2 className="font-display text-xl">Texted, waiting to hear back <span className="ml-1 font-body text-sm normal-case text-muted-foreground">{texted.length}</span></h2>
+              <p className="-mt-1 text-sm text-muted-foreground">When they reply with a time, tap Book a time. If they pass, tap Not interested.</p>
+              {texted.map((r) => <Row key={r.id} r={r} />)}
             </section>
           )}
           {days.map((d) => (
@@ -162,7 +186,7 @@ export default function AdminBookings() {
           {past && walkIns.length > 0 && (
             <section className="space-y-3"><h2 className="font-display text-xl">Walk-ins</h2>{walkIns.map((r) => <Row key={r.id} r={r} />)}</section>
           )}
-          {days.length === 0 && (past || requests.length === 0) && <p className="py-16 text-center text-sm text-muted-foreground">{past ? 'No past assessments yet.' : 'No upcoming assessments. New website bookings show up here on their own.'}</p>}
+          {days.length === 0 && (past || (requests.length === 0 && texted.length === 0)) && <p className="py-16 text-center text-sm text-muted-foreground">{past ? 'No past assessments yet.' : 'No upcoming assessments. New website bookings show up here on their own.'}</p>}
         </div>
       )}
       <AthleteForm open={walkIn} onOpenChange={setWalkIn} mode="walk_in" onSaved={(id) => id && navigate(`/admin/athletes/${id}`)} />

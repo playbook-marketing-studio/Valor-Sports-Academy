@@ -9,3 +9,5 @@ export const askSms = (b) => (b.requested_day || b.requested_window
 export const STATUS_LABEL = { booked: 'Booked', requested: 'Wants a time', attended: 'Checked in', no_show: 'No-show', canceled: 'Canceled' };
 export const SOURCE_LABEL = { meta: 'Meta ad', facebook: 'Meta ad', instagram: 'Instagram', google: 'Google' };
 export const sourceLabel = (s) => (!s || s === 'app' ? '' : SOURCE_LABEL[String(s).toLowerCase()] || s);
+
+export const fmtContacted = (iso) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
