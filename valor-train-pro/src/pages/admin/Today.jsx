@@ -11,6 +11,11 @@ const TZ = 'America/Los_Angeles';
 const ymd = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
 const longDay = (d) => new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'long', month: 'long', day: 'numeric' }).format(d);
 const reqDay = (d) => (d ? new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(d + 'T12:00:00Z')) : 'a day');
+// Leads from the old website form (before online booking) have no day or window.
+const askText = (b) => (b.requested_day || b.requested_window ? `Asked for ${reqDay(b.requested_day)}${b.requested_window ? `, ${b.requested_window}` : ''}${b.requested_note ? `: "${b.requested_note}"` : ''}` : (b.requested_note || 'Wants a free assessment'));
+const askSms = (b) => (b.requested_day || b.requested_window
+  ? `Hi ${(b.parent_name || '').split(' ')[0]}, this is Valor Sports Academy. We can fit ${b.athlete_first_name}'s free assessment in. Does ${b.requested_window || 'that time'} on ${reqDay(b.requested_day)} work?`
+  : `Hi ${(b.parent_name || '').split(' ')[0]}, this is Valor Sports Academy. Thanks for filling out our form for ${b.athlete_first_name}. Want to come in for a free assessment? We do them Saturday mornings.`);
 const shortDay = (iso) => new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(iso));
 
 function Section({ title, count, action, children }) {
@@ -104,8 +109,8 @@ export default function Today() {
       {d.requests.length > 0 && (
         <Section title="Waiting on a text" count={d.requests.length}>
           {d.requests.map((b) => (
-            <Row key={b.id} right={b.parent_phone && <Button asChild size="sm" variant="outline" className="gap-1"><a href={smsHref(b.parent_phone, `Hi ${(b.parent_name || '').split(' ')[0]}, this is Valor Sports Academy. We can fit ${b.athlete_first_name}'s free assessment in. Does ${b.requested_window || 'that time'} on ${reqDay(b.requested_day)} work?`)}><MessageSquare className="h-4 w-4" /> Text</a></Button>}>
-              <div className="min-w-0"><p className="truncate font-medium">{b.athlete_first_name} {b.athlete_last_name || ''} <span className="font-normal text-muted-foreground">· {b.parent_name}</span></p><p className="truncate text-xs text-muted-foreground">Asked for {reqDay(b.requested_day)}{b.requested_window ? `, ${b.requested_window}` : ''}{b.requested_note ? `: "${b.requested_note}"` : ''}</p></div>
+            <Row key={b.id} right={b.parent_phone && <Button asChild size="sm" variant="outline" className="gap-1"><a href={smsHref(b.parent_phone, askSms(b))}><MessageSquare className="h-4 w-4" /> Text</a></Button>}>
+              <div className="min-w-0"><p className="truncate font-medium">{b.athlete_first_name} {b.athlete_last_name || ''} <span className="font-normal text-muted-foreground">· {b.parent_name}</span></p><p className="truncate text-xs text-muted-foreground">{askText(b)}</p></div>
             </Row>
           ))}
         </Section>

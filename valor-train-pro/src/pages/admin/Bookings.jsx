@@ -16,6 +16,11 @@ const TZ = 'America/Los_Angeles';
 const dayKey = (iso) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
 const dayLabel = (iso) => new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'long', month: 'short', day: 'numeric' }).format(new Date(iso));
 const reqDay = (ymd) => (ymd ? new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(ymd + 'T12:00:00Z')) : 'a day');
+// Leads from the old website form (before online booking) have no day or window.
+const askText = (b) => (b.requested_day || b.requested_window ? `Asked for ${reqDay(b.requested_day)}${b.requested_window ? `, ${b.requested_window}` : ''}${b.requested_note ? `: "${b.requested_note}"` : ''}` : (b.requested_note || 'Wants a free assessment'));
+const askSms = (b) => (b.requested_day || b.requested_window
+  ? `Hi ${(b.parent_name || '').split(' ')[0]}, this is Valor Sports Academy. We can fit ${b.athlete_first_name}'s free assessment in. Does ${b.requested_window || 'that time'} on ${reqDay(b.requested_day)} work?`
+  : `Hi ${(b.parent_name || '').split(' ')[0]}, this is Valor Sports Academy. Thanks for filling out our form for ${b.athlete_first_name}. Want to come in for a free assessment? We do them Saturday mornings.`);
 const STATUS_STYLE = { booked: 'bg-muted', requested: 'bg-amber-100 text-amber-900', attended: 'bg-green-100 text-green-800', no_show: 'bg-rose-100 text-rose-800', canceled: 'bg-muted text-muted-foreground line-through' };
 const STATUS_LABEL = { booked: 'Booked', requested: 'Wants a time', attended: 'Checked in', no_show: 'No-show', canceled: 'Canceled' };
 const SOURCE_LABEL = { meta: 'Meta ad', facebook: 'Meta ad', instagram: 'Instagram', google: 'Google' };
@@ -97,14 +102,14 @@ export default function AdminBookings() {
             {r.source && r.source !== 'app' && <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">{SOURCE_LABEL[r.source.toLowerCase()] || r.source}</span>}
           </div>
           {r.quiz_result && <p className="text-xs text-muted-foreground">Quiz: {r.quiz_result}</p>}
-          {r.status === 'requested' && <p className="text-sm">Asked for {reqDay(r.requested_day)}{r.requested_window ? `, ${r.requested_window}` : ''}{r.requested_note ? `: "${r.requested_note}"` : ''}</p>}
+          {r.status === 'requested' && <p className="text-sm">{askText(r)}</p>}
           <p className="text-xs text-muted-foreground">{r.parent_name} · {r.parent_email}{r.parent_phone ? ` · ${r.parent_phone}` : ''}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {r.parent_phone && <Button asChild size="icon" variant="outline" className="h-10 w-10"><a href={telHref(r.parent_phone)} aria-label={`Call ${r.parent_name}`}><Phone className="h-4 w-4" /></a></Button>}
           {r.status === 'requested' ? (
             <>
-              {r.parent_phone && <Button asChild size="sm" className="h-10 gap-1"><a href={smsHref(r.parent_phone, `Hi ${r.parent_name?.split(' ')[0] || ''}, this is Valor Sports Academy. We can fit ${r.athlete_first_name}'s free assessment in. Does ${r.requested_window || 'that time'} on ${reqDay(r.requested_day)} work?`)}><MessageSquare className="h-4 w-4" /> Text to set a time</a></Button>}
+              {r.parent_phone && <Button asChild size="sm" className="h-10 gap-1"><a href={smsHref(r.parent_phone, askSms(r))}><MessageSquare className="h-4 w-4" /> Text to set a time</a></Button>}
               <Button size="sm" variant="outline" className="h-10" onClick={() => { setBooking(r); setSlot(r.requested_day ? `${r.requested_day}T18:00` : ''); }}>Book a time</Button>
             </>
           ) : (

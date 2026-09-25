@@ -136,7 +136,7 @@ export default function Workouts() {
               </div>
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {workouts.map((w) => (
-                  <WorkoutDayCard key={w.id} workout={w} latest1rm={latestMaxes(allMaxes, w.athlete_id || null)} isCompleted={isCompleted} onLog={(w) => navigate(`${viewAs.isActive ? '/admin/view-as-athlete' : ''}/workout/${w.id}`)} />
+                  <WorkoutDayCard key={w.id} workout={w} latest1rm={latestMaxes(allMaxes, w.athlete_id || null)} isCompleted={isCompleted} onLog={(w) => navigate(`${viewAs.basePath}/workout/${w.id}`)} />
                 ))}
               </div>
             </div>

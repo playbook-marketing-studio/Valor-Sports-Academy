@@ -92,7 +92,7 @@ export default function Home() {
               if (!w) return null;
               const isToday = w.date === new Date().toISOString().slice(0, 10);
               return (
-                <Link key={a.id} to={`${viewAs.isActive ? '/admin/view-as-athlete' : ''}/workout/${w.id}`} className="flex min-h-[64px] items-center justify-between gap-3 px-4 py-3 transition hover:bg-muted/50">
+                <Link key={a.id} to={`${viewAs.basePath}/workout/${w.id}`} className="flex min-h-[64px] items-center justify-between gap-3 px-4 py-3 transition hover:bg-muted/50">
                   <span className="min-w-0">
                     <span className="block truncate font-semibold">{athletes.length > 1 ? `${a.first_name}: ` : ''}{w.title}</span>
                     <span className="block truncate text-xs text-muted-foreground">{isToday ? 'Today' : new Date(w.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}{w.week ? ` · week ${w.week}` : ''}</span>

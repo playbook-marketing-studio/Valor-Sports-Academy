@@ -532,7 +532,6 @@ export default function AthleteDetail() {
   const [recKey, setRecKey] = useState('');
   const [form, setForm] = useState(null); // 'edit' | 'sibling'
   const navigate = useNavigate();
-  const { enterViewAs } = useViewAs();
   const [params, setParams] = useSearchParams();
   const tab = ['day', 'profile', 'training', 'progress'].includes(params.get('tab')) ? params.get('tab') : 'day';
 
@@ -569,7 +568,7 @@ export default function AthleteDetail() {
           {phone && <Button asChild size="icon" variant="secondary" className="h-11 w-11"><a href={telHref(phone)} aria-label={`Call ${athlete.parent_name || 'parent'}`}><Phone className="h-4 w-4" /></a></Button>}
           {phone && <Button asChild size="icon" variant="secondary" className="h-11 w-11"><a href={smsHref(phone, '')} aria-label={`Text ${athlete.parent_name || 'parent'}`}><MessageSquare className="h-4 w-4" /></a></Button>}
           <Button size="sm" variant="secondary" className="h-11 gap-1" onClick={() => setForm('edit')}><Pencil className="h-4 w-4" /> Edit</Button>
-          <Button size="sm" variant="secondary" className="h-11 gap-1" onClick={() => { enterViewAs(athlete.id); navigate('/admin/view-as-athlete'); }}><Eye className="h-4 w-4" /> View as athlete</Button>
+          <Button size="sm" variant="secondary" className="h-11 gap-1" onClick={() => navigate(`/admin/view-as-athlete/${athlete.id}`)}><Eye className="h-4 w-4" /> View as athlete</Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild><Button size="icon" variant="secondary" className="h-11 w-11" aria-label="More"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
             <DropdownMenuContent align="start">

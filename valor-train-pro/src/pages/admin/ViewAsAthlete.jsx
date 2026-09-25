@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Dumbbell, Apple, TrendingUp, LayoutDashboard, LogOut, Loader2, ChevronRight, Search } from 'lucide-react';
+import { NavLink, Outlet, useNavigate, useParams } from 'react-router-dom';
+import { Dumbbell, Apple, TrendingUp, LayoutDashboard, LogOut, Loader2, ChevronRight, Search, Users } from 'lucide-react';
 import { supabase } from '@/api/supabaseClient';
 import { useViewAs } from '@/lib/ViewAsContext';
 import { Button } from '@/components/ui/button';
@@ -11,11 +11,11 @@ import Brand from '@/components/Brand';
 import ThemeToggle from '@/components/ThemeToggle';
 import { athleteName } from '@/lib/valor';
 
-const navItems = [
-  { to: '/admin/view-as-athlete', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/admin/view-as-athlete/workouts', label: 'Workouts', icon: Dumbbell },
-  { to: '/admin/view-as-athlete/nutrition', label: 'Nutrition', icon: Apple },
-  { to: '/admin/view-as-athlete/progress', label: 'Progress', icon: TrendingUp },
+const navItems = (base) => [
+  { to: base, label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: `${base}/workouts`, label: 'Workouts', icon: Dumbbell },
+  { to: `${base}/nutrition`, label: 'Nutrition', icon: Apple },
+  { to: `${base}/progress`, label: 'Progress', icon: TrendingUp },
 ];
 
 /** Staff picks ONE athlete (searchable by athlete or parent name) to enter view-as mode. */
@@ -76,21 +76,33 @@ function ViewAsPicker({ onPick }) {
  * shows only this sticky bar plus the athlete's own nav, never the admin's
  * sidebar or mobile menu underneath it.
  */
+/** /admin/view-as-athlete: pick an athlete; the choice goes in the URL. */
+export function ViewAsPickerPage() {
+  const navigate = useNavigate();
+  return <ViewAsPicker onPick={(id) => navigate(`/admin/view-as-athlete/${id}`)} />;
+}
+
 export default function ViewAsAthlete() {
-  const { viewAsAthleteId, enterViewAs, exitViewAs, athlete, loading } = useViewAs();
+  const { athleteId } = useParams();
+  const { enterViewAs, exitViewAs, athlete, basePath } = useViewAs();
   const navigate = useNavigate();
 
-  if (!viewAsAthleteId) return <ViewAsPicker onPick={enterViewAs} />;
+  // The URL decides who we're viewing as; leaving this shell ends view-as mode.
+  useEffect(() => { enterViewAs(athleteId); return () => exitViewAs(); }, [athleteId, enterViewAs, exitViewAs]);
 
-  if (loading || !athlete) {
+  if (!athlete || athlete.id !== athleteId || !basePath) {
     return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   }
+  if (athlete.missing) {
+    return (
+      <div className="mx-auto max-w-md space-y-4 px-4 py-16 text-center">
+        <p className="text-sm text-muted-foreground">That athlete could not be found.</p>
+        <Button onClick={() => navigate('/admin/view-as-athlete')}>Pick an athlete</Button>
+      </div>
+    );
+  }
 
-  const exit = () => {
-    const athleteId = viewAsAthleteId;
-    exitViewAs();
-    navigate(`/admin/athletes/${athleteId}`);
-  };
+  const exit = () => navigate(`/admin/athletes/${athleteId}`);
 
   return (
     <div className="min-h-screen bg-background">
@@ -100,13 +112,14 @@ export default function ViewAsAthlete() {
         </p>
         <div className="flex shrink-0 items-center gap-2">
           <ThemeToggle compact className="h-11 text-primary-foreground hover:bg-white/15 hover:text-primary-foreground" />
+          <Button size="sm" variant="secondary" className="h-11 gap-1.5" onClick={() => navigate('/admin/view-as-athlete')}><Users className="h-4 w-4" /> Switch</Button>
           <Button size="sm" variant="secondary" className="h-11 gap-1.5" onClick={exit}><LogOut className="h-4 w-4" /> Exit</Button>
         </div>
       </div>
       <header className="sticky top-[49px] z-40 flex items-center gap-2 border-b border-border bg-background/95 px-3 py-2 backdrop-blur">
         <div className="hidden shrink-0 sm:block"><Brand size="sm" /></div>
         <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
-          {navItems.map((item) => (
+          {navItems(basePath).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -124,7 +137,7 @@ export default function ViewAsAthlete() {
         </nav>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-6 lg:px-10 lg:py-10">
-        <Outlet />
+        <Outlet key={athleteId} />
       </main>
     </div>
   );

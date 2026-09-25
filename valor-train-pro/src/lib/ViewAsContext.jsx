@@ -1,53 +1,41 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/api/supabaseClient';
 
-const STORAGE_KEY = 'vtp.viewAsAthleteId';
 const ViewAsContext = createContext(null);
 
 /**
  * Admin "View as athlete" mode. An admin picks ONE athlete and the parent-side
- * screens render scoped to just that kid — their results, their workouts,
- * their nutrition, their progress, their enrollment lock — with no sibling
- * picker or "all" option, since many kids don't have a full family or a
- * parent login. Read-only by design — nothing here ever writes. The chosen
- * athlete id lives in sessionStorage so a refresh keeps the view.
+ * screens render scoped to just that kid, read-only. The athlete id lives in
+ * the URL (/admin/view-as-athlete/:athleteId/...), set by the ViewAsAthlete
+ * shell, so back/forward, refresh and switching athletes all behave; leaving
+ * the shell clears it. (A sessionStorage version kept the old athlete stuck
+ * after the browser back button, 9/24/2026.)
  */
 export function ViewAsProvider({ children }) {
-  const [viewAsAthleteId, setViewAsAthleteId] = useState(() => {
-    try { return sessionStorage.getItem(STORAGE_KEY) || null; } catch { return null; }
-  });
+  const [viewAsAthleteId, setViewAsAthleteId] = useState(null);
   const [athlete, setAthlete] = useState(null);
-  const [loading, setLoading] = useState(false);
 
-  const enterViewAs = useCallback((athleteId) => {
-    try { sessionStorage.setItem(STORAGE_KEY, athleteId); } catch { /* ignore */ }
-    setAthlete(null);
-    setViewAsAthleteId(athleteId);
-  }, []);
-
-  const exitViewAs = useCallback(() => {
-    try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
-    setViewAsAthleteId(null);
-    setAthlete(null);
-  }, []);
+  const enterViewAs = useCallback((athleteId) => { setViewAsAthleteId(athleteId || null); }, []);
+  const exitViewAs = useCallback(() => { setViewAsAthleteId(null); setAthlete(null); }, []);
 
   useEffect(() => {
     if (!viewAsAthleteId) { setAthlete(null); return; }
     let cancelled = false;
-    setLoading(true);
-    (async () => {
-      const { data } = await supabase.from('athletes').select('*').eq('id', viewAsAthleteId).maybeSingle();
-      if (!cancelled) { setAthlete(data || null); setLoading(false); }
-    })();
+    setAthlete(null);
+    supabase.from('athletes').select('*').eq('id', viewAsAthleteId).maybeSingle()
+      .then(({ data }) => { if (!cancelled) setAthlete(data || { id: viewAsAthleteId, missing: true }); });
     return () => { cancelled = true; };
   }, [viewAsAthleteId]);
 
+  const basePath = viewAsAthleteId ? `/admin/view-as-athlete/${viewAsAthleteId}` : '';
+  const ready = !!athlete && athlete.id === viewAsAthleteId;
+
   return (
-    <ViewAsContext.Provider value={{ isActive: !!viewAsAthleteId, viewAsAthleteId, athlete, loading, enterViewAs, exitViewAs }}>
+    <ViewAsContext.Provider value={{ isActive: !!viewAsAthleteId, viewAsAthleteId, athlete: ready ? athlete : null, loading: !!viewAsAthleteId && !ready, basePath, enterViewAs, exitViewAs }}>
       {children}
     </ViewAsContext.Provider>
   );
 }
 
-const fallback = { isActive: false, viewAsAthleteId: null, athlete: null, loading: false, enterViewAs: () => {}, exitViewAs: () => {} };
+const fallback = { isActive: false, viewAsAthleteId: null, athlete: null, loading: false, basePath: '', enterViewAs: () => {}, exitViewAs: () => {} };
 export const useViewAs = () => useContext(ViewAsContext) || fallback;

@@ -17,7 +17,7 @@ export default function WorkoutSession() {
   const { workoutId } = useParams();
   const navigate = useNavigate();
   const viewAs = useViewAs();
-  const backTo = `${viewAs.isActive ? '/admin/view-as-athlete' : ''}/workouts`;
+  const backTo = `${viewAs.basePath}/workouts`;
   const [workout, setWorkout] = useState(null);
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);

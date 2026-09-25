@@ -27,7 +27,7 @@ import AdminEnrollment from '@/pages/admin/Enrollment';
 import { ProgramsList, ProgramDetail } from '@/pages/admin/Programs';
 import ClassLog from '@/pages/admin/ClassLog';
 import Today from '@/pages/admin/Today';
-import ViewAsAthlete from '@/pages/admin/ViewAsAthlete';
+import ViewAsAthlete, { ViewAsPickerPage } from '@/pages/admin/ViewAsAthlete';
 import { useAuth as useAuthForHome } from '@/lib/AuthContext';
 
 // Staff land on Today; parents on their athlete home.
@@ -99,7 +99,8 @@ const AuthenticatedApp = () => {
             just the sticky bar plus the athlete's own nav, exactly as their
             login would look. */}
         <Route element={<RequireRole roles={['admin']} />}>
-          <Route path="/admin/view-as-athlete" element={<ViewAsAthlete />}>
+          <Route path="/admin/view-as-athlete" element={<ViewAsPickerPage />} />
+          <Route path="/admin/view-as-athlete/:athleteId" element={<ViewAsAthlete />}>
             <Route index element={<Home />} />
             <Route element={<RequireEnrollment />}>
               <Route path="workouts" element={<Workouts />} />
