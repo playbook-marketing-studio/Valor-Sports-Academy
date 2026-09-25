@@ -7,6 +7,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useViewAs } from '@/lib/ViewAsContext';
+import { familyEntity } from '@/lib/familyScope';
 
 const today = new Date().toISOString().slice(0, 10);
 const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
@@ -14,6 +16,8 @@ const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 
 export default function WorkoutSession() {
   const { workoutId } = useParams();
   const navigate = useNavigate();
+  const viewAs = useViewAs();
+  const backTo = `${viewAs.isActive ? '/admin/view-as' : ''}/workouts`;
   const [workout, setWorkout] = useState(null);
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,10 +46,12 @@ export default function WorkoutSession() {
   }, [restRunning]);
 
   useEffect(() => {
+    if (viewAs.isActive && !viewAs.family) return;
     (async () => {
+      const maxesSource = viewAs.isActive ? familyEntity('one_rep_maxes', viewAs.family) : base44.entities.OneRepMax;
       const [w, maxes] = await Promise.all([
         base44.entities.Workout.get(workoutId),
-        base44.entities.OneRepMax.list('-date', 200),
+        maxesSource.list('-date', 200),
       ]);
       setWorkout(w);
       const map = latestMaxes(maxes, w.athlete_id || null);
@@ -55,7 +61,7 @@ export default function WorkoutSession() {
       }));
       setLoading(false);
     })();
-  }, [workoutId]);
+  }, [workoutId, viewAs.isActive, viewAs.family]);
 
   const update = (i, field, value) => {
     const next = [...entries];
@@ -94,7 +100,7 @@ export default function WorkoutSession() {
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/workouts')} className="gap-2"><ArrowLeft className="h-4 w-4" /> Back</Button>
+        <Button variant="ghost" size="sm" onClick={() => navigate(backTo)} className="gap-2"><ArrowLeft className="h-4 w-4" /> Back</Button>
         <div className="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-1.5 text-primary">
           <Timer className="h-4 w-4" /><span className="font-mono font-semibold">{fmt(elapsed)}</span>
         </div>
@@ -131,15 +137,15 @@ export default function WorkoutSession() {
               <div className="grid grid-cols-3 gap-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Sets</Label>
-                  <Input type="number" value={e.sets} onChange={(ev) => update(i, 'sets', Number(ev.target.value))} />
+                  <Input type="number" value={e.sets} disabled={viewAs.isActive} onChange={(ev) => update(i, 'sets', Number(ev.target.value))} />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Reps</Label>
-                  <Input type="number" value={e.reps} onChange={(ev) => update(i, 'reps', Number(ev.target.value))} />
+                  <Input type="number" value={e.reps} disabled={viewAs.isActive} onChange={(ev) => update(i, 'reps', Number(ev.target.value))} />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Weight (lbs)</Label>
-                  <Input type="number" value={e.weight} onChange={(ev) => update(i, 'weight', Number(ev.target.value))} />
+                  <Input type="number" value={e.weight} disabled={viewAs.isActive} onChange={(ev) => update(i, 'weight', Number(ev.target.value))} />
                 </div>
               </div>
             </CardContent>
@@ -147,9 +153,11 @@ export default function WorkoutSession() {
         ))}
       </div>
 
-      <Button size="lg" className="w-full gap-2" onClick={finish} disabled={saving}>
-        <Check className="h-5 w-5" /> {saving ? 'Saving...' : 'Done'}
-      </Button>
+      {!viewAs.isActive && (
+        <Button size="lg" className="w-full gap-2" onClick={finish} disabled={saving}>
+          <Check className="h-5 w-5" /> {saving ? 'Saving...' : 'Done'}
+        </Button>
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { startEnrollment } from '@/lib/enroll';
 import { defaultItem, priceLabel } from '@/lib/valor';
 import { money } from '@/lib/slots';
+import { useViewAs } from '@/lib/ViewAsContext';
 
 /**
  * Parent's "Enroll and pay" for one athlete: a one-time class or class pack. Uses the coach's
@@ -16,7 +17,12 @@ export default function EnrollButton({ athlete, cfg, recommendedKey, label }) {
   const [busy, setBusy] = useState(false);
   const program = cfg?.items?.find((p) => p.key === key);
   const needsPick = !initial && (cfg?.items?.length || 0) > 1;
+  const { isActive: viewingAsFamily } = useViewAs();
   if (!cfg?.items?.length) return null;
+  // Read-only in view-as mode: no payment can be started from here.
+  if (viewingAsFamily) {
+    return <span className="text-xs text-muted-foreground">{label || 'Enroll and pay'} (disabled — read-only view)</span>;
+  }
   return (
     <div className="flex flex-wrap items-center gap-2">
       {needsPick && (

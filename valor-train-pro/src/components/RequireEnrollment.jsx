@@ -8,21 +8,29 @@ import { Card, CardContent } from '@/components/ui/card';
 import { enrolledIds, loadSettings, SITE_ASSESSMENT_URL } from '@/lib/valor';
 import EnrollButton from '@/components/EnrollButton';
 import { supabase } from '@/api/supabaseClient';
+import { useViewAs } from '@/lib/ViewAsContext';
 
 /**
  * Workouts, nutrition and training plans are included with enrollment.
  * Staff always pass. A parent passes once at least one of their athletes is enrolled
  * (paid online or marked paid by staff); otherwise they get the enroll-and-pay screen.
  * The database enforces the same rule for coach content (RLS on workouts / maxes).
+ *
+ * In "view as family" mode an admin must see the same lock the real parent would —
+ * evaluated for THAT family's athletes, not skipped just because the signed-in user
+ * is staff.
  */
 export default function RequireEnrollment() {
   const { user } = useAuth();
+  const viewAs = useViewAs();
   const [state, setState] = useState({ loading: true, athletes: [], enrolled: new Set(), enrollment: null, rec: {}, lapsed: new Set() });
 
   useEffect(() => {
-    if (!user || user.role === 'admin') return;
+    if (!user) return;
+    if (!viewAs.isActive && user.role === 'admin') return;
+    if (viewAs.isActive && !viewAs.family) return;
     (async () => {
-      const kids = await base44.entities.Athlete.list('first_name', 20).catch(() => []);
+      const kids = viewAs.isActive ? viewAs.family.athletes : await base44.entities.Athlete.list('first_name', 20).catch(() => []);
       const ids = kids.map((k) => k.id);
       const [enrolled, settings, { data: as }, { data: past }] = await Promise.all([
         enrolledIds(ids), loadSettings(),
@@ -32,9 +40,9 @@ export default function RequireEnrollment() {
       const rec = {}; (as || []).forEach((x) => { if (!(x.athlete_id in rec)) rec[x.athlete_id] = x.recommended_plan; });
       setState({ loading: false, athletes: kids, enrolled, enrollment: settings.enrollment, rec, lapsed: new Set((past || []).map((p) => p.athlete_id)) });
     })();
-  }, [user]);
+  }, [user, viewAs.isActive, viewAs.family]);
 
-  if (!user || user.role === 'admin') return <Outlet />;
+  if (!user || (!viewAs.isActive && user.role === 'admin')) return <Outlet />;
   if (state.loading) return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   if (state.enrolled.size > 0) return <Outlet />;
 

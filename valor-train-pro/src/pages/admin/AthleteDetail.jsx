@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Archive, ArchiveRestore, ArrowLeft, Banknote, Check, CheckCircle2, Copy, CopyPlus, Loader2, Mail, MessageSquare, Pencil, Phone, Plus, QrCode, Save, Smartphone, Trash2, UserPlus } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowLeft, Banknote, Check, CheckCircle2, Copy, CopyPlus, Eye, Loader2, Mail, MessageSquare, Pencil, Phone, Plus, QrCode, Save, Smartphone, Trash2, UserPlus } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { supabase, callFn } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
+import { useViewAs } from '@/lib/ViewAsContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -531,6 +532,7 @@ export default function AthleteDetail() {
   const [recKey, setRecKey] = useState('');
   const [form, setForm] = useState(null); // 'edit' | 'sibling'
   const navigate = useNavigate();
+  const { enterViewAs } = useViewAs();
   const [params, setParams] = useSearchParams();
   const tab = ['day', 'profile', 'training', 'progress'].includes(params.get('tab')) ? params.get('tab') : 'day';
 
@@ -556,7 +558,7 @@ export default function AthleteDetail() {
   return (
     <div className="space-y-6">
       <Link to="/admin/bookings" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Assessments</Link>
-      <div className="rounded-[22px] bg-[#16140f] p-6 text-white">
+      <div className="vtp-stripes rounded-[18px] border border-border bg-card p-6 text-white shadow-[0_20px_50px_-24px_rgba(0,0,0,.8)]">
         <h1 className="font-display text-4xl">{athleteName(athlete)}</h1>
         <p className="mt-1 text-sm text-white/80">{[athlete.age && `Age ${athlete.age}`, athlete.sport, athlete.season === 'in_season' ? 'In-season' : athlete.season === 'off_season' ? 'Off-season' : ''].filter(Boolean).join(' · ') || 'Athlete'}</p>
         <p className="mt-2 text-sm text-white/70">
@@ -567,6 +569,7 @@ export default function AthleteDetail() {
           {phone && <Button asChild size="icon" variant="secondary" className="h-11 w-11"><a href={telHref(phone)} aria-label={`Call ${athlete.parent_name || 'parent'}`}><Phone className="h-4 w-4" /></a></Button>}
           {phone && <Button asChild size="icon" variant="secondary" className="h-11 w-11"><a href={smsHref(phone, '')} aria-label={`Text ${athlete.parent_name || 'parent'}`}><MessageSquare className="h-4 w-4" /></a></Button>}
           <Button size="sm" variant="secondary" className="h-11 gap-1" onClick={() => setForm('edit')}><Pencil className="h-4 w-4" /> Edit</Button>
+          <Button size="sm" variant="secondary" className="h-11 gap-1" onClick={() => { enterViewAs(athlete.id); navigate('/admin/view-as'); }}><Eye className="h-4 w-4" /> View as family</Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild><Button size="icon" variant="secondary" className="h-11 w-11" aria-label="More"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
             <DropdownMenuContent align="start">

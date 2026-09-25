@@ -11,8 +11,11 @@ import {
 } from '@/components/ui/dialog';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import WeeklyPlan from '@/components/WeeklyPlan';
+import { useViewAs } from '@/lib/ViewAsContext';
+import { familyEntity } from '@/lib/familyScope';
 
 export default function Progress() {
+  const viewAs = useViewAs();
   const [allMaxes, setAllMaxes] = useState([]);
   const [athletes, setAthletes] = useState([]);
   const [who, setWho] = useState(null); // athlete id, or null = my own lifts
@@ -32,7 +35,14 @@ export default function Progress() {
 
   const load = async () => {
     setLoading(true);
-    const [data, plan, kids] = await Promise.all([
+    // View-as: scope explicitly to this family, since an admin's RLS would
+    // otherwise hand back every athlete's maxes and plan workouts in the gym.
+    const family = viewAs.isActive ? viewAs.family : null;
+    const [data, plan, kids] = family ? await Promise.all([
+      familyEntity('one_rep_maxes', family).list('-date', 500),
+      familyEntity('workouts', family).filter({ program: 'In-Season I' }, 'date', 100),
+      Promise.resolve(family.athletes).then(async (ks) => { const on = await enrolledIds(ks.map((k) => k.id)); return ks.filter((k) => on.has(k.id)); }),
+    ]) : await Promise.all([
       base44.entities.OneRepMax.list('-date', 500),
       base44.entities.Workout.filter({ program: 'In-Season I' }, 'date', 100),
       base44.entities.Athlete.list('first_name', 20).then(async (ks) => { const on = await enrolledIds(ks.map((k) => k.id)); return ks.filter((k) => on.has(k.id)); }).catch(() => []),
@@ -44,7 +54,7 @@ export default function Progress() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { if (!viewAs.isActive || viewAs.family) load(); }, [viewAs.isActive, viewAs.family]);
   const maxes = useMemo(() => allMaxes.filter((m) => (who ? m.athlete_id === who : !m.athlete_id)), [allMaxes, who]);
 
   const chartData = useMemo(() => {
@@ -66,7 +76,7 @@ export default function Progress() {
   }, [maxes]);
 
   const exercises = useMemo(() => [...new Set(maxes.map((m) => m.exercise_name))], [maxes]);
-  const colors = ['#f59e0b', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#14b8a6'];
+  const colors = ['#f59e0b', '#22c55e', '#3b82f6', '#fb7185', '#ec4899', '#14b8a6'];
 
   const latestByExercise = useMemo(() => {
     const map = {};
@@ -123,6 +133,7 @@ export default function Progress() {
           <h1 className="font-display text-2xl tracking-tight lg:text-3xl">Progress</h1>
           <p className="mt-1 text-sm text-muted-foreground">Max lifts over time. Workout targets are a percent of these.</p>
         </div>
+        {!viewAs.isActive && (
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2"><Plus className="h-4 w-4" /> Add a max</Button>
@@ -160,6 +171,7 @@ export default function Progress() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {athletes.length > 0 && (
@@ -229,9 +241,11 @@ export default function Progress() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-xl font-bold text-primary">{m.weight}<span className="text-sm font-normal text-muted-foreground"> lbs</span></span>
-                    <button onClick={() => deleteMax(m.id)} className="text-muted-foreground hover:text-destructive">
-                      <X className="h-4 w-4" />
-                    </button>
+                    {!viewAs.isActive && (
+                      <button onClick={() => deleteMax(m.id)} className="text-muted-foreground hover:text-destructive">
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -239,6 +253,7 @@ export default function Progress() {
           )}
         </CardContent>
       </Card>
+      {!viewAs.isActive && (
       <details className="rounded-xl border border-border bg-card">
         <summary className="cursor-pointer select-none px-5 py-4 text-sm font-semibold">Log several lifts at once</summary>
         <div className="px-5 pb-5">
@@ -266,6 +281,7 @@ export default function Progress() {
           </div>
         </div>
       </details>
+      )}
     </div>
   );
 }

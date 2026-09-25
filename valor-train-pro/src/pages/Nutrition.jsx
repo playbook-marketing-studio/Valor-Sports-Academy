@@ -13,10 +13,13 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import ScanFoodDialog from '@/components/ScanFoodDialog';
+import { useViewAs } from '@/lib/ViewAsContext';
+import { familyEntity } from '@/lib/familyScope';
 
 const mealTypes = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
 export default function Nutrition() {
+  const viewAs = useViewAs();
   const [logs, setLogs] = useState([]);
   const [goal, setGoal] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,7 +40,13 @@ export default function Nutrition() {
 
   const load = async () => {
     setLoading(true);
-    const [allLogs, goals] = await Promise.all([
+    // View-as: scope explicitly to this family (owner_id/athlete_id), since an
+    // admin's RLS would otherwise return every family's nutrition logs.
+    const family = viewAs.isActive ? viewAs.family : null;
+    const [allLogs, goals] = family ? await Promise.all([
+      familyEntity('nutrition_logs', family).list('-date', 200),
+      familyEntity('macro_goals', family).list('-date', 50),
+    ]) : await Promise.all([
       base44.entities.NutritionLog.list('-date', 200),
       base44.entities.MacroGoal.list('-date', 50),
     ]);
@@ -46,7 +55,7 @@ export default function Nutrition() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { if (!viewAs.isActive || viewAs.family) load(); }, [viewAs.isActive, viewAs.family]);
 
   const todayLogs = useMemo(() => logs.filter((l) => l.date === today), [logs, today]);
 
@@ -104,6 +113,7 @@ export default function Nutrition() {
           <h1 className="font-display text-2xl tracking-tight lg:text-3xl">Nutrition</h1>
           <p className="mt-1 text-sm text-muted-foreground">Track your macros and meals</p>
         </div>
+        {!viewAs.isActive && (
         <div className="flex gap-2">
           <ScanFoodDialog onLogged={load} />
           <Dialog open={goalOpen} onOpenChange={setGoalOpen}>
@@ -195,6 +205,7 @@ export default function Nutrition() {
             </DialogContent>
           </Dialog>
         </div>
+        )}
       </div>
 
       {/* Macro progress */}
@@ -247,9 +258,11 @@ export default function Nutrition() {
                       {l.calories} cal · {l.protein}p · {l.carbs}c · {l.fats}f
                     </p>
                   </div>
-                  <button onClick={() => deleteLog(l.id)} className="text-muted-foreground hover:text-destructive">
-                    <X className="h-4 w-4" />
-                  </button>
+                  {!viewAs.isActive && (
+                    <button onClick={() => deleteLog(l.id)} className="text-muted-foreground hover:text-destructive">
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

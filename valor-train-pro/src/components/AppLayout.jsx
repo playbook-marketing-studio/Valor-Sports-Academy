@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Dumbbell, Apple, TrendingUp, LayoutDashboard, LogOut, Menu, X, ClipboardList, Users, Tag, BookOpen, NotebookPen, CalendarCheck } from 'lucide-react';
+import { Dumbbell, Apple, TrendingUp, LayoutDashboard, LogOut, Menu, X, ClipboardList, Users, Tag, BookOpen, NotebookPen, CalendarCheck, Eye } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { cn } from '@/lib/utils';
 import Brand from '@/components/Brand';
@@ -19,6 +19,7 @@ const adminNav = [
   { to: '/admin/programs', label: 'Programs', icon: BookOpen },
   { to: '/admin/log', label: 'Class log', icon: NotebookPen },
   { to: '/admin/enrollment', label: 'Enrollment', icon: Tag },
+  { to: '/admin/view-as', label: 'View as family', icon: Eye },
 ];
 
 export default function AppLayout() {
@@ -32,7 +33,7 @@ export default function AppLayout() {
 
   const NavContent = () => (
     <div className="flex h-full flex-col">
-      <div className="px-6 py-7">
+      <div className="vtp-stripes border-b border-sidebar-border px-6 py-7">
         <Brand dark />
       </div>
 
@@ -83,9 +84,13 @@ export default function AppLayout() {
       </aside>
 
       {/* Mobile header */}
-      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-background/80 px-4 py-3 backdrop-blur lg:hidden">
+      <header className="vtp-stripes sticky top-0 z-40 flex items-center justify-between border-b border-border bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
         <Brand size="sm" />
-        <button onClick={() => setMobileOpen(true)} className="text-foreground">
+        <button
+          onClick={() => setMobileOpen(true)}
+          aria-label="Open menu"
+          className="flex h-11 w-11 items-center justify-center rounded-lg text-foreground hover:bg-accent"
+        >
           <Menu className="h-6 w-6" />
         </button>
       </header>
@@ -97,7 +102,8 @@ export default function AppLayout() {
           <div className="absolute inset-y-0 left-0 w-64 border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
             <button
               onClick={() => setMobileOpen(false)}
-              className="absolute right-3 top-4 text-muted-foreground"
+              aria-label="Close menu"
+              className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
             >
               <X className="h-5 w-5" />
             </button>

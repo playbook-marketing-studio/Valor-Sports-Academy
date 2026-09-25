@@ -7,8 +7,10 @@ import EnrollButton from '@/components/EnrollButton';
 import AthleteForm from '@/components/AthleteForm';
 import { Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useViewAs } from '@/lib/ViewAsContext';
 
 export default function Home() {
+  const viewAs = useViewAs();
   const [user, setUser] = useState(null);
   const [upcoming, setUpcoming] = useState([]);
   const [athletes, setAthletes] = useState([]);
@@ -23,9 +25,32 @@ export default function Home() {
   useEffect(() => {
     (async () => {
       try {
+        const today = new Date().toISOString().slice(0, 10);
+
+        // View-as: an admin looking at this family's Home exactly as their parent sees it.
+        // RLS lets an admin see every row, so scope explicitly to this family's athlete ids.
+        if (viewAs.isActive) {
+          if (!viewAs.family) return;
+          const parent = viewAs.family.parent;
+          setUser({ full_name: parent?.full_name || parent?.email || 'Family', role: 'parent' });
+          const kids = viewAs.family.athletes;
+          const ids = kids.map((k) => k.id);
+          setAthletes(kids);
+          const [{ data: next }, { data: as }, { data: ps }, st] = await Promise.all([
+            ids.length
+              ? supabase.from('workouts').select('id, athlete_id, title, date, day, week, program').gte('date', today).in('athlete_id', ids).order('date').limit(40)
+              : Promise.resolve({ data: [] }),
+            ids.length ? supabase.from('assessments').select('*').in('athlete_id', ids).order('date', { ascending: false }) : Promise.resolve({ data: [] }),
+            ids.length ? supabase.from('payments').select('*').in('athlete_id', ids).eq('status', 'paid').order('paid_at', { ascending: false }) : Promise.resolve({ data: [] }),
+            loadSettings(),
+          ]);
+          setUpcoming(next || []);
+          setAssessments(as || []); setPayments(ps || []); setSettings(st);
+          return;
+        }
+
         const me = await base44.auth.me();
         setUser(me);
-        const today = new Date().toISOString().slice(0, 10);
 
         const [kids, { data: next }] = await Promise.all([
           me.role === 'admin' ? [] : base44.entities.Athlete.list('first_name', 20).catch(() => []),
@@ -49,7 +74,7 @@ export default function Home() {
         setLoading(false);
       }
     })();
-  }, [reload]);
+  }, [reload, viewAs.isActive, viewAs.family]);
 
   const firstName = user?.full_name?.split(' ')[0] || 'Athlete';
   const hour = new Date().getHours();
@@ -70,7 +95,7 @@ export default function Home() {
               if (!w) return null;
               const isToday = w.date === new Date().toISOString().slice(0, 10);
               return (
-                <Link key={a.id} to={`/workout/${w.id}`} className="flex min-h-[64px] items-center justify-between gap-3 px-4 py-3 transition hover:bg-muted/50">
+                <Link key={a.id} to={`${viewAs.isActive ? '/admin/view-as' : ''}/workout/${w.id}`} className="flex min-h-[64px] items-center justify-between gap-3 px-4 py-3 transition hover:bg-muted/50">
                   <span className="min-w-0">
                     <span className="block truncate font-semibold">{athletes.length > 1 ? `${a.first_name}: ` : ''}{w.title}</span>
                     <span className="block truncate text-xs text-muted-foreground">{isToday ? 'Today' : new Date(w.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}{w.week ? ` · week ${w.week}` : ''}</span>
@@ -98,7 +123,9 @@ export default function Home() {
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between">
                     <CardTitle className="font-display text-2xl">{a.first_name} {a.last_name || ''}</CardTitle>
-                    <button onClick={() => setEditing(a)} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"><Pencil className="h-3 w-3" /> Edit</button>
+                    {!viewAs.isActive && (
+                      <button onClick={() => setEditing(a)} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"><Pencil className="h-3 w-3" /> Edit</button>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground">{[a.age && `Age ${a.age}`, a.sport].filter(Boolean).join(' · ')}</p>
                 </CardHeader>
@@ -123,9 +150,9 @@ export default function Home() {
                   )}
                   {cls && <p><span className="font-semibold">Coach recommends:</span> {cls}</p>}
                   <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
-                    {paid ? <p><span className="font-semibold text-green-700">Enrolled.</span> {left == null ? 'Unlimited classes' : `${left} class${left === 1 ? '' : 'es'} left`}{paid.covers_until ? `, good through ${new Date(paid.covers_until).toLocaleDateString()}` : ''}. Workouts, nutrition and their training plan are unlocked.</p>
+                    {paid ? <p><span className="font-semibold text-green-400">Enrolled.</span> {left == null ? 'Unlimited classes' : `${left} class${left === 1 ? '' : 'es'} left`}{paid.covers_until ? `, good through ${new Date(paid.covers_until).toLocaleDateString()}` : ''}. Workouts, nutrition and their training plan are unlocked.</p>
                       : <p>{lapsed ? `${a.first_name}'s classes are used up or expired. Buy more` : `Enroll ${a.first_name}`} to unlock workouts, nutrition and their training plan.</p>}
-                    {!paid && <EnrollButton athlete={a} cfg={settings.enrollment} recommendedKey={as?.recommended_plan} label={lapsed ? 'Buy more classes' : undefined} />}
+                    {!paid && !viewAs.isActive && <EnrollButton athlete={a} cfg={settings.enrollment} recommendedKey={as?.recommended_plan} label={lapsed ? 'Buy more classes' : undefined} />}
                   </div>
                 </CardContent>
               </Card>
