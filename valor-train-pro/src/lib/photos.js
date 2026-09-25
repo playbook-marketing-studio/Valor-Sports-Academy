@@ -15,7 +15,6 @@ export const PHOTO_POSITIONS = {
   '/images/photos/class-drill.webp': '50% 30%',
   '/images/photos/bw-grind.webp': '50% 40%',
   '/images/photos/community.webp': '50% 35%',
-  '/images/photos/sports-kids.webp': '50% 30%',
   // Empty-facility / equipment shots — no faces to protect, center is fine.
   '/images/photos/facility-turf.webp': '50% 50%',
   '/images/photos/facility-weights.webp': '50% 50%',

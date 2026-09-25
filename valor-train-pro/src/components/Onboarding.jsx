@@ -33,7 +33,7 @@ const STAFF_STEPS = [
 
 const PARENT_STEPS = [
   {
-    photo: '/images/photos/sports-kids.webp',
+    photo: '/images/photos/class-drill.webp',
     title: "Your athlete's results",
     body: 'See how their assessment went and what the coaches are working on with them.',
   },

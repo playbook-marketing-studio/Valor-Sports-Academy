@@ -20,7 +20,6 @@ import { photoPosition } from '@/lib/photos';
 const PROGRAM_PHOTOS = [
   '/images/photos/class-drill.webp',
   '/images/photos/facility-turf.webp',
-  '/images/photos/sports-kids.webp',
   '/images/photos/facility-weights.webp',
   '/images/photos/bw-grind.webp',
   '/images/photos/facility-wide.webp',

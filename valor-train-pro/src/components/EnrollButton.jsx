@@ -21,7 +21,7 @@ export default function EnrollButton({ athlete, cfg, recommendedKey, label }) {
   if (!cfg?.items?.length) return null;
   // Read-only in view-as mode: no payment can be started from here.
   if (viewingAsFamily) {
-    return <span className="text-xs text-muted-foreground">{label || 'Enroll and pay'} (disabled — read-only view)</span>;
+    return <span className="text-xs text-muted-foreground">{label || 'Enroll and pay'} (off in read-only view)</span>;
   }
   return (
     <div className="flex flex-wrap items-center gap-2">

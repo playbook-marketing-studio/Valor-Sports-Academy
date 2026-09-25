@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { loadSettings, DEFAULT_METRICS, countsAsEnrollment, classesLeft, itemName } from '@/lib/valor';
+import { loadSettings, DEFAULT_METRICS, countsAsEnrollment, classesLeft, enrolledIds, itemName } from '@/lib/valor';
 import { supabase } from '@/api/supabaseClient';
 import EnrollButton from '@/components/EnrollButton';
 import AthleteForm from '@/components/AthleteForm';
@@ -20,6 +20,8 @@ export default function Home() {
   const [payments, setPayments] = useState([]);
   const [settings, setSettings] = useState({ enrollment: null, metrics: DEFAULT_METRICS });
   const enrolledPays = payments.filter(countsAsEnrollment);
+  const [inClass, setInClass] = useState(new Set()); // enrolled via a program, even without a pack in the app
+  useEffect(() => { enrolledIds(athletes.map((a) => a.id)).then(setInClass); }, [athletes]);
   const [editing, setEditing] = useState(null);
   const [reload, setReload] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -83,7 +85,7 @@ export default function Home() {
   return (
     <div className="space-y-8">
       <div className="relative overflow-hidden rounded-xl border border-border">
-        <img src="/images/photos/sports-kids.webp" alt="" width={1200} height={500} style={{ objectPosition: photoPosition('/images/photos/sports-kids.webp') }} className="h-36 w-full object-cover sm:h-44" />
+        <img src="/images/photos/facility-weights.webp" alt="" width={1200} height={500} style={{ objectPosition: photoPosition('/images/photos/facility-weights.webp') }} className="h-36 w-full object-cover sm:h-44" />
         <div className="absolute inset-0 bg-gradient-to-t from-card via-card/70 to-black/10" />
         <div className="relative -mt-8 bg-card px-5 pb-5 pt-2">
           <h1 className="font-display text-4xl">{greeting}, {firstName}</h1>
@@ -120,7 +122,8 @@ export default function Home() {
           {athletes.map((a) => {
             const as = assessments.find((x) => x.athlete_id === a.id);
             const paid = enrolledPays.find((x) => x.athlete_id === a.id);
-            const lapsed = !paid && payments.some((x) => x.athlete_id === a.id);
+            const enrolledNoPack = !paid && inClass.has(a.id);
+            const lapsed = !paid && !enrolledNoPack && payments.some((x) => x.athlete_id === a.id);
             const left = enrolledPays.filter((x) => x.athlete_id === a.id).reduce((n, x) => (n == null || classesLeft(x) == null ? null : n + classesLeft(x)), 0);
             const cls = itemName(settings.enrollment, as?.recommended_plan);
             const filled = as ? settings.metrics.filter((m) => as.metrics?.[m.key]) : [];
@@ -156,9 +159,10 @@ export default function Home() {
                   )}
                   {cls && <p><span className="font-semibold">Coach recommends:</span> {cls}</p>}
                   <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
-                    {paid ? <p><span className="font-semibold text-green-700 dark:text-green-400">Enrolled.</span> {left == null ? 'Unlimited classes' : `${left} class${left === 1 ? '' : 'es'} left`}{paid.covers_until ? `, good through ${new Date(paid.covers_until).toLocaleDateString()}` : ''}. Workouts, nutrition and their training plan are unlocked.</p>
+                    {enrolledNoPack ? <p><span className="font-semibold text-green-700 dark:text-green-400">Enrolled.</span> {a.first_name} is in a class at Valor. Workouts, nutrition and their training plan are unlocked.</p>
+                      : paid ? <p><span className="font-semibold text-green-700 dark:text-green-400">Enrolled.</span> {left == null ? 'Unlimited classes' : `${left} class${left === 1 ? '' : 'es'} left`}{paid.covers_until ? `, good through ${new Date(paid.covers_until).toLocaleDateString()}` : ''}. Workouts, nutrition and their training plan are unlocked.</p>
                       : <p>{lapsed ? `${a.first_name}'s classes are used up or expired. Buy more` : `Enroll ${a.first_name}`} to unlock workouts, nutrition and their training plan.</p>}
-                    {!paid && !viewAs.isActive && <EnrollButton athlete={a} cfg={settings.enrollment} recommendedKey={as?.recommended_plan} label={lapsed ? 'Buy more classes' : undefined} />}
+                    {!paid && !enrolledNoPack && !viewAs.isActive && <EnrollButton athlete={a} cfg={settings.enrollment} recommendedKey={as?.recommended_plan} label={lapsed ? 'Buy more classes' : undefined} />}
                   </div>
                 </CardContent>
               </Card>

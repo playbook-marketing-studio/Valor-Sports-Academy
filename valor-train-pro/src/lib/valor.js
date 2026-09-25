@@ -38,11 +38,15 @@ export const countsAsEnrollment = (p) => p.status === 'paid'
   && (p.classes_total == null || p.classes_used < p.classes_total);
 export const classesLeft = (p) => (p.classes_total == null ? null : p.classes_total - p.classes_used);
 
-/** Athlete ids that are enrolled right now. */
+/**
+ * Athlete ids that are enrolled right now: an active paid class/pack OR on a
+ * program (a coach put them in a class). Asks the DB's athlete_enrolled() so the
+ * app, the lock and the Athletes label can never disagree.
+ */
 export async function enrolledIds(athleteIds) {
   if (!athleteIds?.length) return new Set();
-  const { data } = await supabase.from('payments').select('athlete_id, status, plan_key, covers_until, classes_total, classes_used').in('athlete_id', athleteIds).eq('status', 'paid');
-  return new Set((data || []).filter(countsAsEnrollment).map((r) => r.athlete_id));
+  const res = await Promise.all(athleteIds.map((aid) => supabase.rpc('athlete_enrolled', { aid }).then(({ data }) => (data ? aid : null))));
+  return new Set(res.filter(Boolean));
 }
 
 export const athleteName = (a) => [a?.first_name, a?.last_name].filter(Boolean).join(' ');
