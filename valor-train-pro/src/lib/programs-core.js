@@ -51,9 +51,12 @@ export function buildWorkouts(template, athleteId, assignmentId, startMonday, we
   const rows = [];
   for (let w = 1; w <= template.weeks; w++) {
     for (const day of template.days) {
+      // An override of 0 means this athlete skips that day (1x-a-week kids on a 2-day program).
+      const ov = weekdayOverrides[day.key];
+      if (ov === 0 || ov === '0') continue;
       const exercises = exercisesFor(day, w);
       if (!exercises.length) continue;
-      const weekday = Number(weekdayOverrides[day.key] || day.weekday || 1);
+      const weekday = Number(ov || day.weekday || 1);
       const block = (day.exercises.find((e) => (e.weeks || []).includes(w)) || {}).block || '';
       rows.push({
         athlete_id: athleteId, template_id: template.id, assignment_id: assignmentId, day_key: day.key,
