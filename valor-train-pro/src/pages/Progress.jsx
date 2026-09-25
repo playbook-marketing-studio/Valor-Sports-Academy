@@ -12,7 +12,7 @@ import {
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import WeeklyPlan from '@/components/WeeklyPlan';
 import { useViewAs } from '@/lib/ViewAsContext';
-import { familyEntity } from '@/lib/familyScope';
+import { athleteEntity } from '@/lib/viewAsScope';
 
 export default function Progress() {
   const viewAs = useViewAs();
@@ -35,13 +35,13 @@ export default function Progress() {
 
   const load = async () => {
     setLoading(true);
-    // View-as: scope explicitly to this family, since an admin's RLS would
-    // otherwise hand back every athlete's maxes and plan workouts in the gym.
-    const family = viewAs.isActive ? viewAs.family : null;
-    const [data, plan, kids] = family ? await Promise.all([
-      familyEntity('one_rep_maxes', family).list('-date', 500),
-      familyEntity('workouts', family).filter({ program: 'In-Season I' }, 'date', 100),
-      Promise.resolve(family.athletes).then(async (ks) => { const on = await enrolledIds(ks.map((k) => k.id)); return ks.filter((k) => on.has(k.id)); }),
+    // View-as: scope explicitly to this one athlete, since an admin's RLS
+    // would otherwise hand back every athlete's maxes and plan workouts.
+    const athlete = viewAs.isActive ? viewAs.athlete : null;
+    const [data, plan, kids] = athlete ? await Promise.all([
+      athleteEntity('one_rep_maxes', athlete.id).list('-date', 500),
+      athleteEntity('workouts', athlete.id).filter({ program: 'In-Season I' }, 'date', 100),
+      Promise.resolve([athlete]),
     ]) : await Promise.all([
       base44.entities.OneRepMax.list('-date', 500),
       base44.entities.Workout.filter({ program: 'In-Season I' }, 'date', 100),
@@ -54,7 +54,7 @@ export default function Progress() {
     setLoading(false);
   };
 
-  useEffect(() => { if (!viewAs.isActive || viewAs.family) load(); }, [viewAs.isActive, viewAs.family]);
+  useEffect(() => { if (!viewAs.isActive || viewAs.athlete) load(); }, [viewAs.isActive, viewAs.athlete]);
   const maxes = useMemo(() => allMaxes.filter((m) => (who ? m.athlete_id === who : !m.athlete_id)), [allMaxes, who]);
 
   const chartData = useMemo(() => {
@@ -174,7 +174,8 @@ export default function Progress() {
         )}
       </div>
 
-      {athletes.length > 0 && (
+      {/* No kid picker or "Me" option while viewing as one athlete — just their own lifts. */}
+      {!viewAs.isActive && athletes.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {[...athletes.map((a) => ({ id: a.id, label: a.first_name })), { id: null, label: 'Me' }].map((x) => (
             <button key={x.id || 'me'} onClick={() => setWho(x.id)} className={`rounded-full px-4 py-1.5 text-sm font-medium ${who === x.id ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>{x.label}</button>

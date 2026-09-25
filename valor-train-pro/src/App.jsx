@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { ViewAsProvider } from '@/lib/ViewAsContext';
+import { ThemeProvider } from '@/lib/ThemeContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ScrollToTop from './components/ScrollToTop';
 import { Navigate } from 'react-router-dom';
@@ -26,7 +27,7 @@ import AdminEnrollment from '@/pages/admin/Enrollment';
 import { ProgramsList, ProgramDetail } from '@/pages/admin/Programs';
 import ClassLog from '@/pages/admin/ClassLog';
 import Today from '@/pages/admin/Today';
-import ViewAs from '@/pages/admin/ViewAs';
+import ViewAsAthlete from '@/pages/admin/ViewAsAthlete';
 import { useAuth as useAuthForHome } from '@/lib/AuthContext';
 
 // Staff land on Today; parents on their athlete home.
@@ -92,15 +93,19 @@ const AuthenticatedApp = () => {
             <Route path="/admin/programs" element={<ProgramsList />} />
             <Route path="/admin/programs/:id" element={<ProgramDetail />} />
             <Route path="/admin/log" element={<ClassLog />} />
-            {/* Read-only: an admin sees the parent screens exactly as that family does. */}
-            <Route path="/admin/view-as" element={<ViewAs />}>
-              <Route index element={<Home />} />
-              <Route element={<RequireEnrollment />}>
-                <Route path="workouts" element={<Workouts />} />
-                <Route path="nutrition" element={<Nutrition />} />
-                <Route path="progress" element={<ProgressPage />} />
-                <Route path="workout/:workoutId" element={<WorkoutSession />} />
-              </Route>
+          </Route>
+        </Route>
+        {/* Own shell, not AppLayout: read-only, no admin sidebar/mobile menu —
+            just the sticky bar plus the athlete's own nav, exactly as their
+            login would look. */}
+        <Route element={<RequireRole roles={['admin']} />}>
+          <Route path="/admin/view-as-athlete" element={<ViewAsAthlete />}>
+            <Route index element={<Home />} />
+            <Route element={<RequireEnrollment />}>
+              <Route path="workouts" element={<Workouts />} />
+              <Route path="nutrition" element={<Nutrition />} />
+              <Route path="progress" element={<ProgressPage />} />
+              <Route path="workout/:workoutId" element={<WorkoutSession />} />
             </Route>
           </Route>
         </Route>
@@ -114,17 +119,19 @@ const AuthenticatedApp = () => {
 function App() {
 
   return (
-    <AuthProvider>
-      <ViewAsProvider>
-        <QueryClientProvider client={queryClientInstance}>
-          <Router>
-            <ScrollToTop />
-            <AuthenticatedApp />
-          </Router>
-          <Toaster />
-        </QueryClientProvider>
-      </ViewAsProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <ViewAsProvider>
+          <QueryClientProvider client={queryClientInstance}>
+            <Router>
+              <ScrollToTop />
+              <AuthenticatedApp />
+            </Router>
+            <Toaster />
+          </QueryClientProvider>
+        </ViewAsProvider>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }
 

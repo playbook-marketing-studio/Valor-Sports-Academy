@@ -2,6 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Set the theme class before anything paints, so there's no flash of
+      // the wrong theme: an explicit choice in localStorage wins, otherwise
+      // follow the device's prefers-color-scheme.
+      (function () {
+        try {
+          var saved = localStorage.getItem('vtp-theme');
+          var dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (dark) document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
+    </script>
     <link rel="icon" href="/images/logo-emblem.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

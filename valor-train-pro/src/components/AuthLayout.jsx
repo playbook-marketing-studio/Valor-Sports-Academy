@@ -1,9 +1,11 @@
 import React from "react";
 import Brand from "@/components/Brand";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function AuthLayout({ icon: Icon, title, subtitle, footer, children }) {
   return (
-    <div className="vtp-stripes min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="vtp-stripes relative min-h-screen flex items-center justify-center bg-background px-4">
+      <ThemeToggle className="absolute right-3 top-3 bg-card/80 border border-border" />
       <div className="w-full max-w-md">
         <div className="text-center mb-10 flex flex-col items-center">
           <div className="mb-6 flex justify-center"><Brand /></div>

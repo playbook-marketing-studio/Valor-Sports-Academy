@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/select';
 import ScanFoodDialog from '@/components/ScanFoodDialog';
 import { useViewAs } from '@/lib/ViewAsContext';
-import { familyEntity } from '@/lib/familyScope';
+import { ownerEntity } from '@/lib/viewAsScope';
 
 const mealTypes = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
@@ -40,12 +40,13 @@ export default function Nutrition() {
 
   const load = async () => {
     setLoading(true);
-    // View-as: scope explicitly to this family (owner_id/athlete_id), since an
-    // admin's RLS would otherwise return every family's nutrition logs.
-    const family = viewAs.isActive ? viewAs.family : null;
-    const [allLogs, goals] = family ? await Promise.all([
-      familyEntity('nutrition_logs', family).list('-date', 200),
-      familyEntity('macro_goals', family).list('-date', 50),
+    // Nutrition logs aren't attributed to a specific athlete in this schema
+    // (see viewAsScope.js) — owner_id (the parent) is the closest read-only
+    // approximation of "this athlete's login" available without a schema change.
+    const parentId = viewAs.isActive ? viewAs.athlete?.parent_id : null;
+    const [allLogs, goals] = viewAs.isActive ? await Promise.all([
+      ownerEntity('nutrition_logs', parentId).list('-date', 200),
+      ownerEntity('macro_goals', parentId).list('-date', 50),
     ]) : await Promise.all([
       base44.entities.NutritionLog.list('-date', 200),
       base44.entities.MacroGoal.list('-date', 50),
@@ -55,7 +56,7 @@ export default function Nutrition() {
     setLoading(false);
   };
 
-  useEffect(() => { if (!viewAs.isActive || viewAs.family) load(); }, [viewAs.isActive, viewAs.family]);
+  useEffect(() => { if (!viewAs.isActive || viewAs.athlete) load(); }, [viewAs.isActive, viewAs.athlete]);
 
   const todayLogs = useMemo(() => logs.filter((l) => l.date === today), [logs, today]);
 

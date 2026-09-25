@@ -16,9 +16,9 @@ import { useViewAs } from '@/lib/ViewAsContext';
  * (paid online or marked paid by staff); otherwise they get the enroll-and-pay screen.
  * The database enforces the same rule for coach content (RLS on workouts / maxes).
  *
- * In "view as family" mode an admin must see the same lock the real parent would —
- * evaluated for THAT family's athletes, not skipped just because the signed-in user
- * is staff.
+ * In "view as athlete" mode an admin must see the same lock that athlete's own
+ * login would — evaluated for just that one kid, not skipped just because the
+ * signed-in user is staff.
  */
 export default function RequireEnrollment() {
   const { user } = useAuth();
@@ -28,9 +28,9 @@ export default function RequireEnrollment() {
   useEffect(() => {
     if (!user) return;
     if (!viewAs.isActive && user.role === 'admin') return;
-    if (viewAs.isActive && !viewAs.family) return;
+    if (viewAs.isActive && !viewAs.athlete) return;
     (async () => {
-      const kids = viewAs.isActive ? viewAs.family.athletes : await base44.entities.Athlete.list('first_name', 20).catch(() => []);
+      const kids = viewAs.isActive ? [viewAs.athlete] : await base44.entities.Athlete.list('first_name', 20).catch(() => []);
       const ids = kids.map((k) => k.id);
       const [enrolled, settings, { data: as }, { data: past }] = await Promise.all([
         enrolledIds(ids), loadSettings(),
@@ -40,7 +40,7 @@ export default function RequireEnrollment() {
       const rec = {}; (as || []).forEach((x) => { if (!(x.athlete_id in rec)) rec[x.athlete_id] = x.recommended_plan; });
       setState({ loading: false, athletes: kids, enrolled, enrollment: settings.enrollment, rec, lapsed: new Set((past || []).map((p) => p.athlete_id)) });
     })();
-  }, [user, viewAs.isActive, viewAs.family]);
+  }, [user, viewAs.isActive, viewAs.athlete]);
 
   if (!user || (!viewAs.isActive && user.role === 'admin')) return <Outlet />;
   if (state.loading) return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;

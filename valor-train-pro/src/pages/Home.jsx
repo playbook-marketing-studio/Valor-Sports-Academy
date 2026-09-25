@@ -27,21 +27,18 @@ export default function Home() {
       try {
         const today = new Date().toISOString().slice(0, 10);
 
-        // View-as: an admin looking at this family's Home exactly as their parent sees it.
-        // RLS lets an admin see every row, so scope explicitly to this family's athlete ids.
+        // View-as: an admin looking at this one athlete's Home exactly as their
+        // login would. RLS lets an admin see every row, so scope explicitly to
+        // just this athlete id — no siblings, no "all" option.
         if (viewAs.isActive) {
-          if (!viewAs.family) return;
-          const parent = viewAs.family.parent;
-          setUser({ full_name: parent?.full_name || parent?.email || 'Family', role: 'parent' });
-          const kids = viewAs.family.athletes;
-          const ids = kids.map((k) => k.id);
-          setAthletes(kids);
+          if (!viewAs.athlete) return;
+          const a = viewAs.athlete;
+          setUser({ full_name: a.first_name, role: 'parent' });
+          setAthletes([a]);
           const [{ data: next }, { data: as }, { data: ps }, st] = await Promise.all([
-            ids.length
-              ? supabase.from('workouts').select('id, athlete_id, title, date, day, week, program').gte('date', today).in('athlete_id', ids).order('date').limit(40)
-              : Promise.resolve({ data: [] }),
-            ids.length ? supabase.from('assessments').select('*').in('athlete_id', ids).order('date', { ascending: false }) : Promise.resolve({ data: [] }),
-            ids.length ? supabase.from('payments').select('*').in('athlete_id', ids).eq('status', 'paid').order('paid_at', { ascending: false }) : Promise.resolve({ data: [] }),
+            supabase.from('workouts').select('id, athlete_id, title, date, day, week, program').gte('date', today).eq('athlete_id', a.id).order('date').limit(40),
+            supabase.from('assessments').select('*').eq('athlete_id', a.id).order('date', { ascending: false }),
+            supabase.from('payments').select('*').eq('athlete_id', a.id).eq('status', 'paid').order('paid_at', { ascending: false }),
             loadSettings(),
           ]);
           setUpcoming(next || []);
@@ -74,7 +71,7 @@ export default function Home() {
         setLoading(false);
       }
     })();
-  }, [reload, viewAs.isActive, viewAs.family]);
+  }, [reload, viewAs.isActive, viewAs.athlete]);
 
   const firstName = user?.full_name?.split(' ')[0] || 'Athlete';
   const hour = new Date().getHours();
@@ -95,7 +92,7 @@ export default function Home() {
               if (!w) return null;
               const isToday = w.date === new Date().toISOString().slice(0, 10);
               return (
-                <Link key={a.id} to={`${viewAs.isActive ? '/admin/view-as' : ''}/workout/${w.id}`} className="flex min-h-[64px] items-center justify-between gap-3 px-4 py-3 transition hover:bg-muted/50">
+                <Link key={a.id} to={`${viewAs.isActive ? '/admin/view-as-athlete' : ''}/workout/${w.id}`} className="flex min-h-[64px] items-center justify-between gap-3 px-4 py-3 transition hover:bg-muted/50">
                   <span className="min-w-0">
                     <span className="block truncate font-semibold">{athletes.length > 1 ? `${a.first_name}: ` : ''}{w.title}</span>
                     <span className="block truncate text-xs text-muted-foreground">{isToday ? 'Today' : new Date(w.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}{w.week ? ` · week ${w.week}` : ''}</span>
@@ -150,7 +147,7 @@ export default function Home() {
                   )}
                   {cls && <p><span className="font-semibold">Coach recommends:</span> {cls}</p>}
                   <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
-                    {paid ? <p><span className="font-semibold text-green-400">Enrolled.</span> {left == null ? 'Unlimited classes' : `${left} class${left === 1 ? '' : 'es'} left`}{paid.covers_until ? `, good through ${new Date(paid.covers_until).toLocaleDateString()}` : ''}. Workouts, nutrition and their training plan are unlocked.</p>
+                    {paid ? <p><span className="font-semibold text-green-700 dark:text-green-400">Enrolled.</span> {left == null ? 'Unlimited classes' : `${left} class${left === 1 ? '' : 'es'} left`}{paid.covers_until ? `, good through ${new Date(paid.covers_until).toLocaleDateString()}` : ''}. Workouts, nutrition and their training plan are unlocked.</p>
                       : <p>{lapsed ? `${a.first_name}'s classes are used up or expired. Buy more` : `Enroll ${a.first_name}`} to unlock workouts, nutrition and their training plan.</p>}
                     {!paid && !viewAs.isActive && <EnrollButton athlete={a} cfg={settings.enrollment} recommendedKey={as?.recommended_plan} label={lapsed ? 'Buy more classes' : undefined} />}
                   </div>

@@ -558,10 +558,10 @@ export default function AthleteDetail() {
   return (
     <div className="space-y-6">
       <Link to="/admin/bookings" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Assessments</Link>
-      <div className="vtp-stripes rounded-[18px] border border-border bg-card p-6 text-white shadow-[0_20px_50px_-24px_rgba(0,0,0,.8)]">
+      <div className="vtp-stripes rounded-[18px] border border-border bg-card p-6 text-card-foreground shadow-[0_20px_50px_-24px_rgba(0,0,0,.8)]">
         <h1 className="font-display text-4xl">{athleteName(athlete)}</h1>
-        <p className="mt-1 text-sm text-white/80">{[athlete.age && `Age ${athlete.age}`, athlete.sport, athlete.season === 'in_season' ? 'In-season' : athlete.season === 'off_season' ? 'Off-season' : ''].filter(Boolean).join(' · ') || 'Athlete'}</p>
-        <p className="mt-2 text-sm text-white/70">
+        <p className="mt-1 text-sm text-muted-foreground">{[athlete.age && `Age ${athlete.age}`, athlete.sport, athlete.season === 'in_season' ? 'In-season' : athlete.season === 'off_season' ? 'Off-season' : ''].filter(Boolean).join(' · ') || 'Athlete'}</p>
+        <p className="mt-2 text-sm text-muted-foreground">
           {athlete.parent_name || 'Parent'}{athlete.parent_email ? ` · ${athlete.parent_email}` : ''}{phone ? ` · ${phone}` : ''}
           {booking?.slot_start ? ` · assessment ${fmtSlot(booking.slot_start)}` : ''}{booking?.quiz_result ? ` · quiz ${booking.quiz_result}` : ''}
         </p>
@@ -569,7 +569,7 @@ export default function AthleteDetail() {
           {phone && <Button asChild size="icon" variant="secondary" className="h-11 w-11"><a href={telHref(phone)} aria-label={`Call ${athlete.parent_name || 'parent'}`}><Phone className="h-4 w-4" /></a></Button>}
           {phone && <Button asChild size="icon" variant="secondary" className="h-11 w-11"><a href={smsHref(phone, '')} aria-label={`Text ${athlete.parent_name || 'parent'}`}><MessageSquare className="h-4 w-4" /></a></Button>}
           <Button size="sm" variant="secondary" className="h-11 gap-1" onClick={() => setForm('edit')}><Pencil className="h-4 w-4" /> Edit</Button>
-          <Button size="sm" variant="secondary" className="h-11 gap-1" onClick={() => { enterViewAs(athlete.id); navigate('/admin/view-as'); }}><Eye className="h-4 w-4" /> View as family</Button>
+          <Button size="sm" variant="secondary" className="h-11 gap-1" onClick={() => { enterViewAs(athlete.id); navigate('/admin/view-as-athlete'); }}><Eye className="h-4 w-4" /> View as athlete</Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild><Button size="icon" variant="secondary" className="h-11 w-11" aria-label="More"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
             <DropdownMenuContent align="start">
@@ -578,7 +578,7 @@ export default function AthleteDetail() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        {athlete.archived_at && <p className="mt-3 text-xs text-[#ff7484]">Archived {new Date(athlete.archived_at).toLocaleDateString()}</p>}
+        {athlete.archived_at && <p className="mt-3 text-xs text-destructive">Archived {new Date(athlete.archived_at).toLocaleDateString()}</p>}
       </div>
       <Tabs value={tab} onValueChange={(v) => { const p = new URLSearchParams(params); if (v === 'day') p.delete('tab'); else p.set('tab', v); setParams(p, { replace: true }); }}>
         <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-full bg-muted p-1 sm:w-auto">

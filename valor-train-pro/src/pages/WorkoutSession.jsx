@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useViewAs } from '@/lib/ViewAsContext';
-import { familyEntity } from '@/lib/familyScope';
+import { athleteEntity } from '@/lib/viewAsScope';
 
 const today = new Date().toISOString().slice(0, 10);
 const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
@@ -17,7 +17,7 @@ export default function WorkoutSession() {
   const { workoutId } = useParams();
   const navigate = useNavigate();
   const viewAs = useViewAs();
-  const backTo = `${viewAs.isActive ? '/admin/view-as' : ''}/workouts`;
+  const backTo = `${viewAs.isActive ? '/admin/view-as-athlete' : ''}/workouts`;
   const [workout, setWorkout] = useState(null);
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,9 +46,9 @@ export default function WorkoutSession() {
   }, [restRunning]);
 
   useEffect(() => {
-    if (viewAs.isActive && !viewAs.family) return;
+    if (viewAs.isActive && !viewAs.athlete) return;
     (async () => {
-      const maxesSource = viewAs.isActive ? familyEntity('one_rep_maxes', viewAs.family) : base44.entities.OneRepMax;
+      const maxesSource = viewAs.isActive ? athleteEntity('one_rep_maxes', viewAs.athlete.id) : base44.entities.OneRepMax;
       const [w, maxes] = await Promise.all([
         base44.entities.Workout.get(workoutId),
         maxesSource.list('-date', 200),
@@ -61,7 +61,7 @@ export default function WorkoutSession() {
       }));
       setLoading(false);
     })();
-  }, [workoutId, viewAs.isActive, viewAs.family]);
+  }, [workoutId, viewAs.isActive, viewAs.athlete]);
 
   const update = (i, field, value) => {
     const next = [...entries];

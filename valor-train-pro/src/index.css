@@ -4,8 +4,53 @@
 
 @layer base {
   :root {
-    /* Valor Sports Academy — gym-floor dark theme. Ink scale lifted from the
-       site's own hero/footer (styles.css): near-black base, red accent only. */
+    /* Valor Sports Academy — light theme. Same bolder identity (Anton,
+       underline bars, sharp cards, red accent) on a warm off-white base
+       instead of paper-flat white, near-black ink text. */
+    --background: 43 30% 96%;          /* warm off-white */
+    --foreground: 43 25% 8%;           /* near-black ink */
+    --card: 40 28% 99%;
+    --card-foreground: 43 25% 8%;
+    --popover: 40 28% 99%;
+    --popover-foreground: 43 25% 8%;
+    --primary: 350 85% 42%;            /* red #c8102e */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 42 22% 91%;
+    --secondary-foreground: 43 25% 8%;
+    --muted: 42 22% 91%;
+    --muted-foreground: 35 10% 32%;    /* AA-dark warm gray on off-white */
+    --accent: 42 22% 89%;
+    --accent-foreground: 43 25% 8%;
+    --destructive: 351 88% 36%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 42 16% 84%;
+    --input: 42 16% 82%;
+    --ring: 350 85% 42%;
+    --chart-1: 350 85% 42%;
+    --chart-2: 43 25% 8%;
+    --chart-3: 35 10% 32%;
+    --chart-4: 32 85% 42%;
+    --chart-5: 165 45% 30%;
+    --radius: 0.625rem;                /* sharp corners in both themes */
+    --font-heading: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+    --font-body: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+    --font-display: 'Anton', 'Arial Narrow', sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    /* Nav ink stays constant in both themes — Valor's own site header/footer
+       is always this dark, regardless of the content theme. */
+    --sidebar-background: 43 24% 4%;
+    --sidebar-foreground: 45 22% 95%;
+    --sidebar-primary: 350 85% 46%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 35 16% 11%;
+    --sidebar-accent-foreground: 45 22% 95%;
+    --sidebar-border: 35 14% 15%;
+    --sidebar-ring: 350 90% 58%;
+  }
+
+  .dark {
+    /* Gym-floor dark theme. Ink scale lifted from the site's own hero/footer
+       (styles.css): near-black base, red accent only. */
     --background: 43 20% 6%;           /* ink-0, near-black charcoal */
     --foreground: 45 22% 95%;          /* paper, bright for headline contrast */
     --card: 42 17% 10%;                /* ink-1 */
@@ -30,20 +75,6 @@
     --chart-3: 42 12% 68%;
     --chart-4: 32 90% 58%;
     --chart-5: 165 55% 48%;
-    --radius: 0.625rem;                /* sharper corners, less "soft paper" */
-    --font-heading: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
-    --font-body: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
-    --font-display: 'Anton', 'Arial Narrow', sans-serif;
-    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    /* sidebar sits one shade darker than the content canvas for depth */
-    --sidebar-background: 43 24% 4%;
-    --sidebar-foreground: 45 22% 95%;
-    --sidebar-primary: 350 85% 46%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 35 16% 11%;
-    --sidebar-accent-foreground: 45 22% 95%;
-    --sidebar-border: 35 14% 15%;
-    --sidebar-ring: 350 90% 58%;
   }
 }
 
@@ -54,6 +85,12 @@
 
   body {
     @apply bg-background text-foreground font-body antialiased;
+    background-image:
+      radial-gradient(70vw 55vh at 85% -10%, rgba(200,16,46,.08), transparent 60%),
+      repeating-linear-gradient(135deg, rgba(20,18,13,.035) 0px, rgba(20,18,13,.035) 1px, transparent 1px, transparent 26px);
+    background-attachment: fixed, fixed;
+  }
+  .dark body {
     background-image:
       radial-gradient(70vw 55vh at 85% -10%, rgba(200,16,46,.16), transparent 60%),
       radial-gradient(45vw 45vh at -5% 105%, rgba(200,16,46,.07), transparent 60%),
@@ -102,6 +139,15 @@
   }
   /* Subtle diagonal stripe texture for headers/hero surfaces — tactile, not busy. */
   .vtp-stripes {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      rgba(200, 16, 46, .07) 0px,
+      rgba(200, 16, 46, .07) 2px,
+      transparent 2px,
+      transparent 16px
+    );
+  }
+  .dark .vtp-stripes {
     background-image: repeating-linear-gradient(
       -45deg,
       rgba(200, 16, 46, .10) 0px,

@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import NewWorkoutDialog from '@/components/NewWorkoutDialog';
 import { latestMaxes } from '@/lib/maxes';
 import { useViewAs } from '@/lib/ViewAsContext';
-import { familyEntity } from '@/lib/familyScope';
+import { athleteEntity } from '@/lib/viewAsScope';
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -27,14 +27,14 @@ export default function Workouts() {
 
   const load = async () => {
     setLoading(true);
-    // View-as: scope explicitly to this family's athletes instead of relying on RLS,
+    // View-as: scope explicitly to this one athlete instead of relying on RLS,
     // which would hand an admin every athlete's workouts in the gym.
-    const family = viewAs.isActive ? viewAs.family : null;
-    const [all, maxes, allLogs, kids] = family ? await Promise.all([
-      familyEntity('workouts', family).list('-date', 500),
-      familyEntity('one_rep_maxes', family).list('-date', 500),
-      familyEntity('workout_logs', family).list('-date', 500),
-      Promise.resolve(family.athletes).then(async (ks) => { const on = await enrolledIds(ks.map((k) => k.id)); return ks.filter((k) => on.has(k.id)); }),
+    const athlete = viewAs.isActive ? viewAs.athlete : null;
+    const [all, maxes, allLogs, kids] = athlete ? await Promise.all([
+      athleteEntity('workouts', athlete.id).list('-date', 500),
+      athleteEntity('one_rep_maxes', athlete.id).list('-date', 500),
+      athleteEntity('workout_logs', athlete.id).list('-date', 500),
+      Promise.resolve([athlete]),
     ]) : await Promise.all([
       base44.entities.Workout.list('-date', 500),
       base44.entities.OneRepMax.list('-date', 500),
@@ -64,7 +64,7 @@ export default function Workouts() {
     setLoading(false);
   };
 
-  useEffect(() => { if (!viewAs.isActive || viewAs.family) load(); }, [viewAs.isActive, viewAs.family]);
+  useEffect(() => { if (!viewAs.isActive || viewAs.athlete) load(); }, [viewAs.isActive, viewAs.athlete]);
 
   const mine = useMemo(() => (who === 'all' ? planWorkouts : planWorkouts.filter((w) => w.athlete_id === who)), [planWorkouts, who]);
   const weeks = useMemo(() => [...new Set(mine.map((w) => w.week))].sort((a, b) => a - b), [mine]);
@@ -136,7 +136,7 @@ export default function Workouts() {
               </div>
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {workouts.map((w) => (
-                  <WorkoutDayCard key={w.id} workout={w} latest1rm={latestMaxes(allMaxes, w.athlete_id || null)} isCompleted={isCompleted} onLog={(w) => navigate(`${viewAs.isActive ? '/admin/view-as' : ''}/workout/${w.id}`)} />
+                  <WorkoutDayCard key={w.id} workout={w} latest1rm={latestMaxes(allMaxes, w.athlete_id || null)} isCompleted={isCompleted} onLog={(w) => navigate(`${viewAs.isActive ? '/admin/view-as-athlete' : ''}/workout/${w.id}`)} />
                 ))}
               </div>
             </div>

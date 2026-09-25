@@ -4,6 +4,7 @@ import { Dumbbell, Apple, TrendingUp, LayoutDashboard, LogOut, Menu, X, Clipboar
 import { useAuth } from '@/lib/AuthContext';
 import { cn } from '@/lib/utils';
 import Brand from '@/components/Brand';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const baseNav = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -19,7 +20,7 @@ const adminNav = [
   { to: '/admin/programs', label: 'Programs', icon: BookOpen },
   { to: '/admin/log', label: 'Class log', icon: NotebookPen },
   { to: '/admin/enrollment', label: 'Enrollment', icon: Tag },
-  { to: '/admin/view-as', label: 'View as family', icon: Eye },
+  { to: '/admin/view-as-athlete', label: 'View as athlete', icon: Eye },
 ];
 
 export default function AppLayout() {
@@ -65,6 +66,7 @@ export default function AppLayout() {
             {user.full_name || user.email}<span className="ml-1 rounded-full bg-sidebar-accent px-1.5 py-0.5 text-[10px] uppercase tracking-wider">{user.role}</span>
           </div>
         )}
+        <ThemeToggle variant="sidebar" className="w-full justify-start" />
         <button
           onClick={handleLogout}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-all hover:bg-sidebar-accent hover:text-sidebar-foreground"
