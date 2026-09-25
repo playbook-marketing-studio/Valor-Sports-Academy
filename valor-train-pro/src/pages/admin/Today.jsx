@@ -118,7 +118,7 @@ export default function Today() {
       )}
 
       {d.textedCount > 0 && (
-        <p className="text-sm text-muted-foreground">{d.textedCount} texted, waiting to hear back. <Link to="/admin/bookings" className="font-medium text-primary hover:underline">See them in Assessments</Link></p>
+        <p className="text-sm text-muted-foreground">{d.textedCount} reached out, waiting to hear back. <Link to="/admin/bookings" className="font-medium text-primary hover:underline">See them in Assessments</Link></p>
       )}
 
       {d.followUps.length > 0 && (

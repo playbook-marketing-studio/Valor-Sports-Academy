@@ -685,7 +685,7 @@ export default function AthleteDetail() {
               {(athlete.quiz_result || booking.quiz_result) && <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground">Quiz: {athlete.quiz_result || booking.quiz_result}</span>}
             </div>
             {(booking.status === 'requested' || booking.requested_note) && <p className="text-sm">{booking.status === 'requested' ? askText(booking) : booking.requested_note}</p>}
-            {booking.status === 'requested' && booking.contacted_at && <p className="text-xs font-medium text-amber-700 dark:text-amber-300">Texted {fmtContacted(booking.contacted_at)}, waiting to hear back</p>}
+            {booking.status === 'requested' && booking.contacted_at && <p className="text-xs font-medium text-amber-700 dark:text-amber-300">Reached out {fmtContacted(booking.contacted_at)}, waiting to hear back</p>}
             {booking.status === 'requested' && phone && <Button asChild size="sm" variant={booking.contacted_at ? 'outline' : 'default'} className="h-10 gap-1"><a href={smsHref(phone, askSms(booking))} onClick={() => { if (!booking.contacted_at) supabase.from('bookings').update({ contacted_at: new Date().toISOString() }).eq('id', booking.id).then(() => {}); }}><MessageSquare className="h-4 w-4" /> {booking.contacted_at ? 'Text again' : 'Text to set a time'}</a></Button>}
           </div>
         )}

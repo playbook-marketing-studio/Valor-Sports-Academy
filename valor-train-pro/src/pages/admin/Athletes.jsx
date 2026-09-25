@@ -16,8 +16,10 @@ export function loginState(a) {
   return { label: 'No login yet', cls: 'bg-muted text-muted-foreground' };
 }
 
-const STAGES = [['active', 'All active'], ['booked', 'Booked'], ['assessed', 'Assessed'], ['enrolled', 'Enrolled'], ['archived', 'Archived']];
-const STAGE_STYLE = { booked: 'bg-muted text-muted-foreground', assessed: 'bg-amber-100 text-amber-900', enrolled: 'bg-green-100 text-green-800', archived: 'bg-muted text-muted-foreground line-through' };
+const STAGES = [['active', 'All active'], ['lead', 'Waiting on a text'], ['reached_out', 'Reached out'], ['booked', 'Booked'], ['assessed', 'Assessed'], ['enrolled', 'Enrolled'], ['archived', 'Archived']];
+// lead -> reached_out -> booked (has an assessment time) -> assessed -> enrolled (paid or in a class)
+const STAGE_LABEL = { lead: 'Waiting on a text', reached_out: 'Reached out', booked: 'Booked', assessed: 'Assessed', enrolled: 'Enrolled', archived: 'Archived', new: 'New' };
+const STAGE_STYLE = { lead: 'bg-amber-100 text-amber-900', reached_out: 'bg-sky-100 text-sky-900', new: 'bg-muted text-muted-foreground', booked: 'bg-muted text-muted-foreground', assessed: 'bg-amber-100 text-amber-900', enrolled: 'bg-green-100 text-green-800', archived: 'bg-muted text-muted-foreground line-through' };
 
 export default function AdminAthletes() {
   const navigate = useNavigate();
@@ -77,7 +79,7 @@ export default function AdminAthletes() {
                       <span className="ml-2 text-xs text-muted-foreground">{[a.age && `age ${a.age}`, a.sport, a.season === 'in_season' ? 'in-season' : a.season === 'off_season' ? 'off-season' : '', a.frequency, a.class_days, a.nutrition_plan ? 'nutrition plan' : ''].filter(Boolean).join(' · ')}</span>
                     </div>
                     <div className="flex flex-wrap gap-2 text-xs">
-                      <span className={cn('rounded-full px-2 py-0.5 font-medium capitalize', STAGE_STYLE[a.stage])}>{a.stage}</span>
+                      <span className={cn('rounded-full px-2 py-0.5 font-medium', STAGE_STYLE[a.stage])}>{STAGE_LABEL[a.stage] || a.stage}</span>
                       <span className={cn('rounded-full px-2 py-0.5 font-medium', ls.cls)}>{ls.label}</span>
                       {a.last_paid_plan && <span className="rounded-full border border-border px-2 py-0.5 font-medium">{a.last_paid_plan.split(' · ')[0]}</span>}
                     </div>
