@@ -15,14 +15,18 @@ The app is live and ready for you to log in and poke around. I'd love your feedb
 
 A quick tour pops up the first time you log in. You can reopen it anytime under More > How the app works.
 
+**See a full example first:** open Athletes and tap **Test Omar** at the top. That's my test kid with everything filled in (quiz, results, a paid pack, a program with logged weights, lifts and meals). Tap View as athlete on his page to see exactly what a parent sees.
+
+**Step-by-step guide:** https://www.playbookmarketing.studio/proposals/valor-sports-academy/train-pro/ (password: richland). It walks through a Saturday from first text to check-in to putting a kid in a class.
+
 **What it does right now**
 
-- **Assessments:** every booking from the website and the Meta ads lands here with the parent's quiz answers. Text them from the app, book a time, check them in on Saturday.
+- **Assessments:** every booking from the website and the Meta ads lands here with the parent's quiz answers. Text them from the app (they move to Reached out), book a time, check them in on Saturday.
 - **Athletes:** every kid has their own page with their results, quiz answers, parent login QR code, payments, and a Next steps checklist from first text to enrolled.
 - **Your current athletes are already in.** The 12 kids from Corey's sheet are on the Fall In-Season or Off-Season program, on their days. They're on week 3 now and move to week 4 Monday. You can change anyone's days or week from their Training tab.
 - **Programs and class log:** your workouts are loaded from the workbook. Log the weight each kid used in class and it replaces the Log tabs.
 - **Payments:** record cash or Venmo in one tap, and class packs count down as kids come in.
-- **Parents:** once they have a login they see their kid's results, workouts with the right weights, and progress.
+- **Parents:** once they have a login they see their kid's results, workouts with the right weights, meals and progress, with graphs for test scores, lifts and calories.
 - **Leads:** the 14 families who filled out the website form over the last couple of months are in there under Waiting on a text.
 
 **Still in progress**
