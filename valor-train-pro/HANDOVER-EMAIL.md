@@ -2,7 +2,7 @@ Subject: Valor Train Pro is live
 
 Hey Corey and Michael,
 
-The app is up at app.valorsportsacademywa.com. Here's the guide on how to use it and what's left to set up: [guide link]
+The app is up at app.valorsportsacademywa.com. Here's how to use it, plus what's left to set up: [guide link]
 
 Quick version:
 
