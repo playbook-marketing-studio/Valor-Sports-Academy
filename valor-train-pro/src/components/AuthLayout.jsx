@@ -1,6 +1,7 @@
 import React from "react";
 import Brand from "@/components/Brand";
 import ThemeToggle from "@/components/ThemeToggle";
+import { photoPosition } from "@/lib/photos";
 
 export default function AuthLayout({ icon: Icon, title, subtitle, footer, children }) {
   return (
@@ -10,6 +11,7 @@ export default function AuthLayout({ icon: Icon, title, subtitle, footer, childr
         alt=""
         width={1200}
         height={800}
+        style={{ objectPosition: photoPosition("/images/photos/facility-wide.webp") }}
         className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.16] dark:opacity-[0.22]"
       />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background via-background/95 to-background" />

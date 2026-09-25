@@ -5,7 +5,8 @@ import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { fmtTime } from '@/lib/slots';
-import { athleteName, smsHref } from '@/lib/valor';
+import { athleteName, displayFirstName, smsHref } from '@/lib/valor';
+import { photoPosition } from '@/lib/photos';
 
 const TZ = 'America/Los_Angeles';
 const ymd = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
@@ -71,13 +72,13 @@ export default function Today() {
   }, []);
 
   if (!d) return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
-  const first = (user?.full_name || '').split(' ')[0];
+  const first = displayFirstName((user?.full_name || '').split(' ')[0]);
   const assessIsToday = d.assessDay === d.today;
 
   return (
     <div className="max-w-3xl space-y-8">
       <div className="relative overflow-hidden rounded-xl border border-border">
-        <img src="/images/photos/staff-hero-coaches.webp" alt="" width={1200} height={500} className="h-40 w-full object-cover sm:h-48" />
+        <img src="/images/photos/staff-hero-coaches.webp" alt="" width={1200} height={500} style={{ objectPosition: photoPosition('/images/photos/staff-hero-coaches.webp') }} className="h-40 w-full object-cover sm:h-48" />
         <div className="absolute inset-0 bg-gradient-to-t from-card via-card/70 to-black/10" />
         <div className="relative -mt-10 flex flex-wrap items-end justify-between gap-3 bg-card px-5 pb-5 pt-2">
           <div>

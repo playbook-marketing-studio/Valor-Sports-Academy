@@ -25,8 +25,23 @@ import AssignProgramDialog from '@/components/AssignProgramDialog';
 import CoachLogDialog from '@/components/CoachLogDialog';
 import { latestMaxes } from '@/lib/maxes';
 import { cn } from '@/lib/utils';
+import { photoPosition } from '@/lib/photos';
 
 const METHOD_LABEL = { card: 'Card', cash: 'Cash', venmo: 'Venmo', other: 'Other' };
+
+/** Which program to preselect for "Put in a class": season match first, then the coach's recommended plan by name, else none. */
+function pickInitialTemplateId(athlete, templates, recKey, cfg) {
+  if (!athlete || !templates?.length) return '';
+  const startsWith = (prefix) => templates.find((t) => (t.name || '').toLowerCase().startsWith(prefix.toLowerCase()));
+  if (athlete.season === 'in_season') return startsWith('Fall In-Season')?.id || '';
+  if (athlete.season === 'off_season') return startsWith('Off-Season Foundation')?.id || '';
+  const planName = recKey && cfg?.items?.find((x) => x.key === recKey)?.name;
+  if (planName) {
+    const hit = templates.find((t) => t.name && (t.name.toLowerCase().includes(planName.toLowerCase()) || planName.toLowerCase().includes(t.name.toLowerCase())));
+    if (hit) return hit.id;
+  }
+  return '';
+}
 
 function QrPanel({ value, caption }) {
   return (
@@ -34,6 +49,78 @@ function QrPanel({ value, caption }) {
       <div className="rounded-2xl bg-white p-4 shadow"><QRCodeSVG value={value} size={240} level="M" /></div>
       <p className="max-w-xs text-center text-sm text-muted-foreground">{caption}</p>
     </div>
+  );
+}
+
+// ── website quiz (from the assessment-booking form) ────────────────────────
+const QUIZ_SKIP = new Set(['Athlete', 'Age', 'Result']);
+function QuizCard({ athlete }) {
+  const answers = Object.entries(athlete.quiz_answers || {}).filter(([k]) => !QUIZ_SKIP.has(k));
+  const hasQuiz = !!athlete.quiz_result || answers.length > 0;
+  return (
+    <Card>
+      <CardHeader className="pb-3"><CardTitle className="text-lg">Website quiz</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        {!hasQuiz ? (
+          <p className="text-sm text-muted-foreground">No website quiz on file.</p>
+        ) : (
+          <>
+            {athlete.quiz_result && (
+              <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1.5 text-sm font-bold text-primary">{athlete.quiz_result}</span>
+            )}
+            {answers.length > 0 && (
+              <div className="divide-y divide-border rounded-lg border border-border text-sm">
+                {answers.map(([k, v]) => (
+                  <div key={k} className="flex items-center justify-between gap-3 px-3 py-2">
+                    <span className="text-muted-foreground">{k}</span>
+                    <span className="text-right font-medium">{String(v)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {athlete.quiz_taken_at && (
+              <p className="text-xs text-muted-foreground">Taken {new Date(athlete.quiz_taken_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── next steps: assessed → in a class ───────────────────────────────────────
+function NextSteps({ athlete, booking, hasAssignment, navigate, onGoto, onAssign }) {
+  if (hasAssignment) return null;
+  const steps = [
+    { key: 'checkin', label: 'Checked in', done: booking?.status === 'attended' || !!booking?.checked_in_at, cta: 'Check in', run: () => navigate('/admin/bookings') },
+    { key: 'results', label: 'Results entered', done: (athlete.assessment_count || 0) > 0, cta: 'Enter results', run: () => onGoto('day') },
+    { key: 'login', label: 'Parent login sent', done: !!(athlete.parent_id || athlete.invited_at), cta: 'Send login', run: () => onGoto('day') },
+    { key: 'paid', label: 'Paid (enrolled)', done: athlete.stage === 'enrolled', cta: 'Take payment', run: () => onGoto('day') },
+    { key: 'class', label: 'In a class', done: hasAssignment, cta: 'Put in a class', run: onAssign },
+  ];
+  const nextIdx = steps.findIndex((s) => !s.done);
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg">Next steps</CardTitle>
+        <p className="mt-1 text-xs text-muted-foreground">How to move {athlete.first_name} from assessed into a class.</p>
+      </CardHeader>
+      <CardContent>
+        <ol className="space-y-2">
+          {steps.map((s, i) => (
+            <li key={s.key} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2.5">
+              <span className="flex items-center gap-2 text-sm">
+                {s.done
+                  ? <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
+                  : <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-muted-foreground/40 text-[10px] font-bold text-muted-foreground">{i + 1}</span>}
+                <span className={s.done ? 'text-foreground' : 'text-muted-foreground'}>{s.label}</span>
+              </span>
+              {!s.done && i === nextIdx && <Button size="sm" className="h-11" onClick={s.run}>{s.cta}</Button>}
+            </li>
+          ))}
+        </ol>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -326,6 +413,7 @@ function ProfileTab({ athlete, onEdit, onSibling }) {
         </CardContent>
       </Card>
       <div className="space-y-6">
+        <QuizCard athlete={athlete} />
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-lg">Parent</CardTitle></CardHeader>
           <CardContent>
@@ -346,22 +434,24 @@ function ProfileTab({ athlete, onEdit, onSibling }) {
 }
 
 // ── training (coach-assigned workouts) ────────────────────────────────────
-function TrainingTab({ athlete }) {
+function TrainingTab({ athlete, recKey, cfg }) {
   const [rows, setRows] = useState([]);
   const [done, setDone] = useState({});
   const [assignments, setAssignments] = useState([]);
   const [maxes, setMaxes] = useState({});
+  const [templates, setTemplates] = useState([]);
   const [editing, setEditing] = useState(null); // null | 'new' | workout
   const [logging, setLogging] = useState(null);
   const [assignOpen, setAssignOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const load = useCallback(async () => {
-    const [{ data }, { data: asg }, { data: mx }] = await Promise.all([
+    const [{ data }, { data: asg }, { data: mx }, { data: tpls }] = await Promise.all([
       supabase.from('workouts').select('*').eq('athlete_id', athlete.id).order('date', { ascending: true }),
       supabase.from('program_assignments').select('id, start_date, template:program_templates(id, name, weeks)').eq('athlete_id', athlete.id),
       supabase.from('one_rep_maxes').select('*').eq('athlete_id', athlete.id),
+      supabase.from('program_templates').select('id, name, season'),
     ]);
-    setRows(data || []); setAssignments(asg || []); setMaxes(latestMaxes(mx || [], athlete.id));
+    setRows(data || []); setAssignments(asg || []); setMaxes(latestMaxes(mx || [], athlete.id)); setTemplates(tpls || []);
     const ids = (data || []).map((w) => w.id);
     if (ids.length) {
       const { data: logs } = await supabase.from('workout_logs').select('workout_id, date').in('workout_id', ids);
@@ -369,6 +459,7 @@ function TrainingTab({ athlete }) {
     } else setDone({});
   }, [athlete.id]);
   useEffect(() => { load(); }, [load]);
+  const initialTemplateId = pickInitialTemplateId(athlete, templates, recKey, cfg);
 
   const today = new Date().toISOString().slice(0, 10);
   const visible = showAll ? rows : rows.filter((w) => w.date >= new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10)).slice(0, 12);
@@ -406,7 +497,14 @@ function TrainingTab({ athlete }) {
         </div>
       </CardContent></Card>
       <p className="text-sm text-muted-foreground">These show up on {athlete.first_name}'s Workouts page. Tap <span className="font-medium">Log</span> to enter the weight used; a check mark means it's logged by the coach or the athlete.</p>
-      {rows.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">No workouts yet.</p>}
+      {rows.length === 0 && (
+        <div className="space-y-3 py-10 text-center">
+          <p className="text-sm text-muted-foreground">No workouts yet.</p>
+          {assignments.length === 0 && (
+            <Button onClick={() => setAssignOpen(true)} className="h-11 gap-2"><CopyPlus className="h-4 w-4" /> Put in a class</Button>
+          )}
+        </div>
+      )}
       {weeks.map((wk) => {
         const [prog, n] = wk.split('|');
         const inWeek = visible.filter((w) => `${w.program || 'Coach-built'}|${w.week || 1}` === wk);
@@ -437,7 +535,7 @@ function TrainingTab({ athlete }) {
       })}
       {rows.length > visible.length && <Button variant="ghost" onClick={() => setShowAll(true)}>Show all {rows.length} workouts</Button>}
       <WorkoutEditor open={!!editing} onOpenChange={(o) => !o && setEditing(null)} athlete={athlete} workout={editing === 'new' ? null : editing} defaultWeek={nextWeek} onSaved={load} />
-      <AssignProgramDialog open={assignOpen} onOpenChange={setAssignOpen} athleteIds={[athlete.id]} onDone={load} />
+      <AssignProgramDialog open={assignOpen} onOpenChange={setAssignOpen} athleteIds={[athlete.id]} initialTemplateId={initialTemplateId} onDone={load} />
       <CoachLogDialog open={!!logging} onOpenChange={(o) => !o && setLogging(null)} workout={logging} athleteName={athlete.first_name} maxes={maxes} onSaved={load} />
     </div>
   );
@@ -530,18 +628,25 @@ export default function AthleteDetail() {
   const [booking, setBooking] = useState(null);
   const [settings, setSettings] = useState({ enrollment: null, metrics: [] });
   const [recKey, setRecKey] = useState('');
+  const [templates, setTemplates] = useState([]);
+  const [hasAssignment, setHasAssignment] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
   const [form, setForm] = useState(null); // 'edit' | 'sibling'
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const tab = ['day', 'profile', 'training', 'progress'].includes(params.get('tab')) ? params.get('tab') : 'day';
+  const goto = (t) => { const p = new URLSearchParams(params); if (t === 'day') p.delete('tab'); else p.set('tab', t); setParams(p, { replace: true }); };
 
   const load = useCallback(async () => {
-    const [{ data: a }, { data: b }, { data: as }] = await Promise.all([
+    const [{ data: a }, { data: b }, { data: as }, { count: asgCount }, { data: tpls }] = await Promise.all([
       supabase.from('athletes_admin').select('*').eq('id', id).maybeSingle(),
       supabase.from('bookings').select('*').eq('athlete_id', id).order('slot_start', { ascending: false, nullsFirst: false }).limit(1).maybeSingle(),
       supabase.from('assessments').select('recommended_plan').eq('athlete_id', id).order('date', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('program_assignments').select('id', { count: 'exact', head: true }).eq('athlete_id', id),
+      supabase.from('program_templates').select('id, name, season'),
     ]);
     setAthlete(a); setBooking(b); setRecKey(as?.recommended_plan || '');
+    setHasAssignment(!!asgCount); setTemplates(tpls || []);
   }, [id]);
   useEffect(() => { load(); loadSettings().then(setSettings); }, [load]);
 
@@ -558,14 +663,14 @@ export default function AthleteDetail() {
     <div className="space-y-6">
       <Link to="/admin/bookings" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Assessments</Link>
       <div className="relative overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-[0_20px_50px_-24px_rgba(0,0,0,.8)]">
-        <img src="/images/photos/facility-turf.webp" alt="" width={1200} height={400} className="absolute inset-0 h-full w-full object-cover opacity-[0.14] dark:opacity-[0.2]" />
+        <img src="/images/photos/facility-turf.webp" alt="" width={1200} height={400} style={{ objectPosition: photoPosition('/images/photos/facility-turf.webp') }} className="absolute inset-0 h-full w-full object-cover opacity-[0.14] dark:opacity-[0.2]" />
         <div className="vtp-stripes relative p-6">
         <h1 className="font-display text-4xl">{athleteName(athlete)}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{[athlete.age && `Age ${athlete.age}`, athlete.sport, athlete.season === 'in_season' ? 'In-season' : athlete.season === 'off_season' ? 'Off-season' : ''].filter(Boolean).join(' · ') || 'Athlete'}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{[athlete.age && `Age ${athlete.age}`, athlete.sport, athlete.season === 'in_season' ? 'In-season' : athlete.season === 'off_season' ? 'Off-season' : '', athlete.frequency, athlete.class_days, athlete.nutrition_plan ? 'Nutrition plan' : ''].filter(Boolean).join(' · ') || 'Athlete'}</p>
         <p className="mt-1 text-xs text-muted-foreground">Results, plan, parent login and payment — all in one place.</p>
         <p className="mt-2 text-sm text-muted-foreground">
           {athlete.parent_name || 'Parent'}{athlete.parent_email ? ` · ${athlete.parent_email}` : ''}{phone ? ` · ${phone}` : ''}
-          {booking?.slot_start ? ` · assessment ${fmtSlot(booking.slot_start)}` : ''}{booking?.quiz_result ? ` · quiz ${booking.quiz_result}` : ''}
+          {booking?.slot_start ? ` · assessment ${fmtSlot(booking.slot_start)}` : ''}{(athlete.quiz_result || booking?.quiz_result) ? ` · quiz ${athlete.quiz_result || booking.quiz_result}` : ''}
         </p>
         <div className="mt-4 flex items-center gap-2">
           {phone && <Button asChild size="icon" variant="secondary" className="h-11 w-11"><a href={telHref(phone)} aria-label={`Call ${athlete.parent_name || 'parent'}`}><Phone className="h-4 w-4" /></a></Button>}
@@ -583,13 +688,15 @@ export default function AthleteDetail() {
         {athlete.archived_at && <p className="mt-3 text-xs text-destructive">Archived {new Date(athlete.archived_at).toLocaleDateString()}</p>}
         </div>
       </div>
+      <NextSteps athlete={athlete} booking={booking} hasAssignment={hasAssignment} navigate={navigate} onGoto={goto} onAssign={() => setAssignOpen(true)} />
       <Tabs value={tab} onValueChange={(v) => { const p = new URLSearchParams(params); if (v === 'day') p.delete('tab'); else p.set('tab', v); setParams(p, { replace: true }); }}>
         <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-full bg-muted p-1 sm:w-auto">
           {[['day', 'Assessment day'], ['profile', 'Profile'], ['training', 'Training'], ['progress', 'Progress']].map(([v, l]) => (
             <TabsTrigger key={v} value={v} className="shrink-0 rounded-full px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">{l}</TabsTrigger>
           ))}
         </TabsList>
-        <TabsContent value="day" className="mt-5">
+        <TabsContent value="day" className="mt-5 space-y-6">
+          <QuizCard athlete={athlete} />
           <div className="grid gap-6 lg:grid-cols-2">
             <Results athlete={athlete} booking={booking} items={settings.enrollment?.items || []} metrics={settings.metrics} onSaved={load} />
             <div className="space-y-6">
@@ -599,11 +706,12 @@ export default function AthleteDetail() {
           </div>
         </TabsContent>
         <TabsContent value="profile" className="mt-5"><ProfileTab athlete={athlete} onEdit={() => setForm('edit')} onSibling={() => setForm('sibling')} /></TabsContent>
-        <TabsContent value="training" className="mt-5"><TrainingTab athlete={athlete} /></TabsContent>
+        <TabsContent value="training" className="mt-5"><TrainingTab athlete={athlete} recKey={recKey} cfg={settings.enrollment} /></TabsContent>
         <TabsContent value="progress" className="mt-5"><ProgressTab athlete={athlete} metrics={settings.metrics} /></TabsContent>
       </Tabs>
       <AthleteForm open={!!form} onOpenChange={(o) => !o && setForm(null)} mode={form || 'edit'} athlete={athlete}
         onSaved={(newId) => { if (form === 'sibling' && newId) navigate(`/admin/athletes/${newId}`); else load(); }} />
+      <AssignProgramDialog open={assignOpen} onOpenChange={setAssignOpen} athleteIds={[athlete.id]} initialTemplateId={pickInitialTemplateId(athlete, templates, recKey, settings.enrollment)} onDone={load} />
     </div>
   );
 }

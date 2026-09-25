@@ -9,6 +9,7 @@ import { Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useViewAs } from '@/lib/ViewAsContext';
 import { EmptyState } from '@/components/vtp';
+import { photoPosition } from '@/lib/photos';
 
 export default function Home() {
   const viewAs = useViewAs();
@@ -82,7 +83,7 @@ export default function Home() {
   return (
     <div className="space-y-8">
       <div className="relative overflow-hidden rounded-xl border border-border">
-        <img src="/images/photos/sports-kids.webp" alt="" width={1200} height={500} className="h-36 w-full object-cover sm:h-44" />
+        <img src="/images/photos/sports-kids.webp" alt="" width={1200} height={500} style={{ objectPosition: photoPosition('/images/photos/sports-kids.webp') }} className="h-36 w-full object-cover sm:h-44" />
         <div className="absolute inset-0 bg-gradient-to-t from-card via-card/70 to-black/10" />
         <div className="relative -mt-8 bg-card px-5 pb-5 pt-2">
           <h1 className="font-display text-4xl">{greeting}, {firstName}</h1>

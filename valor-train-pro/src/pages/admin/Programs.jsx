@@ -12,14 +12,18 @@ import { resyncAssignments, weekdayName } from '@/lib/programs';
 import { athleteName } from '@/lib/valor';
 import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/vtp';
+import { photoPosition } from '@/lib/photos';
 
+// Wide cards need landscape training/facility shots — a portrait coach photo
+// forced into this crop shows nothing but torso. class-drill and facility-*
+// are landscape and read fine at 128px tall.
 const PROGRAM_PHOTOS = [
-  '/images/photos/training-action.webp',
-  '/images/photos/action-pad-drive.webp',
+  '/images/photos/class-drill.webp',
   '/images/photos/facility-turf.webp',
   '/images/photos/sports-kids.webp',
   '/images/photos/facility-weights.webp',
   '/images/photos/bw-grind.webp',
+  '/images/photos/facility-wide.webp',
 ];
 
 const GROUP_STYLE = { primary: 'bg-primary/10 text-primary', superset: 'bg-muted', finisher: 'bg-amber-100 text-amber-900', extra: 'bg-sky-100 text-sky-900', other: 'bg-muted' };
@@ -58,7 +62,7 @@ export function ProgramsList() {
         {rows.map((t, idx) => (
           <Link key={t.id} to={`/admin/programs/${t.id}`}>
             <Card className="h-full overflow-hidden transition hover:border-primary/50">
-              <img src={PROGRAM_PHOTOS[idx % PROGRAM_PHOTOS.length]} alt="" loading="lazy" width={640} height={128} className="h-32 w-full object-cover" />
+              <img src={PROGRAM_PHOTOS[idx % PROGRAM_PHOTOS.length]} alt="" loading="lazy" width={640} height={128} style={{ objectPosition: photoPosition(PROGRAM_PHOTOS[idx % PROGRAM_PHOTOS.length]) }} className="h-32 w-full object-cover" />
               <CardContent className="p-5">
                 <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{t.season === 'off_season' ? 'Off-season' : 'In-season'} · {t.weeks} weeks</p>
                 <h2 className="mt-1 font-display text-2xl">{t.name}</h2>

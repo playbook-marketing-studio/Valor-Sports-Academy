@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { photoPosition } from '@/lib/photos';
 import { Button } from '@/components/ui/button';
 
 /**
@@ -63,6 +64,7 @@ export function PhotoCard({ src, alt = '', title, meta, chip, to, href, onClick,
           loading="lazy"
           width={800}
           height={height}
+          style={{ objectPosition: photoPosition(src) }}
           className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
       )}
@@ -150,7 +152,7 @@ export function EmptyState({ icon: Icon, title, message, actionLabel, onAction, 
   return (
     <div className={cn('overflow-hidden rounded-xl border border-border bg-card text-center', className)}>
       {photo && (
-        <img src={photo} alt="" loading="lazy" width={800} height={140} className="h-[140px] w-full object-cover opacity-90" />
+        <img src={photo} alt="" loading="lazy" width={800} height={140} style={{ objectPosition: photoPosition(photo) }} className="h-[140px] w-full object-cover opacity-90" />
       )}
       <div className="flex flex-col items-center gap-2 px-6 py-10">
         {Icon && (

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { photoPosition } from '@/lib/photos';
 
 const STAFF_STEPS = [
   {
@@ -117,7 +118,7 @@ export default function Onboarding({ role, onClose }) {
       onPointerCancel={() => { start.current = null; }}
     >
       <div className="relative h-[48vh] min-h-[260px] w-full shrink-0 overflow-hidden bg-secondary">
-        <img key={step.photo} src={step.photo} alt="" width={800} height={600} draggable={false} className="h-full w-full animate-in fade-in object-cover duration-300" />
+        <img key={step.photo} src={step.photo} alt="" width={800} height={600} draggable={false} style={{ objectPosition: photoPosition(step.photo) }} className="h-full w-full animate-in fade-in object-cover duration-300" />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/10 to-black/40" />
         <div className="absolute inset-x-4 top-[calc(env(safe-area-inset-top,0px)+1rem)] flex items-center justify-between">
           <span className="rounded-full bg-black/45 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur-sm">Quick tour</span>
