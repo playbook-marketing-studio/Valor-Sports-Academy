@@ -27,7 +27,7 @@ A quick tour pops up the first time you log in. You can reopen it anytime under 
 1. When a kid shows up, tap **Check in** next to their name. Their page opens.
 2. Enter their test results and the one or two things to work on first.
 3. Tap **Show login QR** and have the parent scan it to set up their login.
-4. Take payment: **card** (they scan a QR and pay on their phone), or tap **Paid cash** or **Paid Venmo**.
+4. Take payment: tap **Paid cash** or **Paid Venmo**. (Card payments turn on once Stripe is connected, see below.)
 5. Tap **Put in a class** to put them on a program. The **Next steps** list at the top of their page shows what's left.
 6. Walk-in? Tap the red **+** at the bottom.
 
