@@ -16,6 +16,27 @@ const STATUS: Record<string, string> = {
 };
 const str = (v: unknown, max = 200) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
 
+// The website quiz: score + the parent's answers (from the portal lead), kept on the athlete.
+function quizFields(src: Record<string, unknown>) {
+  const raw = src.quiz_answers;
+  const answers = raw && typeof raw === "object" && !Array.isArray(raw)
+    ? Object.fromEntries(Object.entries(raw as Record<string, unknown>)
+        .filter(([, v]) => typeof v === "string" && v.trim()).slice(0, 30)
+        .map(([k, v]) => [String(k).slice(0, 60), String(v).trim().slice(0, 300)]))
+    : {};
+  const result = str(src.quiz_result, 80);
+  if (!result && !Object.keys(answers).length) return null;
+  return {
+    ...(result ? { quiz_result: result } : {}),
+    ...(Object.keys(answers).length ? { quiz_answers: answers } : {}),
+    quiz_taken_at: str(src.created_at, 40) || new Date().toISOString(),
+  };
+}
+async function saveQuiz(athleteId: string | null, src: Record<string, unknown>) {
+  const q = quizFields(src);
+  if (athleteId && q) await admin.from("athletes").update(q).eq("id", athleteId);
+}
+
 async function ingestOne(src: Record<string, unknown>) {
   const sid = str(src.id, 60);
   if (!sid) return { error: "missing id" };
@@ -61,6 +82,7 @@ async function ingestOne(src: Record<string, unknown>) {
     if (!Object.values(row.utm as Record<string, unknown>).some(Boolean)) delete patch.utm;
     const { error } = await admin.from("bookings").update(patch).eq("id", existing.id);
     if (error) return { error: error.message };
+    await saveQuiz(existing.athlete_id, src);
     return { id: existing.id, updated: true };
   }
 
@@ -91,10 +113,12 @@ async function ingestOne(src: Record<string, unknown>) {
     if (error.code === "23505") {
       const retry = await admin.from("bookings").insert({ ...row, status: row.status ?? incoming, athlete_id: athleteId, parent_id: parent?.id ?? null, notes: `Slot clash on import: ${row.slot_start}`, slot_start: null, slot_end: null }).select("id").single();
       if (retry.error) return { error: retry.error.message };
+      await saveQuiz(athleteId, src);
       return { id: retry.data.id, created: true, clash: true };
     }
     return { error: error.message };
   }
+  await saveQuiz(athleteId, src);
   return { id: b.id, created: true, athlete_id: athleteId };
 }
 
