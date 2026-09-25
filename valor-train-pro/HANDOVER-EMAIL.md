@@ -17,7 +17,26 @@ A quick tour pops up the first time you log in. You can reopen it anytime under 
 
 **See a full example first:** open Athletes and tap **Test Omar** at the top. That's my test kid with everything filled in (quiz, results, a paid pack, a program with logged weights, lifts and meals). Tap View as athlete on his page to see exactly what a parent sees.
 
-**Step-by-step guide:** https://www.playbookmarketing.studio/proposals/valor-sports-academy/train-pro/ (password: richland). It walks through a Saturday from first text to check-in to putting a kid in a class.
+**How to use it**
+
+*New leads (Assessments tab)*
+1. Families who filled out the form show under **Waiting on a text**. Tap **Text**. The message is already written for you, and they move to **Reached out**.
+2. When they reply with a time, tap **Book a time**. If they pass, tap **Not interested**.
+
+*Saturday assessments*
+1. When a kid shows up, tap **Check in** next to their name. Their page opens.
+2. Enter their test results and the one or two things to work on first.
+3. Tap **Show login QR** and have the parent scan it to set up their login.
+4. Take payment: **card** (they scan a QR and pay on their phone), or tap **Paid cash** or **Paid Venmo**.
+5. Tap **Put in a class** to put them on a program. The **Next steps** list at the top of their page shows what's left.
+6. Walk-in? Tap the red **+** at the bottom.
+
+*During the week*
+1. **Today** shows the classes that day and who needs a text.
+2. **Class log** (under More): pick the class and type the weight each kid used.
+3. Each time a kid trains on a pack, tap **Log a class visit** on their page so their classes count down.
+4. To change a kid's days or which week they're on: their page, **Training** tab, **Change days or week**.
+5. To see exactly what a family sees, tap **View as athlete** on any kid's page.
 
 **What it does right now**
 
