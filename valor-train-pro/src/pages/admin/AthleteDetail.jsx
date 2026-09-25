@@ -22,6 +22,7 @@ import { MoreHorizontal } from 'lucide-react';
 import AthleteForm from '@/components/AthleteForm';
 import WorkoutEditor from '@/components/WorkoutEditor';
 import AssignProgramDialog from '@/components/AssignProgramDialog';
+import ScheduleDialog from '@/components/ScheduleDialog';
 import CoachLogDialog from '@/components/CoachLogDialog';
 import { latestMaxes } from '@/lib/maxes';
 import { cn } from '@/lib/utils';
@@ -443,11 +444,12 @@ function TrainingTab({ athlete, recKey, cfg }) {
   const [editing, setEditing] = useState(null); // null | 'new' | workout
   const [logging, setLogging] = useState(null);
   const [assignOpen, setAssignOpen] = useState(false);
+  const [scheduling, setScheduling] = useState(null);
   const [showAll, setShowAll] = useState(false);
   const load = useCallback(async () => {
     const [{ data }, { data: asg }, { data: mx }, { data: tpls }] = await Promise.all([
       supabase.from('workouts').select('*').eq('athlete_id', athlete.id).order('date', { ascending: true }),
-      supabase.from('program_assignments').select('id, start_date, template:program_templates(id, name, weeks)').eq('athlete_id', athlete.id),
+      supabase.from('program_assignments').select('id, athlete_id, start_date, day_weekdays, template:program_templates(*)').eq('athlete_id', athlete.id),
       supabase.from('one_rep_maxes').select('*').eq('athlete_id', athlete.id),
       supabase.from('program_templates').select('id, name, season'),
     ]);
@@ -487,6 +489,7 @@ function TrainingTab({ athlete, recKey, cfg }) {
             <p key={a.id} className="mt-1 flex flex-wrap items-center gap-2">
               <Link to={`/admin/programs/${a.template.id}`} className="text-primary hover:underline">{a.template.name}</Link>
               <span className="text-xs text-muted-foreground">from {new Date(a.start_date + 'T12:00:00').toLocaleDateString()}</span>
+              <Button size="sm" variant="outline" className="h-9 gap-1" onClick={() => setScheduling(a)}><Pencil className="h-3 w-3" /> Change days or week</Button>
               <button onClick={() => unassign(a)} className="text-xs text-muted-foreground hover:text-destructive">Remove</button>
             </p>
           )) : <p className="mt-1 text-muted-foreground">Not on a program. Assign one, or build workouts by hand.</p>}
@@ -534,6 +537,7 @@ function TrainingTab({ athlete, recKey, cfg }) {
         );
       })}
       {rows.length > visible.length && <Button variant="ghost" onClick={() => setShowAll(true)}>Show all {rows.length} workouts</Button>}
+      <ScheduleDialog open={!!scheduling} onOpenChange={(o) => !o && setScheduling(null)} athlete={athlete} assignment={scheduling} onDone={load} />
       <WorkoutEditor open={!!editing} onOpenChange={(o) => !o && setEditing(null)} athlete={athlete} workout={editing === 'new' ? null : editing} defaultWeek={nextWeek} onSaved={load} />
       <AssignProgramDialog open={assignOpen} onOpenChange={setAssignOpen} athleteIds={[athlete.id]} initialTemplateId={initialTemplateId} onDone={load} />
       <CoachLogDialog open={!!logging} onOpenChange={(o) => !o && setLogging(null)} workout={logging} athleteName={athlete.first_name} maxes={maxes} onSaved={load} />

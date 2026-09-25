@@ -63,8 +63,9 @@ export default function AssignProgramDialog({ open, onOpenChange, template: fixe
             {template && template.days.map((d) => (
               <div key={d.key} className="space-y-1">
                 <Label htmlFor={`ap-${d.key}`}>{d.label} on</Label>
-                <select id={`ap-${d.key}`} value={overrides[d.key] || d.weekday} onChange={(e) => setOverrides({ ...overrides, [d.key]: Number(e.target.value) })} className="h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm">
+                <select id={`ap-${d.key}`} value={overrides[d.key] ?? d.weekday} onChange={(e) => setOverrides({ ...overrides, [d.key]: Number(e.target.value) })} className="h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm">
                   {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{weekdayName(n)}</option>)}
+                  <option value={0}>Skip (not this day)</option>
                 </select>
               </div>
             ))}
