@@ -131,7 +131,7 @@ export default function AdminBookings() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display text-3xl lg:text-4xl">Assessments</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Website bookings land here on their own.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Everyone who booked a free assessment. Check them in when they arrive, then enter their results.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={load} className="gap-2"><RefreshCw className="h-4 w-4" /> Refresh</Button>

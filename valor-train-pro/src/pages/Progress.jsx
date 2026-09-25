@@ -131,7 +131,7 @@ export default function Progress() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-2xl tracking-tight lg:text-3xl">Progress</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Max lifts over time. Workout targets are a percent of these.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Your max lifts over time. Add a new one whenever you hit a PR — your workout targets are set as a percent of these.</p>
         </div>
         {!viewAs.isActive && (
         <Dialog open={open} onOpenChange={setOpen}>

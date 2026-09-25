@@ -8,6 +8,7 @@ import AthleteForm from '@/components/AthleteForm';
 import { Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useViewAs } from '@/lib/ViewAsContext';
+import { EmptyState } from '@/components/vtp';
 
 export default function Home() {
   const viewAs = useViewAs();
@@ -80,7 +81,14 @@ export default function Home() {
 
   return (
     <div className="space-y-8">
-      <h1 className="font-display text-4xl">{greeting}, {firstName}</h1>
+      <div className="relative overflow-hidden rounded-xl border border-border">
+        <img src="/images/photos/sports-kids.webp" alt="" width={1200} height={500} className="h-36 w-full object-cover sm:h-44" />
+        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/70 to-black/10" />
+        <div className="relative -mt-8 bg-card px-5 pb-5 pt-2">
+          <h1 className="font-display text-4xl">{greeting}, {firstName}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Your athlete's results, this week's workouts, meals and progress, all here.</p>
+        </div>
+      </div>
 
       {/* Next up: each enrolled kid's next workout, one tap to start */}
       {athletes.some((a) => upcoming.some((w) => w.athlete_id === a.id)) && (
@@ -161,7 +169,13 @@ export default function Home() {
       <AthleteForm open={!!editing} onOpenChange={(o) => !o && setEditing(null)} mode="parent_edit" athlete={editing} onSaved={() => setReload((n) => n + 1)} />
 
       {athletes.length === 0 && !loading && (
-        <p className="rounded-xl border border-dashed border-border p-6 text-sm text-muted-foreground">Your athlete shows up here after their free assessment. Questions? Call or text 509-987-4612.</p>
+        <EmptyState
+          photo="/images/photos/facility-wide.webp"
+          title="Nothing here yet"
+          message="Your athlete shows up here after their free assessment. Questions? Call or text 509-987-4612."
+          actionLabel="Text us"
+          href="sms:5099874612"
+        />
       )}
     </div>
   );

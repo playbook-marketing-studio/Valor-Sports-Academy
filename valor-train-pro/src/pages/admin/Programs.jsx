@@ -11,6 +11,16 @@ import AssignProgramDialog from '@/components/AssignProgramDialog';
 import { resyncAssignments, weekdayName } from '@/lib/programs';
 import { athleteName } from '@/lib/valor';
 import { cn } from '@/lib/utils';
+import { EmptyState } from '@/components/vtp';
+
+const PROGRAM_PHOTOS = [
+  '/images/photos/training-action.webp',
+  '/images/photos/action-pad-drive.webp',
+  '/images/photos/facility-turf.webp',
+  '/images/photos/sports-kids.webp',
+  '/images/photos/facility-weights.webp',
+  '/images/photos/bw-grind.webp',
+];
 
 const GROUP_STYLE = { primary: 'bg-primary/10 text-primary', superset: 'bg-muted', finisher: 'bg-amber-100 text-amber-900', extra: 'bg-sky-100 text-sky-900', other: 'bg-muted' };
 
@@ -45,18 +55,29 @@ export function ProgramsList() {
         <Button size="sm" className="gap-2" onClick={create}><Plus className="h-4 w-4" /> New program</Button>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
-        {rows.map((t) => (
+        {rows.map((t, idx) => (
           <Link key={t.id} to={`/admin/programs/${t.id}`}>
-            <Card className="h-full transition hover:border-primary/50"><CardContent className="p-5">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{t.season === 'off_season' ? 'Off-season' : 'In-season'} · {t.weeks} weeks</p>
-              <h2 className="mt-1 font-display text-2xl">{t.name}</h2>
-              <p className="mt-2 text-sm text-muted-foreground">{t.days.map((d) => d.label).join(' · ')}</p>
-              <p className="mt-3 text-xs text-muted-foreground">{counts[t.id] || 0} athlete{counts[t.id] === 1 ? '' : 's'} assigned{t.source ? ` · imported from ${t.source}` : ''}</p>
-            </CardContent></Card>
+            <Card className="h-full overflow-hidden transition hover:border-primary/50">
+              <img src={PROGRAM_PHOTOS[idx % PROGRAM_PHOTOS.length]} alt="" loading="lazy" width={640} height={128} className="h-32 w-full object-cover" />
+              <CardContent className="p-5">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{t.season === 'off_season' ? 'Off-season' : 'In-season'} · {t.weeks} weeks</p>
+                <h2 className="mt-1 font-display text-2xl">{t.name}</h2>
+                <p className="mt-2 text-sm text-muted-foreground">{t.days.map((d) => d.label).join(' · ')}</p>
+                <p className="mt-3 text-xs text-muted-foreground">{counts[t.id] || 0} athlete{counts[t.id] === 1 ? '' : 's'} assigned{t.source ? ` · imported from ${t.source}` : ''}</p>
+              </CardContent>
+            </Card>
           </Link>
         ))}
-        {!rows.length && <p className="text-sm text-muted-foreground">No programs yet. Tap New program, or import Corey's workbook with scripts/import_programs.py.</p>}
       </div>
+      {!rows.length && (
+        <EmptyState
+          photo="/images/photos/facility-wide.webp"
+          title="No programs yet"
+          message="Write a program once and put a whole group on it, or import Corey's workbook with scripts/import_programs.py."
+          actionLabel="New program"
+          onAction={create}
+        />
+      )}
     </div>
   );
 }

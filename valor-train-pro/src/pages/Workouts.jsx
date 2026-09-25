@@ -90,7 +90,7 @@ export default function Workouts() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-2xl tracking-tight lg:text-3xl">Workouts</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Your plan from Valor coaches · log your live numbers</p>
+          <p className="mt-1 text-sm text-muted-foreground">Your plan from your coach. Open a workout and log the weight you hit.</p>
         </div>
         {!viewAs.isActive && <NewWorkoutDialog onCreated={load} />}
       </div>

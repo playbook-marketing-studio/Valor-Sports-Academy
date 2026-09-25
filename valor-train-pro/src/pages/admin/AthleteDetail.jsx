@@ -557,9 +557,12 @@ export default function AthleteDetail() {
   return (
     <div className="space-y-6">
       <Link to="/admin/bookings" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Assessments</Link>
-      <div className="vtp-stripes rounded-[18px] border border-border bg-card p-6 text-card-foreground shadow-[0_20px_50px_-24px_rgba(0,0,0,.8)]">
+      <div className="relative overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-[0_20px_50px_-24px_rgba(0,0,0,.8)]">
+        <img src="/images/photos/facility-turf.webp" alt="" width={1200} height={400} className="absolute inset-0 h-full w-full object-cover opacity-[0.14] dark:opacity-[0.2]" />
+        <div className="vtp-stripes relative p-6">
         <h1 className="font-display text-4xl">{athleteName(athlete)}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{[athlete.age && `Age ${athlete.age}`, athlete.sport, athlete.season === 'in_season' ? 'In-season' : athlete.season === 'off_season' ? 'Off-season' : ''].filter(Boolean).join(' · ') || 'Athlete'}</p>
+        <p className="mt-1 text-xs text-muted-foreground">Results, plan, parent login and payment — all in one place.</p>
         <p className="mt-2 text-sm text-muted-foreground">
           {athlete.parent_name || 'Parent'}{athlete.parent_email ? ` · ${athlete.parent_email}` : ''}{phone ? ` · ${phone}` : ''}
           {booking?.slot_start ? ` · assessment ${fmtSlot(booking.slot_start)}` : ''}{booking?.quiz_result ? ` · quiz ${booking.quiz_result}` : ''}
@@ -578,6 +581,7 @@ export default function AthleteDetail() {
           </DropdownMenu>
         </div>
         {athlete.archived_at && <p className="mt-3 text-xs text-destructive">Archived {new Date(athlete.archived_at).toLocaleDateString()}</p>}
+        </div>
       </div>
       <Tabs value={tab} onValueChange={(v) => { const p = new URLSearchParams(params); if (v === 'day') p.delete('tab'); else p.set('tab', v); setParams(p, { replace: true }); }}>
         <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-full bg-muted p-1 sm:w-auto">

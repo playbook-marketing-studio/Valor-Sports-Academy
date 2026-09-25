@@ -76,14 +76,19 @@ export default function Today() {
 
   return (
     <div className="max-w-3xl space-y-8">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-sm text-muted-foreground">{d.label}{first ? ` · ${first}` : ''}</p>
-          <h1 className="font-display text-4xl">Today</h1>
-        </div>
-        <div className="flex gap-2">
-          <Button asChild variant="outline" size="sm" className="gap-2"><Link to="/admin/log"><NotebookPen className="h-4 w-4" /> Class log</Link></Button>
-          <Button asChild size="sm" className="gap-2"><Link to="/admin/bookings?walkin=1"><Plus className="h-4 w-4" /> Walk-in</Link></Button>
+      <div className="relative overflow-hidden rounded-xl border border-border">
+        <img src="/images/photos/staff-hero-coaches.webp" alt="" width={1200} height={500} className="h-40 w-full object-cover sm:h-48" />
+        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/70 to-black/10" />
+        <div className="relative -mt-10 flex flex-wrap items-end justify-between gap-3 bg-card px-5 pb-5 pt-2">
+          <div>
+            <p className="text-sm text-muted-foreground">{d.label}{first ? ` · Hey ${first}` : ''}</p>
+            <h1 className="font-display text-4xl">Today</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Everything that needs your attention today, in the order it happens at the gym.</p>
+          </div>
+          <div className="flex gap-2">
+            <Button asChild variant="outline" size="sm" className="gap-2"><Link to="/admin/log"><NotebookPen className="h-4 w-4" /> Class log</Link></Button>
+            <Button asChild size="sm" className="gap-2"><Link to="/admin/bookings?walkin=1"><Plus className="h-4 w-4" /> Walk-in</Link></Button>
+          </div>
         </div>
       </div>
 
