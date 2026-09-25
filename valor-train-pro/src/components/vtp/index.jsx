@@ -202,7 +202,7 @@ export function ArcGauge({ value = 0, max = 100, size = 160, strokeWidth = 14, l
   return (
     <div className={cn('relative inline-flex items-center justify-center', className)} style={{ width: size, height: size }}>
       <svg width={size} height={size}>
-        <path d={arc(startDeg, endDeg)} fill="none" stroke="hsl(var(--secondary))" strokeWidth={strokeWidth} strokeLinecap="round" strokeDasharray={`1 ${Math.max(6, strokeWidth * 0.7)}`} />
+        <path d={arc(startDeg, endDeg)} fill="none" stroke="hsl(var(--muted-foreground) / 0.18)" strokeWidth={strokeWidth} strokeLinecap="round" />
         {pct > 0 && (
           <path d={arc(startDeg, valueDeg)} fill="none" stroke="hsl(var(--primary))" strokeWidth={strokeWidth} strokeLinecap="round" style={{ transition: 'all .5s ease' }} />
         )}

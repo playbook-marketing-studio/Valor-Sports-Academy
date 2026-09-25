@@ -51,7 +51,7 @@ export default function Today() {
         supabase.from('athletes_admin').select('id, first_name, last_name, parent_name, parent_phone, stage, archived_at').eq('stage', 'assessed'),
         supabase.from('athletes_admin').select('id', { count: 'exact', head: true }).eq('stage', 'enrolled'),
         supabase.from('athletes_admin').select('id', { count: 'exact', head: true }).eq('stage', 'lead'),
-        supabase.from('bookings').select('id', { count: 'exact', head: true }).gte('slot_start', `${weekStart}T00:00:00`).lte('slot_start', `${weekEnd}T23:59:59`),
+        supabase.from('bookings').select('id', { count: 'exact', head: true }).neq('status', 'canceled').gte('slot_start', `${weekStart}T00:00:00`).lte('slot_start', `${weekEnd}T23:59:59`),
         supabase.from('class_visits').select('id', { count: 'exact', head: true }).gte('visited_at', `${weekStart}T00:00:00`).lte('visited_at', `${weekEnd}T23:59:59`),
       ]);
       const ids = (todayWs || []).map((w) => w.id);
