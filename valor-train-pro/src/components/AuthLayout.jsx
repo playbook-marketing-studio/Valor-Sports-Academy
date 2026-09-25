@@ -15,7 +15,7 @@ export default function AuthLayout({ icon: Icon, title, subtitle, footer, childr
         className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.16] dark:opacity-[0.22]"
       />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background via-background/95 to-background" />
-      <ThemeToggle className="absolute right-3 top-3 z-10 bg-card/80 border border-border" />
+      <ThemeToggle className="fixed right-3 top-[calc(env(safe-area-inset-top,0px)+0.75rem)] z-30 bg-card/80 border border-border backdrop-blur" />
       <div className="relative z-10 w-full max-w-md">
         <div className="text-center mb-10 flex flex-col items-center">
           <div className="mb-6 flex justify-center"><Brand /></div>
