@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
 } from '@/components/ui/dialog';
@@ -15,6 +14,7 @@ import {
 import ScanFoodDialog from '@/components/ScanFoodDialog';
 import { useViewAs } from '@/lib/ViewAsContext';
 import { ownerEntity } from '@/lib/viewAsScope';
+import { ArcGauge, ProgressRing, MiniBars } from '@/components/vtp';
 
 const mealTypes = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
@@ -101,11 +101,19 @@ export default function Nutrition() {
   };
 
   const macros = [
-    { label: 'Calories', icon: Flame, value: totals.calories, goal: goal?.calories_goal || 0, unit: 'cal', color: 'bg-primary' },
-    { label: 'Protein', icon: Beef, value: totals.protein, goal: goal?.protein_goal || 0, unit: 'g', color: 'bg-red-500' },
-    { label: 'Carbs', icon: Wheat, value: totals.carbs, goal: goal?.carbs_goal || 0, unit: 'g', color: 'bg-amber-500' },
-    { label: 'Fats', icon: Droplet, value: totals.fats, goal: goal?.fats_goal || 0, unit: 'g', color: 'bg-blue-500' },
+    { label: 'Protein', icon: Beef, value: totals.protein, goal: goal?.protein_goal || 0, unit: 'g' },
+    { label: 'Carbs', icon: Wheat, value: totals.carbs, goal: goal?.carbs_goal || 0, unit: 'g' },
+    { label: 'Fats', icon: Droplet, value: totals.fats, goal: goal?.fats_goal || 0, unit: 'g' },
   ];
+
+  const last7Days = useMemo(() => {
+    const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return d.toISOString().slice(0, 10); });
+    return days.map((d) => ({
+      label: new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2),
+      value: logs.filter((l) => l.date === d).reduce((n, l) => n + (l.calories || 0), 0),
+      highlight: d === today,
+    }));
+  }, [logs, today]);
 
   return (
     <div className="space-y-6">
@@ -209,27 +217,50 @@ export default function Nutrition() {
         )}
       </div>
 
-      {/* Macro progress */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {macros.map((m) => {
-          const pct = m.goal > 0 ? Math.min((m.value / m.goal) * 100, 100) : 0;
-          return (
-            <Card key={m.label}>
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <m.icon className="h-5 w-5" />
-                  </div>
-                  <span className="text-xs text-muted-foreground">{Math.round(pct)}%</span>
+      {/* Today's calories vs goal, and macros */}
+      <div className="grid gap-4 lg:grid-cols-[auto_1fr]">
+        <Card>
+          <CardContent className="flex flex-col items-center gap-1 p-5">
+            <ArcGauge
+              value={totals.calories}
+              max={goal?.calories_goal || 0}
+              size={168}
+              strokeWidth={16}
+              label={String(totals.calories)}
+              sublabel={goal?.calories_goal ? `of ${goal.calories_goal} cal` : 'no goal set'}
+            />
+            <p className="flex items-center gap-1.5 text-sm font-semibold"><Flame className="h-4 w-4 text-primary" /> Calories today</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="grid grid-cols-3 gap-4 p-5">
+            {macros.map((m) => {
+              const pct = m.goal > 0 ? Math.min((m.value / m.goal) * 100, 100) : 0;
+              return (
+                <div key={m.label} className="flex flex-col items-center gap-2 text-center">
+                  <ProgressRing value={pct} size={84} strokeWidth={8} label={`${m.value}`} sublabel={m.unit} />
+                  <p className="flex items-center gap-1 text-xs font-semibold text-muted-foreground"><m.icon className="h-3.5 w-3.5" /> {m.label}</p>
+                  <p className="text-[11px] text-muted-foreground">goal {m.goal}{m.unit}</p>
                 </div>
-                <p className="mt-3 text-2xl font-bold">{m.value}<span className="text-sm font-normal text-muted-foreground"> {m.unit}</span></p>
-                <p className="text-xs text-muted-foreground">{m.label} · goal {m.goal}{m.unit}</p>
-                <Progress value={pct} className="mt-3 h-1.5" />
-              </CardContent>
-            </Card>
-          );
-        })}
+              );
+            })}
+          </CardContent>
+        </Card>
       </div>
+
+      {/* 7-day calories */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg">Calories, last 7 days</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {last7Days.every((d) => d.value === 0) ? (
+            <p className="text-sm text-muted-foreground">No meals logged this week yet.</p>
+          ) : (
+            <MiniBars data={last7Days} height={90} />
+          )}
+        </CardContent>
+      </Card>
 
       {/* Today's meals */}
       <Card>

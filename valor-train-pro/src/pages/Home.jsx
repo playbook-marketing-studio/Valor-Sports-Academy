@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { loadSettings, DEFAULT_METRICS, countsAsEnrollment, classesLeft, enrolledIds, itemName } from '@/lib/valor';
+import { loadSettings, DEFAULT_METRICS, countsAsEnrollment, classesLeft, enrolledIds, itemName, weekRange, metricDelta } from '@/lib/valor';
 import { supabase } from '@/api/supabaseClient';
 import EnrollButton from '@/components/EnrollButton';
 import AthleteForm from '@/components/AthleteForm';
 import { Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useViewAs } from '@/lib/ViewAsContext';
-import { EmptyState } from '@/components/vtp';
+import { EmptyState, ProgressRing, ProgressBar, StatTile, Chip } from '@/components/vtp';
 import { photoPosition } from '@/lib/photos';
 
 export default function Home() {
@@ -18,6 +18,8 @@ export default function Home() {
   const [athletes, setAthletes] = useState([]);
   const [assessments, setAssessments] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [weekWorkouts, setWeekWorkouts] = useState([]);
+  const [weekLoggedIds, setWeekLoggedIds] = useState(new Set());
   const [settings, setSettings] = useState({ enrollment: null, metrics: DEFAULT_METRICS });
   const enrolledPays = payments.filter(countsAsEnrollment);
   const [inClass, setInClass] = useState(new Set()); // enrolled via a program, even without a pack in the app
@@ -25,6 +27,18 @@ export default function Home() {
   const [editing, setEditing] = useState(null);
   const [reload, setReload] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  /** This week's (Mon-Sun) scheduled workouts + which ones are logged, for one or more athlete ids. */
+  const loadWeek = async (ids) => {
+    if (!ids?.length) { setWeekWorkouts([]); setWeekLoggedIds(new Set()); return; }
+    const { start, end } = weekRange();
+    const { data: ws } = await supabase.from('workouts').select('id, athlete_id, date').in('athlete_id', ids).gte('date', start).lte('date', end);
+    setWeekWorkouts(ws || []);
+    const wIds = (ws || []).map((w) => w.id);
+    if (!wIds.length) { setWeekLoggedIds(new Set()); return; }
+    const { data: logs } = await supabase.from('workout_logs').select('workout_id').in('workout_id', wIds);
+    setWeekLoggedIds(new Set((logs || []).map((l) => l.workout_id)));
+  };
 
   useEffect(() => {
     (async () => {
@@ -47,6 +61,7 @@ export default function Home() {
           ]);
           setUpcoming(next || []);
           setAssessments(as || []); setPayments(ps || []); setSettings(st);
+          loadWeek([a.id]);
           return;
         }
 
@@ -67,6 +82,7 @@ export default function Home() {
             loadSettings(),
           ]);
           setAssessments(as || []); setPayments(ps || []); setSettings(st);
+          loadWeek(ids);
         }
 
       } catch (e) {
@@ -120,13 +136,18 @@ export default function Home() {
       {athletes.length > 0 && (
         <div className="grid gap-4 lg:grid-cols-2">
           {athletes.map((a) => {
-            const as = assessments.find((x) => x.athlete_id === a.id);
+            const athleteAssessments = assessments.filter((x) => x.athlete_id === a.id); // newest first
+            const as = athleteAssessments[0];
+            const prevAs = athleteAssessments[1];
             const paid = enrolledPays.find((x) => x.athlete_id === a.id);
             const enrolledNoPack = !paid && inClass.has(a.id);
             const lapsed = !paid && !enrolledNoPack && payments.some((x) => x.athlete_id === a.id);
             const left = enrolledPays.filter((x) => x.athlete_id === a.id).reduce((n, x) => (n == null || classesLeft(x) == null ? null : n + classesLeft(x)), 0);
+            const packTotal = enrolledPays.filter((x) => x.athlete_id === a.id).reduce((n, x) => n + (x.classes_total || 0), 0);
             const cls = itemName(settings.enrollment, as?.recommended_plan);
             const filled = as ? settings.metrics.filter((m) => as.metrics?.[m.key]) : [];
+            const athleteWeek = weekWorkouts.filter((w) => w.athlete_id === a.id);
+            const weekDone = athleteWeek.filter((w) => weekLoggedIds.has(w.id)).length;
             return (
               <Card key={a.id}>
                 <CardHeader className="pb-2">
@@ -138,19 +159,43 @@ export default function Home() {
                   </div>
                   <p className="text-xs text-muted-foreground">{[a.age && `Age ${a.age}`, a.sport].filter(Boolean).join(' · ')}</p>
                 </CardHeader>
-                <CardContent className="space-y-3 text-sm">
+                <CardContent className="space-y-4 text-sm">
+                  {(paid || enrolledNoPack) && (
+                    <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border px-3 py-3">
+                      {paid && left != null ? (
+                        <ProgressRing value={packTotal > 0 ? (left / packTotal) * 100 : 0} size={76} strokeWidth={8} label={String(left)} sublabel="classes left" />
+                      ) : paid ? (
+                        <ProgressRing value={100} size={76} strokeWidth={8} label={'∞'} sublabel="classes left" />
+                      ) : (
+                        <Chip active>In a class</Chip>
+                      )}
+                      <div className="min-w-[140px] flex-1">
+                        {athleteWeek.length > 0 ? (
+                          <ProgressBar value={weekDone} max={athleteWeek.length} label="This week" sublabel={`${weekDone}/${athleteWeek.length} workouts`} />
+                        ) : (
+                          <p className="text-xs text-muted-foreground">No workouts scheduled this week.</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   {!as && <p className="text-muted-foreground">Assessment results show up here after the session.</p>}
                   {as && (
                     <>
                       <p className="text-xs text-muted-foreground">Assessment results · {new Date(as.date + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                       {filled.length > 0 && (
                         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                          {filled.map((m) => (
-                            <div key={m.key} className="rounded-lg bg-muted/60 px-3 py-2">
-                              <p className="text-[11px] text-muted-foreground">{m.label}</p>
-                              <p className="font-semibold">{as.metrics[m.key]}{m.unit ? ` ${m.unit}` : ''}</p>
-                            </div>
-                          ))}
+                          {filled.map((m) => {
+                            const delta = prevAs?.metrics?.[m.key] != null ? metricDelta(as.metrics[m.key], prevAs.metrics[m.key], m.unit) : null;
+                            return (
+                              <StatTile
+                                key={m.key}
+                                label={m.label}
+                                value={as.metrics[m.key]}
+                                unit={m.unit}
+                                trend={delta ? { label: `${delta.label} vs last`, direction: delta.direction, tone: delta.tone } : undefined}
+                              />
+                            );
+                          })}
                         </div>
                       )}
                       {as.work_on && <p><span className="font-semibold">Work on first:</span> {as.work_on}</p>}

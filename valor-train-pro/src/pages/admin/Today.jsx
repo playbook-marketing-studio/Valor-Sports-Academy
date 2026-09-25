@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, Loader2, MessageSquare, NotebookPen, Plus } from 'lucide-react';
+import { CalendarCheck, CalendarDays, ChevronRight, Dumbbell, Loader2, MessageSquare, MessageSquareText, NotebookPen, Plus, Users } from 'lucide-react';
 import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { fmtTime } from '@/lib/slots';
-import { athleteName, displayFirstName, smsHref } from '@/lib/valor';
+import { athleteName, displayFirstName, smsHref, weekRange } from '@/lib/valor';
 import { photoPosition } from '@/lib/photos';
 import { askSms, askText, reqDay } from '@/lib/leads';
+import { StatTile } from '@/components/vtp';
 
 const TZ = 'America/Los_Angeles';
 const ymd = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
@@ -41,12 +42,17 @@ export default function Today() {
       const now = new Date();
       const today = ymd(now);
       const weekAhead = new Date(now.getTime() + 8 * 86400000).toISOString();
-      const [{ data: todayWs }, { data: nextWs }, { data: books }, { data: reqs }, { data: roster }] = await Promise.all([
+      const { start: weekStart, end: weekEnd } = weekRange(now);
+      const [{ data: todayWs }, { data: nextWs }, { data: books }, { data: reqs }, { data: roster }, { count: enrolledCount }, { count: waitingCount }, { count: assessWeekCount }, { count: visitsWeekCount }] = await Promise.all([
         supabase.from('workouts').select('id, template_id, day_key, week, title, program, athlete_id').eq('date', today).not('template_id', 'is', null),
         supabase.from('workouts').select('date').not('template_id', 'is', null).gt('date', today).order('date').limit(1),
         supabase.from('bookings').select('*').in('status', ['booked', 'attended', 'no_show']).gte('slot_start', new Date(now.getTime() - 12 * 3600000).toISOString()).lte('slot_start', weekAhead).order('slot_start'),
         supabase.from('bookings').select('*').eq('status', 'requested').order('created_at'),
         supabase.from('athletes_admin').select('id, first_name, last_name, parent_name, parent_phone, stage, archived_at').eq('stage', 'assessed'),
+        supabase.from('athletes_admin').select('id', { count: 'exact', head: true }).eq('stage', 'enrolled'),
+        supabase.from('athletes_admin').select('id', { count: 'exact', head: true }).eq('stage', 'lead'),
+        supabase.from('bookings').select('id', { count: 'exact', head: true }).gte('slot_start', `${weekStart}T00:00:00`).lte('slot_start', `${weekEnd}T23:59:59`),
+        supabase.from('class_visits').select('id', { count: 'exact', head: true }).gte('visited_at', `${weekStart}T00:00:00`).lte('visited_at', `${weekEnd}T23:59:59`),
       ]);
       const ids = (todayWs || []).map((w) => w.id);
       const { data: logs } = ids.length ? await supabase.from('workout_logs').select('workout_id').in('workout_id', ids) : { data: [] };
@@ -62,6 +68,7 @@ export default function Today() {
         today, label: longDay(now), classes: Object.values(classes), nextClass: nextWs?.[0]?.date || null,
         assessDay: firstDay, assessments: (books || []).filter((b) => ymd(new Date(b.slot_start)) === firstDay),
         requests: (reqs || []).filter((b) => !b.contacted_at), textedCount: (reqs || []).filter((b) => b.contacted_at).length, followUps: roster || [],
+        enrolledCount: enrolledCount || 0, waitingCount: waitingCount || 0, assessWeekCount: assessWeekCount || 0, visitsWeekCount: visitsWeekCount || 0,
       });
     })();
   }, []);
@@ -86,6 +93,14 @@ export default function Today() {
             <Button asChild size="sm" className="gap-2"><Link to="/admin/bookings?walkin=1"><Plus className="h-4 w-4" /> Walk-in</Link></Button>
           </div>
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <StatTile to="/admin/athletes?stage=enrolled" icon={Users} label="Enrolled" value={d.enrolledCount} />
+        <StatTile to="/admin/athletes?stage=lead" icon={MessageSquareText} label="Waiting on a text" value={d.waitingCount} />
+        <StatTile to="/admin/bookings" icon={CalendarCheck} label="Assessments this wk" value={d.assessWeekCount} />
+        <StatTile to="/admin/log" icon={Dumbbell} label="Classes today" value={d.classes.length} />
+        <StatTile to="/admin/log" icon={CalendarDays} label="Class visits this wk" value={d.visitsWeekCount} />
       </div>
 
       <Section title="Classes today" count={d.classes.length || null}>

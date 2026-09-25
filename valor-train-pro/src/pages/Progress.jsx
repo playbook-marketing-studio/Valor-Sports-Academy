@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { TrendingUp, Plus, X } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
-import { enrolledIds } from '@/lib/valor';
+import { supabase } from '@/api/supabaseClient';
+import { enrolledIds, loadSettings, DEFAULT_METRICS, weekRange } from '@/lib/valor';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,10 +14,18 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import WeeklyPlan from '@/components/WeeklyPlan';
 import { useViewAs } from '@/lib/ViewAsContext';
 import { athleteEntity } from '@/lib/viewAsScope';
+import { MiniBars } from '@/components/vtp';
+import { AssessmentTrends, MaxLiftTrends } from '@/components/vtp/progressViz';
+
+const WEEKDAY_LABEL = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function Progress() {
   const viewAs = useViewAs();
   const [allMaxes, setAllMaxes] = useState([]);
+  const [allAssessments, setAllAssessments] = useState([]);
+  const [metrics, setMetrics] = useState(DEFAULT_METRICS);
+  const [weekWorkouts, setWeekWorkouts] = useState([]);
+  const [weekLoggedIds, setWeekLoggedIds] = useState(new Set());
   const [athletes, setAthletes] = useState([]);
   const [who, setWho] = useState(null); // athlete id, or null = my own lifts
   const [loading, setLoading] = useState(true);
@@ -38,24 +47,57 @@ export default function Progress() {
     // View-as: scope explicitly to this one athlete, since an admin's RLS
     // would otherwise hand back every athlete's maxes and plan workouts.
     const athlete = viewAs.isActive ? viewAs.athlete : null;
-    const [data, plan, kids] = athlete ? await Promise.all([
+    const { start, end } = weekRange();
+    const [data, plan, kids, st] = athlete ? await Promise.all([
       athleteEntity('one_rep_maxes', athlete.id).list('-date', 500),
       athleteEntity('workouts', athlete.id).filter({ program: 'In-Season I' }, 'date', 100),
       Promise.resolve([athlete]),
+      loadSettings(),
     ]) : await Promise.all([
       base44.entities.OneRepMax.list('-date', 500),
       base44.entities.Workout.filter({ program: 'In-Season I' }, 'date', 100),
       base44.entities.Athlete.list('first_name', 20).then(async (ks) => { const on = await enrolledIds(ks.map((k) => k.id)); return ks.filter((k) => on.has(k.id)); }).catch(() => []),
+      loadSettings(),
     ]);
     setAllMaxes(data);
     setAthletes(kids);
-    setWho((cur) => cur ?? (kids.find((k) => data.some((m) => m.athlete_id === k.id)) || kids[0])?.id ?? null);
+    const resolvedWho = who ?? (kids.find((k) => data.some((m) => m.athlete_id === k.id)) || kids[0])?.id ?? null;
+    setWho((cur) => cur ?? resolvedWho);
     setPlanWorkouts(plan);
+    setMetrics(st.metrics);
+
+    // Assessments and this week's workouts, for every kid this parent/admin can see.
+    const ids = athlete ? [athlete.id] : kids.map((k) => k.id);
+    if (ids.length) {
+      const [{ data: as }, { data: ws }] = await Promise.all([
+        supabase.from('assessments').select('*').in('athlete_id', ids).order('date', { ascending: true }),
+        supabase.from('workouts').select('id, athlete_id, date').in('athlete_id', ids).gte('date', start).lte('date', end),
+      ]);
+      setAllAssessments(as || []);
+      setWeekWorkouts(ws || []);
+      const wIds = (ws || []).map((w) => w.id);
+      const { data: logs } = wIds.length ? await supabase.from('workout_logs').select('workout_id').in('workout_id', wIds) : { data: [] };
+      setWeekLoggedIds(new Set((logs || []).map((l) => l.workout_id)));
+    } else {
+      setAllAssessments([]); setWeekWorkouts([]); setWeekLoggedIds(new Set());
+    }
     setLoading(false);
   };
 
   useEffect(() => { if (!viewAs.isActive || viewAs.athlete) load(); }, [viewAs.isActive, viewAs.athlete]);
   const maxes = useMemo(() => allMaxes.filter((m) => (who ? m.athlete_id === who : !m.athlete_id)), [allMaxes, who]);
+  const assessments = useMemo(() => allAssessments.filter((a) => a.athlete_id === who), [allAssessments, who]);
+  const weeklyBarData = useMemo(() => {
+    const { days } = weekRange();
+    const mine = weekWorkouts.filter((w) => w.athlete_id === who);
+    const today = new Date().toISOString().slice(0, 10);
+    return days.map((d, i) => ({
+      label: WEEKDAY_LABEL[i],
+      value: mine.filter((w) => w.date === d && weekLoggedIds.has(w.id)).length,
+      highlight: d === today,
+    }));
+  }, [weekWorkouts, weekLoggedIds, who]);
+  const weekPlannedCount = useMemo(() => weekWorkouts.filter((w) => w.athlete_id === who).length, [weekWorkouts, who]);
 
   const chartData = useMemo(() => {
     const byExercise = {};
@@ -183,9 +225,41 @@ export default function Progress() {
         </div>
       )}
 
+      {who && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">This week's workouts</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {weekPlannedCount > 0 ? (
+              <MiniBars data={weeklyBarData} height={80} />
+            ) : (
+              <p className="text-sm text-muted-foreground">No workouts scheduled this week.</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {who && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Assessment results over time</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AssessmentTrends assessments={assessments} metrics={metrics} />
+          </CardContent>
+        </Card>
+      )}
+
       <WeeklyPlan workouts={planWorkouts} latest1rm={latest1rm} />
 
       {/* Core lifts quick entry */}
+
+      {/* Max lifts: latest per lift with a trend line from earlier maxes */}
+      <div>
+        <h2 className="mb-2 text-lg font-semibold">Max lifts</h2>
+        <MaxLiftTrends maxes={maxes} />
+      </div>
 
       {/* Chart */}
       {exercises.length > 0 && (

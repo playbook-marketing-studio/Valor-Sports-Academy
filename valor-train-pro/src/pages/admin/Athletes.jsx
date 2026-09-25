@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Loader2, Plus, Search, UserPlus } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import AthleteForm from '@/components/AthleteForm';
 import { supabase } from '@/api/supabaseClient';
@@ -23,10 +23,12 @@ const STAGE_STYLE = { lead: 'bg-amber-100 text-amber-900', reached_out: 'bg-sky-
 
 export default function AdminAthletes() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const stageParam = searchParams.get('stage');
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
-  const [stage, setStage] = useState('active');
+  const [stage, setStage] = useState(STAGES.some(([k]) => k === stageParam) ? stageParam : 'active');
   const [season, setSeason] = useState('');
   const [form, setForm] = useState(null); // 'add' | 'walk_in'
 

@@ -57,3 +57,33 @@ export const displayFirstName = (name) => {
 };
 export const telHref = (phone) => `tel:${String(phone || '').replace(/[^\d+]/g, '')}`;
 export const smsHref = (phone, body) => `sms:${String(phone || '').replace(/[^\d+]/g, '')}?&body=${encodeURIComponent(body)}`;
+
+/** Monday-Sunday calendar week containing `d` (default today), as 'YYYY-MM-DD' strings. */
+export function weekRange(d = new Date()) {
+  const start = new Date(d);
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7)); // back to Monday
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const fmt = (x) => x.toISOString().slice(0, 10);
+  const days = Array.from({ length: 7 }, (_, i) => { const x = new Date(start); x.setDate(start.getDate() + i); return fmt(x); });
+  return { start: fmt(start), end: fmt(end), days };
+}
+
+/**
+ * Compares a metric's latest value to the previous one for a trend chip.
+ * unit 's' (a timed test) means lower is better; everything else, higher is better.
+ */
+export function metricDelta(latest, prev, unit) {
+  const a = Number(prev);
+  const b = Number(latest);
+  if (prev == null || latest == null || Number.isNaN(a) || Number.isNaN(b)) return null;
+  const diff = b - a;
+  const lowerIsBetter = unit === 's';
+  const direction = diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat';
+  const improved = diff === 0 ? null : lowerIsBetter ? diff < 0 : diff > 0;
+  const digits = unit === 's' ? 2 : Number.isInteger(diff) ? 0 : 1;
+  const sign = diff > 0 ? '+' : diff < 0 ? '-' : '';
+  const label = `${sign}${Math.abs(diff).toFixed(digits)}${unit ? unit : ''}`;
+  return { diff, direction, improved, label, tone: improved == null ? 'neutral' : improved ? 'good' : 'bad' };
+}

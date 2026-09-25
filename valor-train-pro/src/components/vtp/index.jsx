@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowDown, ArrowUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { photoPosition } from '@/lib/photos';
 import { Button } from '@/components/ui/button';
@@ -26,10 +27,23 @@ export function PageHeader({ eyebrow, title, subtitle, action, className }) {
   );
 }
 
-/** Huge confident number for a stat: PRs, counts, weights, streaks. */
-export function StatTile({ label, value, unit, icon: Icon, className }) {
+/**
+ * Huge confident number for a stat: PRs, counts, weights, streaks.
+ * Optional `trend` = { label, direction: 'up'|'down'|'flat', tone: 'good'|'bad'|'neutral' }
+ * for a small "+18% from yesterday" style line under the number.
+ */
+export function StatTile({ label, value, unit, icon: Icon, trend, to, onClick, className }) {
+  const Comp = to ? Link : onClick ? 'button' : 'div';
   return (
-    <div className={cn('rounded-xl border border-border bg-card p-4', className)}>
+    <Comp
+      {...(to ? { to } : {})}
+      {...(onClick ? { type: 'button', onClick } : {})}
+      className={cn(
+        'block w-full rounded-xl border border-border bg-card p-4 text-left',
+        (to || onClick) && 'cursor-pointer transition active:scale-[.98] hover:border-primary/40',
+        className
+      )}
+    >
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
         {Icon && <Icon className="h-4 w-4 shrink-0 text-primary" />}
@@ -38,7 +52,21 @@ export function StatTile({ label, value, unit, icon: Icon, className }) {
         {value}
         {unit && <span className="ml-1 font-body text-base font-normal text-muted-foreground">{unit}</span>}
       </p>
-    </div>
+      {trend && (
+        <p
+          className={cn(
+            'mt-1.5 flex items-center gap-1 text-xs font-medium',
+            trend.tone === 'good' && 'text-green-600 dark:text-green-400',
+            trend.tone === 'bad' && 'text-destructive',
+            (!trend.tone || trend.tone === 'neutral') && 'text-muted-foreground'
+          )}
+        >
+          {trend.direction === 'up' && <ArrowUp className="h-3 w-3 shrink-0" />}
+          {trend.direction === 'down' && <ArrowDown className="h-3 w-3 shrink-0" />}
+          <span className="truncate">{trend.label}</span>
+        </p>
+      )}
+    </Comp>
   );
 }
 
@@ -142,6 +170,108 @@ export function ProgressRing({ value = 0, size = 88, strokeWidth = 9, label, sub
       <div className="absolute flex flex-col items-center justify-center text-center">
         <span className="stat-number text-lg text-foreground">{label ?? `${Math.round(pct)}%`}</span>
         {sublabel && <span className="text-[10px] text-muted-foreground">{sublabel}</span>}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Segmented arc gauge: a dotted track over ~250° with a solid accent arc for
+ * the value and a big number centered in the gap. Same idea as ProgressRing
+ * but reads as a "dial" — use it where the ref apps used a gauge (today's
+ * calories, a weight-style goal) instead of a full ring.
+ */
+export function ArcGauge({ value = 0, max = 100, size = 160, strokeWidth = 14, label, sublabel, className }) {
+  const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = (size - strokeWidth) / 2 - 2;
+  const startDeg = -125;
+  const endDeg = 125;
+  const valueDeg = startDeg + (pct / 100) * (endDeg - startDeg);
+  const pt = (deg) => {
+    const rad = (deg * Math.PI) / 180;
+    return { x: cx + r * Math.sin(rad), y: cy - r * Math.cos(rad) };
+  };
+  const arc = (a, b) => {
+    const s = pt(a);
+    const e = pt(b);
+    const large = b - a > 180 ? 1 : 0;
+    return `M ${s.x} ${s.y} A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y}`;
+  };
+  return (
+    <div className={cn('relative inline-flex items-center justify-center', className)} style={{ width: size, height: size }}>
+      <svg width={size} height={size}>
+        <path d={arc(startDeg, endDeg)} fill="none" stroke="hsl(var(--secondary))" strokeWidth={strokeWidth} strokeLinecap="round" strokeDasharray={`1 ${Math.max(6, strokeWidth * 0.7)}`} />
+        {pct > 0 && (
+          <path d={arc(startDeg, valueDeg)} fill="none" stroke="hsl(var(--primary))" strokeWidth={strokeWidth} strokeLinecap="round" style={{ transition: 'all .5s ease' }} />
+        )}
+      </svg>
+      <div className="absolute flex flex-col items-center justify-center text-center px-2" style={{ top: '36%' }}>
+        <span className="stat-number text-2xl leading-none text-foreground">{label ?? `${Math.round(pct)}%`}</span>
+        {sublabel && <span className="mt-1 text-[11px] text-muted-foreground">{sublabel}</span>}
+      </div>
+    </div>
+  );
+}
+
+/** Small bar chart by category (day of week, etc). `data` = [{ label, value, highlight? }]. */
+export function MiniBars({ data = [], height = 64, className }) {
+  const max = Math.max(1, ...data.map((d) => Number(d.value) || 0));
+  return (
+    <div className={cn('flex items-end justify-between gap-1.5', className)} style={{ height }}>
+      {data.map((d, i) => {
+        const v = Math.max(0, Number(d.value) || 0);
+        const h = v > 0 ? Math.max(4, (v / max) * (height - 18)) : 2;
+        return (
+          <div key={`${d.label}-${i}`} className="flex h-full flex-1 flex-col items-center justify-end gap-1.5">
+            <div
+              className={cn('w-full rounded-t transition-all', d.highlight ? 'bg-primary' : v > 0 ? 'bg-foreground/25' : 'bg-secondary')}
+              style={{ height: h }}
+              aria-label={`${d.label}: ${d.value}`}
+            />
+            <span className={cn('text-[10px] font-medium leading-none', d.highlight ? 'text-foreground' : 'text-muted-foreground')}>{d.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Tiny trend line for "first result to latest" style visuals. Needs 2+ points. */
+export function Sparkline({ data = [], width = 120, height = 32, className, strokeWidth = 2 }) {
+  const vals = (data || []).filter((v) => v != null && !Number.isNaN(Number(v))).map(Number);
+  if (vals.length < 2) {
+    return <div className={cn('flex items-center text-[11px] text-muted-foreground', className)} style={{ width, height }}>{vals.length === 1 ? 'One result so far' : 'No results yet'}</div>;
+  }
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const range = max - min || 1;
+  const pad = strokeWidth + 1;
+  const step = vals.length > 1 ? (width - pad * 2) / (vals.length - 1) : 0;
+  const points = vals.map((v, i) => [pad + i * step, pad + (1 - (v - min) / range) * (height - pad * 2)]);
+  const last = points[points.length - 1];
+  return (
+    <svg width={width} height={height} className={className}>
+      <polyline points={points.map((p) => p.join(',')).join(' ')} fill="none" stroke="hsl(var(--primary))" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={last[0]} cy={last[1]} r={strokeWidth + 1.5} fill="hsl(var(--primary))" />
+    </svg>
+  );
+}
+
+/** Horizontal progress bar: an accent fill on a muted track, with an optional label row above it. */
+export function ProgressBar({ value = 0, max = 100, label, sublabel, height = 8, className, barClassName }) {
+  const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
+  return (
+    <div className={cn('w-full', className)}>
+      {(label || sublabel) && (
+        <div className="mb-1.5 flex items-baseline justify-between gap-2">
+          {label && <span className="text-sm font-semibold">{label}</span>}
+          {sublabel && <span className="text-xs text-muted-foreground">{sublabel}</span>}
+        </div>
+      )}
+      <div className="w-full overflow-hidden rounded-full bg-secondary" style={{ height }}>
+        <div className={cn('h-full rounded-full bg-primary transition-all duration-500', barClassName)} style={{ width: `${pct}%` }} />
       </div>
     </div>
   );

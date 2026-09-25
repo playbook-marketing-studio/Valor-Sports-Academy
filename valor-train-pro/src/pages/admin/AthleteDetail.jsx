@@ -28,6 +28,7 @@ import { latestMaxes } from '@/lib/maxes';
 import { cn } from '@/lib/utils';
 import { photoPosition } from '@/lib/photos';
 import { askSms, askText, fmtContacted, sourceLabel, STATUS_LABEL } from '@/lib/leads';
+import { AssessmentTrends, MaxLiftTrends } from '@/components/vtp/progressViz';
 
 const METHOD_LABEL = { card: 'Card', cash: 'Cash', venmo: 'Venmo', other: 'Other' };
 
@@ -569,6 +570,14 @@ function ProgressTab({ athlete, metrics }) {
   const shown = metrics.filter((m) => tests.some((t) => t.metrics?.[m.key]));
   return (
     <div className="space-y-6">
+    <div>
+      <h3 className="mb-2 text-lg font-semibold">Assessment results over time</h3>
+      <AssessmentTrends assessments={tests} metrics={metrics} />
+    </div>
+    <div>
+      <h3 className="mb-2 text-lg font-semibold">Max lifts</h3>
+      <MaxLiftTrends maxes={maxes} />
+    </div>
     <WeightsUsed athleteId={athlete.id} />
     <div className="grid gap-6 lg:grid-cols-2">
       <Card>
