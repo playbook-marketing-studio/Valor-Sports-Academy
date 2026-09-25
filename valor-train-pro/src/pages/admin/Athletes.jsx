@@ -42,7 +42,8 @@ export default function AdminAthletes() {
   const shown = rows
     .filter((a) => (stage === 'active' ? a.stage !== 'archived' : a.stage === stage))
     .filter((a) => !season || a.season === season)
-    .filter((a) => !term || [a.first_name, a.last_name, a.parent_name, a.parent_email, a.parent_login_email, a.sport, a.school].join(' ').toLowerCase().includes(term));
+    .filter((a) => !term || [a.first_name, a.last_name, a.parent_name, a.parent_email, a.parent_login_email, a.sport, a.school].join(' ').toLowerCase().includes(term))
+    .sort((x, y) => Number(!!y.is_example) - Number(!!x.is_example)); // the live example athlete always first
 
   return (
     <div className="space-y-6">
@@ -74,10 +75,12 @@ export default function AdminAthletes() {
             const ls = loginState(a);
             return (
               <Link key={a.id} to={`/admin/athletes/${a.id}`}>
-                <Card className="transition hover:border-primary/50">
+                <Card className={cn('transition hover:border-primary/50', a.is_example && 'border-primary/60 bg-primary/5')}>
                   <CardContent className="flex flex-col gap-1 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
+                      {a.is_example && <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-primary">Live example · everything filled in</p>}
                       <span className="font-semibold">{athleteName(a)}</span>
+                      {a.is_example && <p className="mt-0.5 text-xs text-muted-foreground">Quiz, two assessments, a paid pack, a program with logged weights, max lifts and meals. Open it, then tap View as athlete to see the parent side.</p>}
                       <span className="ml-2 text-xs text-muted-foreground">{[a.age && `age ${a.age}`, a.sport, a.season === 'in_season' ? 'in-season' : a.season === 'off_season' ? 'off-season' : '', a.frequency, a.class_days, a.nutrition_plan ? 'nutrition plan' : ''].filter(Boolean).join(' · ')}</span>
                     </div>
                     <div className="flex flex-wrap gap-2 text-xs">

@@ -25,12 +25,12 @@ function ViewAsPicker({ onPick }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.from('athletes_admin').select('id, first_name, last_name, parent_name, parent_email, stage')
+    supabase.from('athletes_admin').select('id, first_name, last_name, parent_name, parent_email, stage, is_example')
       .order('first_name').limit(2000)
       .then(({ data }) => { setRows(data || []); setLoading(false); });
   }, []);
 
-  const athletes = useMemo(() => rows.filter((a) => a.stage !== 'archived'), [rows]);
+  const athletes = useMemo(() => rows.filter((a) => a.stage !== 'archived').sort((x, y) => Number(!!y.is_example) - Number(!!x.is_example)), [rows]);
   const term = q.trim().toLowerCase();
   const shown = athletes.filter((a) => !term || [a.first_name, a.last_name, a.parent_name, a.parent_email].join(' ').toLowerCase().includes(term));
 
@@ -56,7 +56,7 @@ function ViewAsPicker({ onPick }) {
               <Card key={a.id} className="cursor-pointer transition hover:border-primary/60" onClick={() => onPick(a.id)}>
                 <CardContent className="flex min-h-[64px] items-center justify-between gap-3 p-4">
                   <div className="min-w-0">
-                    <p className="truncate font-semibold">{athleteName(a)}</p>
+                    <p className="truncate font-semibold">{athleteName(a)}{a.is_example && <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">Live example</span>}</p>
                     <p className="truncate text-xs text-muted-foreground">{a.parent_name || 'No parent on file'}</p>
                   </div>
                   <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
