@@ -112,12 +112,14 @@ export default function Onboarding({ role, onClose }) {
       role="dialog"
       aria-modal="true"
       aria-label="Quick tour of the app"
-      className="fixed inset-0 z-[100] flex touch-pan-y select-none flex-col bg-background"
+      className="fixed inset-0 z-[100] flex touch-pan-y select-none bg-background md:items-center md:justify-center md:bg-black/60 md:p-6 md:backdrop-blur-sm"
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
       onPointerCancel={() => { start.current = null; }}
     >
-      <div className="relative h-[48vh] min-h-[260px] w-full shrink-0 overflow-hidden bg-secondary">
+      {/* Phones: full screen. Desktop: a centered card so the photo isn't stretched and buttons stay normal size. */}
+      <div className="flex h-full w-full flex-col bg-background md:h-auto md:max-h-[90vh] md:max-w-md md:overflow-hidden md:rounded-3xl md:border md:border-border md:shadow-2xl">
+      <div className="relative h-[48vh] min-h-[260px] w-full shrink-0 overflow-hidden bg-secondary md:h-72 md:min-h-0">
         <img key={step.photo} src={step.photo} alt="" width={800} height={600} draggable={false} style={{ objectPosition: photoPosition(step.photo) }} className="h-full w-full animate-in fade-in object-cover duration-300" />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/10 to-black/40" />
         <div className="absolute inset-x-4 top-[calc(env(safe-area-inset-top,0px)+1rem)] flex items-center justify-between">
@@ -132,7 +134,7 @@ export default function Onboarding({ role, onClose }) {
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col justify-between px-6 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] pt-5">
+      <div className="flex flex-1 flex-col justify-between px-6 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] pt-5 md:flex-none md:pb-6">
         <div key={i} className="animate-in fade-in slide-in-from-right-4 duration-300">
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">
             {i === 0 ? `How the app works · ${steps.length} quick steps` : `Step ${i + 1} of ${steps.length}`}
@@ -165,6 +167,7 @@ export default function Onboarding({ role, onClose }) {
             </Button>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
