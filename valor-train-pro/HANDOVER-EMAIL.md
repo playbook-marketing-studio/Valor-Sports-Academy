@@ -1,25 +1,58 @@
-Subject: Valor Train Pro is live
+# Valor Train Pro: logins + feedback email (draft, Omar sends)
+
+To: coreybibe30@gmail.com, mbibe@eou.edu
+Subject: Valor Train Pro is ready for you to try
 
 Hey Corey and Michael,
 
-The app is up at app.valorsportsacademywa.com. Here's how to use it, plus what's left to set up: [guide link]
+The app is live and ready for you to log in and poke around. I'd love your feedback before we start using it with families.
 
-Quick version:
+**Getting in (2 minutes)**
 
-1. Sign up at app.valorsportsacademywa.com/register with your usual email. You'll land on the staff view.
-2. Website bookings show up in the app on their own. On Saturday you check kids in, enter results, show the parent a QR code to get their login, and take payment right there.
-3. Your in-season and off-season programs from the spreadsheet are already in. Put kids on a program and log weights in the class log instead of the spreadsheet.
+1. On your phone, go to app.valorsportsacademywa.com/register
+2. Sign up with the email I have for you (Corey: coreybibe30@gmail.com, Michael: mbibe@eou.edu) and pick a password. You'll land on the staff side automatically.
+3. On iPhone, tap Share, then Add to Home Screen, so it opens like an app.
 
-What I need from you to finish it:
+A quick tour pops up the first time you log in. You can reopen it anytime under More > How the app works.
 
-1. Set up the Stripe account and add me as a Developer (steps are in the guide, about 15 min)
-2. Michael, the Gmail app password (5 min, also in the guide). That turns on login emails and the website booking calendar
-3. Your real classes and prices. What's in there now is from the website
-4. Emails for any other coaches who need a login
-5. Corey, a quick look at weeks 1 and 2 of your program and the five assessment tests
+**What it does right now**
 
-The names in there right now (Marcus Hill, Dana Hill, etc.) are demo data. I'll clear them before you start using it for real.
+- **Assessments:** every booking from the website and the Meta ads lands here with the parent's quiz answers. Text them from the app, book a time, check them in on Saturday.
+- **Athletes:** every kid has their own page with their results, quiz answers, parent login QR code, payments, and a Next steps checklist from first text to enrolled.
+- **Your current athletes are already in.** The 12 kids from Corey's sheet are on the Fall In-Season or Off-Season program, on their days. They're on week 3 now and move to week 4 Monday. You can change anyone's days or week from their Training tab.
+- **Programs and class log:** your workouts are loaded from the workbook. Log the weight each kid used in class and it replaces the Log tabs.
+- **Payments:** record cash or Venmo in one tap, and class packs count down as kids come in.
+- **Parents:** once they have a login they see their kid's results, workouts with the right weights, and progress.
+- **Leads:** the 14 families who filled out the website form over the last couple of months are in there under Waiting on a text.
 
-Let's walk through it at 3 tomorrow.
+**Still in progress**
+
+- **Waivers:** digital waivers are next. Send me your current waiver (a photo of the paper one works).
+- **Prices:** the classes and packs in the app are placeholders from the website. Check them under More > Enrollment and tell me what they should be.
+- **Maxes:** workouts show percentages until a kid has a max entered. If you have current maxes or past assessment numbers written down anywhere, send them over and I'll load them.
+
+**Moving off UpperHand**
+
+If you want to move payments off UpperHand, we can connect Stripe so parents pay by card right in the app, either by scanning a QR code at the front desk or from their phone. It's your own Stripe account and payouts go straight to your bank. Stripe charges 2.9% + 30¢ per card payment, no monthly fee. Just say the word and I'll send you the steps.
+
+**What could come next**
+
+These are the UpperHand things we could add. Tell me what matters most to you:
+
+- Class schedule with time slots and attendance
+- Camps and clinics: sign up and pay online
+- Group emails and texts to parents
+- Monthly autopay, if you'd rather do monthly than class packs
+- Facility rentals
+- Private lessons booking
+- Simple reports: revenue, new athletes, where they came from
+
+A few quick questions so I know what to build first:
+
+1. Do you want to charge monthly or by class pack?
+2. Do you sell private lessons?
+3. How much do rentals bring in?
+
+Play with it this week and send me anything that's confusing or missing, even small stuff. Screenshots are perfect.
 
 Omar
