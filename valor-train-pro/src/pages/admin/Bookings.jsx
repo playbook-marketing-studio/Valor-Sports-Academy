@@ -11,19 +11,12 @@ import { toast } from '@/components/ui/use-toast';
 import { fmtTime } from '@/lib/slots';
 import { smsHref, telHref } from '@/lib/valor';
 import { cn } from '@/lib/utils';
+import { askSms, askText, reqDay, sourceLabel, STATUS_LABEL } from '@/lib/leads';
 
 const TZ = 'America/Los_Angeles';
 const dayKey = (iso) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
 const dayLabel = (iso) => new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'long', month: 'short', day: 'numeric' }).format(new Date(iso));
-const reqDay = (ymd) => (ymd ? new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(ymd + 'T12:00:00Z')) : 'a day');
-// Leads from the old website form (before online booking) have no day or window.
-const askText = (b) => (b.requested_day || b.requested_window ? `Asked for ${reqDay(b.requested_day)}${b.requested_window ? `, ${b.requested_window}` : ''}${b.requested_note ? `: "${b.requested_note}"` : ''}` : (b.requested_note || 'Wants a free assessment'));
-const askSms = (b) => (b.requested_day || b.requested_window
-  ? `Hi ${(b.parent_name || '').split(' ')[0]}, this is Valor Sports Academy. We can fit ${b.athlete_first_name}'s free assessment in. Does ${b.requested_window || 'that time'} on ${reqDay(b.requested_day)} work?`
-  : `Hi ${(b.parent_name || '').split(' ')[0]}, this is Valor Sports Academy. Thanks for filling out our form for ${b.athlete_first_name}. Want to come in for a free assessment? We do them Saturday mornings.`);
 const STATUS_STYLE = { booked: 'bg-muted', requested: 'bg-amber-100 text-amber-900', attended: 'bg-green-100 text-green-800', no_show: 'bg-rose-100 text-rose-800', canceled: 'bg-muted text-muted-foreground line-through' };
-const STATUS_LABEL = { booked: 'Booked', requested: 'Wants a time', attended: 'Checked in', no_show: 'No-show', canceled: 'Canceled' };
-const SOURCE_LABEL = { meta: 'Meta ad', facebook: 'Meta ad', instagram: 'Instagram', google: 'Google' };
 
 export default function AdminBookings() {
   const navigate = useNavigate();
@@ -99,7 +92,7 @@ export default function AdminBookings() {
             {r.athlete_age && <span className="text-xs text-muted-foreground">age {r.athlete_age}</span>}
             {r.sport && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{r.sport}</span>}
             <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', STATUS_STYLE[r.status])}>{STATUS_LABEL[r.status] || r.status}</span>
-            {r.source && r.source !== 'app' && <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">{SOURCE_LABEL[r.source.toLowerCase()] || r.source}</span>}
+            {r.source && r.source !== 'app' && <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">{sourceLabel(r.source)}</span>}
           </div>
           {r.quiz_result && <p className="text-xs text-muted-foreground">Quiz: {r.quiz_result}</p>}
           {r.status === 'requested' && <p className="text-sm">{askText(r)}</p>}

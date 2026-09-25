@@ -160,14 +160,9 @@
   .vtp-tabbar-spacer { height: calc(5.5rem + env(safe-area-inset-bottom, 0px)); }
   @media (min-width: 1024px) { .vtp-tabbar-spacer { height: 0; } }
   /* Subtle diagonal stripe texture for headers/hero surfaces — tactile, not busy. */
+  /* Light mode: no stripe texture (Omar 9/25 didn't like the red lines on white). */
   .vtp-stripes {
-    background-image: repeating-linear-gradient(
-      -45deg,
-      rgba(200, 16, 46, .07) 0px,
-      rgba(200, 16, 46, .07) 2px,
-      transparent 2px,
-      transparent 16px
-    );
+    background-image: none;
   }
   .dark .vtp-stripes {
     background-image: repeating-linear-gradient(
@@ -179,3 +174,6 @@
     );
   }
 }
+
+/* Light mode: no red bar under page titles either; dark mode keeps it. */
+html:not(.dark) h1.font-display::after { content: none; }

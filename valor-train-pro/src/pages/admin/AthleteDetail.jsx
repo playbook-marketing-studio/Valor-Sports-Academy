@@ -27,6 +27,7 @@ import CoachLogDialog from '@/components/CoachLogDialog';
 import { latestMaxes } from '@/lib/maxes';
 import { cn } from '@/lib/utils';
 import { photoPosition } from '@/lib/photos';
+import { askSms, askText, sourceLabel, STATUS_LABEL } from '@/lib/leads';
 
 const METHOD_LABEL = { card: 'Card', cash: 'Cash', venmo: 'Venmo', other: 'Other' };
 
@@ -674,8 +675,19 @@ export default function AthleteDetail() {
         <p className="mt-1 text-xs text-muted-foreground">Results, plan, parent login and payment — all in one place.</p>
         <p className="mt-2 text-sm text-muted-foreground">
           {athlete.parent_name || 'Parent'}{athlete.parent_email ? ` · ${athlete.parent_email}` : ''}{phone ? ` · ${phone}` : ''}
-          {booking?.slot_start ? ` · assessment ${fmtSlot(booking.slot_start)}` : ''}{(athlete.quiz_result || booking?.quiz_result) ? ` · quiz ${athlete.quiz_result || booking.quiz_result}` : ''}
+          {booking?.slot_start ? ` · assessment ${fmtSlot(booking.slot_start)}` : ''}
         </p>
+        {booking && (booking.status === 'requested' || booking.requested_note || sourceLabel(booking.source) || athlete.quiz_result || booking.quiz_result) && (
+          <div className="mt-3 space-y-2 rounded-2xl border border-border bg-background/60 p-3">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {booking.status && <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-semibold', booking.status === 'requested' ? 'bg-amber-100 text-amber-900' : 'bg-muted text-foreground')}>{STATUS_LABEL[booking.status] || booking.status}</span>}
+              {sourceLabel(booking.source) && <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground">{sourceLabel(booking.source)}</span>}
+              {(athlete.quiz_result || booking.quiz_result) && <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground">Quiz: {athlete.quiz_result || booking.quiz_result}</span>}
+            </div>
+            {(booking.status === 'requested' || booking.requested_note) && <p className="text-sm">{booking.status === 'requested' ? askText(booking) : booking.requested_note}</p>}
+            {booking.status === 'requested' && phone && <Button asChild size="sm" className="h-10 gap-1"><a href={smsHref(phone, askSms(booking))}><MessageSquare className="h-4 w-4" /> Text to set a time</a></Button>}
+          </div>
+        )}
         <div className="mt-4 flex items-center gap-2">
           {phone && <Button asChild size="icon" variant="secondary" className="h-11 w-11"><a href={telHref(phone)} aria-label={`Call ${athlete.parent_name || 'parent'}`}><Phone className="h-4 w-4" /></a></Button>}
           {phone && <Button asChild size="icon" variant="secondary" className="h-11 w-11"><a href={smsHref(phone, '')} aria-label={`Text ${athlete.parent_name || 'parent'}`}><MessageSquare className="h-4 w-4" /></a></Button>}

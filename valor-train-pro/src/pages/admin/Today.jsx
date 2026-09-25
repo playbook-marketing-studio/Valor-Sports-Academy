@@ -7,16 +7,11 @@ import { Button } from '@/components/ui/button';
 import { fmtTime } from '@/lib/slots';
 import { athleteName, displayFirstName, smsHref } from '@/lib/valor';
 import { photoPosition } from '@/lib/photos';
+import { askSms, askText, reqDay } from '@/lib/leads';
 
 const TZ = 'America/Los_Angeles';
 const ymd = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
 const longDay = (d) => new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'long', month: 'long', day: 'numeric' }).format(d);
-const reqDay = (d) => (d ? new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(d + 'T12:00:00Z')) : 'a day');
-// Leads from the old website form (before online booking) have no day or window.
-const askText = (b) => (b.requested_day || b.requested_window ? `Asked for ${reqDay(b.requested_day)}${b.requested_window ? `, ${b.requested_window}` : ''}${b.requested_note ? `: "${b.requested_note}"` : ''}` : (b.requested_note || 'Wants a free assessment'));
-const askSms = (b) => (b.requested_day || b.requested_window
-  ? `Hi ${(b.parent_name || '').split(' ')[0]}, this is Valor Sports Academy. We can fit ${b.athlete_first_name}'s free assessment in. Does ${b.requested_window || 'that time'} on ${reqDay(b.requested_day)} work?`
-  : `Hi ${(b.parent_name || '').split(' ')[0]}, this is Valor Sports Academy. Thanks for filling out our form for ${b.athlete_first_name}. Want to come in for a free assessment? We do them Saturday mornings.`);
 const shortDay = (iso) => new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(iso));
 
 function Section({ title, count, action, children }) {
