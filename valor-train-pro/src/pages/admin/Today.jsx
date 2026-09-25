@@ -5,17 +5,13 @@ import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { fmtTime } from '@/lib/slots';
-import { athleteName, smsHref } from '@/lib/valor';
+import { athleteName, displayFirstName, smsHref } from '@/lib/valor';
+import { photoPosition } from '@/lib/photos';
+import { askSms, askText, reqDay } from '@/lib/leads';
 
 const TZ = 'America/Los_Angeles';
 const ymd = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
 const longDay = (d) => new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'long', month: 'long', day: 'numeric' }).format(d);
-const reqDay = (d) => (d ? new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(d + 'T12:00:00Z')) : 'a day');
-// Leads from the old website form (before online booking) have no day or window.
-const askText = (b) => (b.requested_day || b.requested_window ? `Asked for ${reqDay(b.requested_day)}${b.requested_window ? `, ${b.requested_window}` : ''}${b.requested_note ? `: "${b.requested_note}"` : ''}` : (b.requested_note || 'Wants a free assessment'));
-const askSms = (b) => (b.requested_day || b.requested_window
-  ? `Hi ${(b.parent_name || '').split(' ')[0]}, this is Valor Sports Academy. We can fit ${b.athlete_first_name}'s free assessment in. Does ${b.requested_window || 'that time'} on ${reqDay(b.requested_day)} work?`
-  : `Hi ${(b.parent_name || '').split(' ')[0]}, this is Valor Sports Academy. Thanks for filling out our form for ${b.athlete_first_name}. Want to come in for a free assessment? We do them Saturday mornings.`);
 const shortDay = (iso) => new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(iso));
 
 function Section({ title, count, action, children }) {
@@ -65,25 +61,30 @@ export default function Today() {
       setD({
         today, label: longDay(now), classes: Object.values(classes), nextClass: nextWs?.[0]?.date || null,
         assessDay: firstDay, assessments: (books || []).filter((b) => ymd(new Date(b.slot_start)) === firstDay),
-        requests: reqs || [], followUps: roster || [],
+        requests: (reqs || []).filter((b) => !b.contacted_at), textedCount: (reqs || []).filter((b) => b.contacted_at).length, followUps: roster || [],
       });
     })();
   }, []);
 
   if (!d) return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
-  const first = (user?.full_name || '').split(' ')[0];
+  const first = displayFirstName((user?.full_name || '').split(' ')[0]);
   const assessIsToday = d.assessDay === d.today;
 
   return (
     <div className="max-w-3xl space-y-8">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-sm text-muted-foreground">{d.label}{first ? ` · ${first}` : ''}</p>
-          <h1 className="font-display text-4xl">Today</h1>
-        </div>
-        <div className="flex gap-2">
-          <Button asChild variant="outline" size="sm" className="gap-2"><Link to="/admin/log"><NotebookPen className="h-4 w-4" /> Class log</Link></Button>
-          <Button asChild size="sm" className="gap-2"><Link to="/admin/bookings?walkin=1"><Plus className="h-4 w-4" /> Walk-in</Link></Button>
+      <div className="relative overflow-hidden rounded-xl border border-border">
+        <img src="/images/photos/staff-hero-coaches.webp" alt="" width={1200} height={500} style={{ objectPosition: photoPosition('/images/photos/staff-hero-coaches.webp') }} className="h-40 w-full object-cover sm:h-48" />
+        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/70 to-black/10" />
+        <div className="relative -mt-10 flex flex-wrap items-end justify-between gap-3 bg-card px-5 pb-5 pt-2">
+          <div>
+            <p className="text-sm text-muted-foreground">{d.label}{first ? ` · Hey ${first}` : ''}</p>
+            <h1 className="font-display text-4xl">Today</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Everything that needs your attention today, in the order it happens at the gym.</p>
+          </div>
+          <div className="flex gap-2">
+            <Button asChild variant="outline" size="sm" className="gap-2"><Link to="/admin/log"><NotebookPen className="h-4 w-4" /> Class log</Link></Button>
+            <Button asChild size="sm" className="gap-2"><Link to="/admin/bookings?walkin=1"><Plus className="h-4 w-4" /> Walk-in</Link></Button>
+          </div>
         </div>
       </div>
 
@@ -109,11 +110,15 @@ export default function Today() {
       {d.requests.length > 0 && (
         <Section title="Waiting on a text" count={d.requests.length}>
           {d.requests.map((b) => (
-            <Row key={b.id} right={b.parent_phone && <Button asChild size="sm" variant="outline" className="gap-1"><a href={smsHref(b.parent_phone, askSms(b))}><MessageSquare className="h-4 w-4" /> Text</a></Button>}>
+            <Row key={b.id} right={b.parent_phone && <Button asChild size="sm" variant="outline" className="gap-1"><a href={smsHref(b.parent_phone, askSms(b))} onClick={() => supabase.from('bookings').update({ contacted_at: new Date().toISOString() }).eq('id', b.id).then(() => setD((x) => ({ ...x, requests: x.requests.filter((y) => y.id !== b.id), textedCount: (x.textedCount || 0) + 1 })))}><MessageSquare className="h-4 w-4" /> Text</a></Button>}>
               <div className="min-w-0"><p className="truncate font-medium">{b.athlete_first_name} {b.athlete_last_name || ''} <span className="font-normal text-muted-foreground">· {b.parent_name}</span></p><p className="truncate text-xs text-muted-foreground">{askText(b)}</p></div>
             </Row>
           ))}
         </Section>
+      )}
+
+      {d.textedCount > 0 && (
+        <p className="text-sm text-muted-foreground">{d.textedCount} reached out, waiting to hear back. <Link to="/admin/bookings" className="font-medium text-primary hover:underline">See them in Assessments</Link></p>
       )}
 
       {d.followUps.length > 0 && (

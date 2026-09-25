@@ -46,5 +46,10 @@ export async function enrolledIds(athleteIds) {
 }
 
 export const athleteName = (a) => [a?.first_name, a?.last_name].filter(Boolean).join(' ');
+/** "OMAR" -> "Omar" for greetings. Leaves already mixed-case names (e.g. "McKenzie") alone. */
+export const displayFirstName = (name) => {
+  const n = (name || '').trim();
+  return n && n === n.toUpperCase() && n !== n.toLowerCase() ? n[0].toUpperCase() + n.slice(1).toLowerCase() : n;
+};
 export const telHref = (phone) => `tel:${String(phone || '').replace(/[^\d+]/g, '')}`;
 export const smsHref = (phone, body) => `sms:${String(phone || '').replace(/[^\d+]/g, '')}?&body=${encodeURIComponent(body)}`;

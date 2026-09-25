@@ -11,19 +11,13 @@ import { toast } from '@/components/ui/use-toast';
 import { fmtTime } from '@/lib/slots';
 import { smsHref, telHref } from '@/lib/valor';
 import { cn } from '@/lib/utils';
+import { askSms, askText, fmtContacted, reqDay, sourceLabel, STATUS_LABEL } from '@/lib/leads';
+import { ToastAction } from '@/components/ui/toast';
 
 const TZ = 'America/Los_Angeles';
 const dayKey = (iso) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
 const dayLabel = (iso) => new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'long', month: 'short', day: 'numeric' }).format(new Date(iso));
-const reqDay = (ymd) => (ymd ? new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(ymd + 'T12:00:00Z')) : 'a day');
-// Leads from the old website form (before online booking) have no day or window.
-const askText = (b) => (b.requested_day || b.requested_window ? `Asked for ${reqDay(b.requested_day)}${b.requested_window ? `, ${b.requested_window}` : ''}${b.requested_note ? `: "${b.requested_note}"` : ''}` : (b.requested_note || 'Wants a free assessment'));
-const askSms = (b) => (b.requested_day || b.requested_window
-  ? `Hi ${(b.parent_name || '').split(' ')[0]}, this is Valor Sports Academy. We can fit ${b.athlete_first_name}'s free assessment in. Does ${b.requested_window || 'that time'} on ${reqDay(b.requested_day)} work?`
-  : `Hi ${(b.parent_name || '').split(' ')[0]}, this is Valor Sports Academy. Thanks for filling out our form for ${b.athlete_first_name}. Want to come in for a free assessment? We do them Saturday mornings.`);
 const STATUS_STYLE = { booked: 'bg-muted', requested: 'bg-amber-100 text-amber-900', attended: 'bg-green-100 text-green-800', no_show: 'bg-rose-100 text-rose-800', canceled: 'bg-muted text-muted-foreground line-through' };
-const STATUS_LABEL = { booked: 'Booked', requested: 'Wants a time', attended: 'Checked in', no_show: 'No-show', canceled: 'Canceled' };
-const SOURCE_LABEL = { meta: 'Meta ad', facebook: 'Meta ad', instagram: 'Instagram', google: 'Google' };
 
 export default function AdminBookings() {
   const navigate = useNavigate();
@@ -50,7 +44,8 @@ export default function AdminBookings() {
   const term = q.trim().toLowerCase();
   const match = (r) => !term || [r.athlete_first_name, r.athlete_last_name, r.parent_name, r.parent_email, r.parent_phone, r.sport].join(' ').toLowerCase().includes(term);
 
-  const requests = rows.filter((r) => r.status === 'requested' && match(r));
+  const requests = rows.filter((r) => r.status === 'requested' && !r.contacted_at && match(r));
+  const texted = rows.filter((r) => r.status === 'requested' && r.contacted_at && match(r));
   const days = useMemo(() => {
     const groups = {};
     rows.filter((r) => r.slot_start && r.status !== 'requested' && match(r)).forEach((r) => {
@@ -89,6 +84,18 @@ export default function AdminBookings() {
     if (status === 'attended') openAthlete(r);
   };
 
+  // Texting a lead moves them to "Reached out" (Undo if it didn't go out).
+  const markContacted = async (r, when) => {
+    const { error } = await supabase.from('bookings').update({ contacted_at: when }).eq('id', r.id);
+    if (error) return toast({ title: 'Could not update', description: error.message });
+    setRows((xs) => xs.map((x) => (x.id === r.id ? { ...x, contacted_at: when } : x)));
+    if (when) toast({ title: `${r.athlete_first_name} moved to Reached out`, description: 'Moved to Reached out.', action: <ToastAction altText="Undo" onClick={() => markContacted(r, null)}>Undo</ToastAction> });
+  };
+  const notInterested = async (r) => {
+    if (!window.confirm(`Mark ${r.athlete_first_name} as not interested? They come off this list.`)) return;
+    setStatus(r, 'canceled');
+  };
+
   const Row = ({ r }) => (
     <Card>
       <CardContent className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
@@ -99,18 +106,21 @@ export default function AdminBookings() {
             {r.athlete_age && <span className="text-xs text-muted-foreground">age {r.athlete_age}</span>}
             {r.sport && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{r.sport}</span>}
             <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', STATUS_STYLE[r.status])}>{STATUS_LABEL[r.status] || r.status}</span>
-            {r.source && r.source !== 'app' && <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">{SOURCE_LABEL[r.source.toLowerCase()] || r.source}</span>}
+            {r.source && r.source !== 'app' && <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">{sourceLabel(r.source)}</span>}
           </div>
           {r.quiz_result && <p className="text-xs text-muted-foreground">Quiz: {r.quiz_result}</p>}
           {r.status === 'requested' && <p className="text-sm">{askText(r)}</p>}
+          {r.status === 'requested' && r.contacted_at && <p className="text-xs font-medium text-amber-700 dark:text-amber-300">Reached out {fmtContacted(r.contacted_at)}, waiting to hear back</p>}
           <p className="text-xs text-muted-foreground">{r.parent_name} · {r.parent_email}{r.parent_phone ? ` · ${r.parent_phone}` : ''}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {r.parent_phone && <Button asChild size="icon" variant="outline" className="h-10 w-10"><a href={telHref(r.parent_phone)} aria-label={`Call ${r.parent_name}`}><Phone className="h-4 w-4" /></a></Button>}
           {r.status === 'requested' ? (
             <>
-              {r.parent_phone && <Button asChild size="sm" className="h-10 gap-1"><a href={smsHref(r.parent_phone, askSms(r))}><MessageSquare className="h-4 w-4" /> Text to set a time</a></Button>}
-              <Button size="sm" variant="outline" className="h-10" onClick={() => { setBooking(r); setSlot(r.requested_day ? `${r.requested_day}T18:00` : ''); }}>Book a time</Button>
+              {r.parent_phone && <Button asChild size="sm" variant={r.contacted_at ? 'outline' : 'default'} className="h-10 gap-1"><a href={smsHref(r.parent_phone, askSms(r))} onClick={() => { if (!r.contacted_at) markContacted(r, new Date().toISOString()); }}><MessageSquare className="h-4 w-4" /> {r.contacted_at ? 'Text again' : 'Text to set a time'}</a></Button>}
+              {!r.contacted_at && <Button size="sm" variant="outline" className="h-10" onClick={() => markContacted(r, new Date().toISOString())}>Mark as reached out</Button>}
+              <Button size="sm" variant={r.contacted_at ? 'default' : 'outline'} className="h-10" onClick={() => { setBooking(r); setSlot(r.requested_day ? `${r.requested_day}T18:00` : ''); }}>Book a time</Button>
+              <Button size="sm" variant="ghost" className="h-10 text-muted-foreground" onClick={() => notInterested(r)}>Not interested</Button>
             </>
           ) : (
             <>
@@ -131,7 +141,7 @@ export default function AdminBookings() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display text-3xl lg:text-4xl">Assessments</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Website bookings land here on their own.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Everyone who booked a free assessment. Check them in when they arrive, then enter their results.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={load} className="gap-2"><RefreshCw className="h-4 w-4" /> Refresh</Button>
@@ -155,9 +165,16 @@ export default function AdminBookings() {
         <div className="space-y-8">
           {!past && requests.length > 0 && (
             <section className="space-y-3">
-              <h2 className="font-display text-xl">Asked for a different time</h2>
-              <p className="-mt-1 text-sm text-muted-foreground">Text them to agree on a time, then book it.</p>
+              <h2 className="font-display text-xl">Waiting on a text <span className="ml-1 font-body text-sm normal-case text-muted-foreground">{requests.length}</span></h2>
+              <p className="-mt-1 text-sm text-muted-foreground">They want a free assessment but have no time yet. Tap Text to set a time; they move to Reached out.</p>
               {requests.map((r) => <Row key={r.id} r={r} />)}
+            </section>
+          )}
+          {!past && texted.length > 0 && (
+            <section className="space-y-3">
+              <h2 className="font-display text-xl">Reached out <span className="ml-1 font-body text-sm normal-case text-muted-foreground">{texted.length}</span></h2>
+              <p className="-mt-1 text-sm text-muted-foreground">When they reply with a time, tap Book a time. If they pass, tap Not interested.</p>
+              {texted.map((r) => <Row key={r.id} r={r} />)}
             </section>
           )}
           {days.map((d) => (
@@ -169,7 +186,7 @@ export default function AdminBookings() {
           {past && walkIns.length > 0 && (
             <section className="space-y-3"><h2 className="font-display text-xl">Walk-ins</h2>{walkIns.map((r) => <Row key={r.id} r={r} />)}</section>
           )}
-          {days.length === 0 && (past || requests.length === 0) && <p className="py-16 text-center text-sm text-muted-foreground">{past ? 'No past assessments yet.' : 'No upcoming assessments. New website bookings show up here on their own.'}</p>}
+          {days.length === 0 && (past || (requests.length === 0 && texted.length === 0)) && <p className="py-16 text-center text-sm text-muted-foreground">{past ? 'No past assessments yet.' : 'No upcoming assessments. New website bookings show up here on their own.'}</p>}
         </div>
       )}
       <AthleteForm open={walkIn} onOpenChange={setWalkIn} mode="walk_in" onSaved={(id) => id && navigate(`/admin/athletes/${id}`)} />

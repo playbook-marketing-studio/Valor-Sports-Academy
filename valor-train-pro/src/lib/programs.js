@@ -21,6 +21,34 @@ export async function assignProgram(template, athleteIds, startMonday, weekdayOv
   return { assigned, skipped: already.size };
 }
 
+/**
+ * Change one athlete's start week and/or which weekday each program day falls on
+ * (0 = skip that day). Rebuilds every workout from that assignment that nobody has
+ * logged; logged workouts stay exactly as they are.
+ */
+export async function rescheduleAssignment(assignment, template, startMonday, weekdayOverrides = {}) {
+  const { error } = await supabase.from('program_assignments')
+    .update({ start_date: startMonday, day_weekdays: weekdayOverrides }).eq('id', assignment.id);
+  if (error) throw error;
+  const { data: ws } = await supabase.from('workouts').select('id, week, day_key').eq('assignment_id', assignment.id);
+  const ids = (ws || []).map((w) => w.id);
+  const { data: logs } = ids.length ? await supabase.from('workout_logs').select('workout_id').in('workout_id', ids) : { data: [] };
+  const logged = new Set((logs || []).map((l) => l.workout_id));
+  const drop = (ws || []).filter((w) => !logged.has(w.id));
+  if (drop.length) {
+    const { error: e1 } = await supabase.from('workouts').delete().in('id', drop.map((w) => w.id));
+    if (e1) throw e1;
+  }
+  const keep = new Set((ws || []).filter((w) => logged.has(w.id)).map((w) => `${w.week}|${w.day_key}`));
+  const fresh = buildWorkouts(template, assignment.athlete_id, assignment.id, startMonday, weekdayOverrides)
+    .filter((w) => !keep.has(`${w.week}|${w.day_key}`));
+  if (fresh.length) {
+    const { error: e2 } = await supabase.from('workouts').insert(fresh);
+    if (e2) throw e2;
+  }
+  return { rebuilt: fresh.length, kept: keep.size };
+}
+
 /** The coach's own log for a workout (one per workout per coach), or null. */
 export async function coachLogFor(workoutId, userId) {
   const { data } = await supabase.from('workout_logs').select('*').eq('workout_id', workoutId).eq('owner_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle();

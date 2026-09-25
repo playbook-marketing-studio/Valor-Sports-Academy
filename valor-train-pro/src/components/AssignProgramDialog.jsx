@@ -9,8 +9,8 @@ import { toast } from '@/components/ui/use-toast';
 import { assignProgram, mondayOf, nextMonday, weekdayName } from '@/lib/programs';
 import { athleteName } from '@/lib/valor';
 
-/** Put one or more athletes on a program from a start Monday. Pass `template` or let staff pick one; pass `athleteIds` to preselect. */
-export default function AssignProgramDialog({ open, onOpenChange, template: fixedTemplate = null, athleteIds = [], onDone }) {
+/** Put one or more athletes on a program from a start Monday. Pass `template` to lock the program, or `initialTemplateId` to preselect it while still letting staff change it; pass `athleteIds` to preselect athletes. */
+export default function AssignProgramDialog({ open, onOpenChange, template: fixedTemplate = null, athleteIds = [], initialTemplateId = '', onDone }) {
   const [templates, setTemplates] = useState([]);
   const [templateId, setTemplateId] = useState('');
   const [athletes, setAthletes] = useState([]);
@@ -22,7 +22,7 @@ export default function AssignProgramDialog({ open, onOpenChange, template: fixe
   useEffect(() => {
     if (!open) return;
     setPicked(new Set(athleteIds)); setStart(nextMonday()); setOverrides({});
-    setTemplateId(fixedTemplate?.id || '');
+    setTemplateId(fixedTemplate?.id || initialTemplateId || '');
     supabase.from('program_templates').select('*').order('created_at').then(({ data }) => setTemplates(data || []));
     supabase.from('athletes').select('id, first_name, last_name, season, sport, archived_at').is('archived_at', null).order('first_name').then(({ data }) => setAthletes(data || []));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -63,8 +63,9 @@ export default function AssignProgramDialog({ open, onOpenChange, template: fixe
             {template && template.days.map((d) => (
               <div key={d.key} className="space-y-1">
                 <Label htmlFor={`ap-${d.key}`}>{d.label} on</Label>
-                <select id={`ap-${d.key}`} value={overrides[d.key] || d.weekday} onChange={(e) => setOverrides({ ...overrides, [d.key]: Number(e.target.value) })} className="h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm">
+                <select id={`ap-${d.key}`} value={overrides[d.key] ?? d.weekday} onChange={(e) => setOverrides({ ...overrides, [d.key]: Number(e.target.value) })} className="h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm">
                   {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{weekdayName(n)}</option>)}
+                  <option value={0}>Skip (not this day)</option>
                 </select>
               </div>
             ))}

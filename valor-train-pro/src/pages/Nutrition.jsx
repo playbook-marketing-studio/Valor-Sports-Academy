@@ -112,7 +112,7 @@ export default function Nutrition() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-2xl tracking-tight lg:text-3xl">Nutrition</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Track your macros and meals</p>
+          <p className="mt-1 text-sm text-muted-foreground">Log what you eat and watch your macros add up for the day.</p>
         </div>
         {!viewAs.isActive && (
         <div className="flex gap-2">
