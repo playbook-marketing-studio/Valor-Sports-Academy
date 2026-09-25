@@ -188,7 +188,7 @@ export function ProgramDetail() {
     navigate(`/admin/programs/${data.id}?edit=1`);
   };
   const remove = async () => {
-    if (assigned.length) return toast({ title: 'Take athletes off this program first' });
+    if (assigned.length) return toast({ title: `${assigned.length} athlete${assigned.length === 1 ? ' is' : 's are'} on this program`, description: 'Take them off it first (Remove on their Training tab), then delete.' });
     if (!window.confirm(`Delete ${t.name}?`)) return;
     const { error } = await supabase.from('program_templates').delete().eq('id', t.id);
     if (error) return toast({ title: 'Could not delete', description: error.message });
@@ -219,6 +219,7 @@ export function ProgramDetail() {
         <div className="flex flex-wrap gap-2">
           {editing ? (
             <>
+              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground hover:text-destructive" onClick={remove}><Trash2 className="h-3 w-3" /> Delete program</Button>
               <Button variant="ghost" size="sm" onClick={() => { setDraft(null); setParams({}, { replace: true }); }}>Cancel</Button>
               <Button size="sm" onClick={save} disabled={!!busy}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save program'}</Button>
             </>
@@ -226,6 +227,7 @@ export function ProgramDetail() {
             <>
               <Button variant="outline" size="sm" className="gap-1" onClick={() => setDraft(structuredClone(t))}><Pencil className="h-3 w-3" /> Edit</Button>
               <Button variant="outline" size="sm" className="gap-1" onClick={duplicate}><Copy className="h-3 w-3" /> Duplicate</Button>
+              <Button variant="outline" size="sm" className="gap-1 hover:border-destructive hover:text-destructive" onClick={remove}><Trash2 className="h-3 w-3" /> Delete</Button>
               <Button asChild variant="outline" size="sm"><Link to={`/admin/log?program=${t.id}`}>Class log</Link></Button>
               <Button size="sm" className="gap-2" onClick={() => setAssignOpen(true)}><UserPlus className="h-4 w-4" /> Assign athletes</Button>
             </>
@@ -326,7 +328,6 @@ export function ProgramDetail() {
       {editing && <p className="text-xs text-muted-foreground">Targets are free text, the way the workbook writes them: "3 x 55%" (reps at % of max), "x10", "x5 ea", "Bodyweight", "x30 sec". Percent targets turn into each athlete's weight from their own max.</p>}
       {!editing && day && (day.cue || day.finish) && <div className="space-y-2 text-sm">{day.finish && <p>{day.finish}</p>}{day.cue && <p className="italic text-muted-foreground">Coach's cue: "{day.cue}"</p>}</div>}
       {!editing && day && <p className="text-xs text-muted-foreground">{day.label} defaults to {weekdayName(day.weekday)}; change it per athlete when you assign.{t.source ? " Imported from Corey's workbook, which says to spot-check weeks 1-2 against his original program." : ''}</p>}
-      {!editing && <button onClick={remove} className="text-xs text-muted-foreground hover:text-destructive">Delete program</button>}
       <AssignProgramDialog open={assignOpen} onOpenChange={setAssignOpen} template={t} onDone={load} />
     </div>
   );
