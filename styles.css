@@ -142,6 +142,9 @@ h1,h2,h3 { font-family: var(--display); font-weight: 400; line-height: .94; lett
 .header__cta { display:flex; align-items:center; gap:20px; }
 .header__phone { font-weight:800; font-size:.92rem; display:flex; align-items:center; gap:8px; color:#fff; }
 .header__phone:hover { color:#ff8d9b; }
+/* keep header items on one line; mid widths drop the phone so Facility Rental fits */
+.nav a, .header__cta a { white-space:nowrap; }
+@media (min-width: 821px) and (max-width: 1180px) { .nav { gap: 22px; } .header__phone { display:none; } }
 .burger { display:none; background:none; border:0; cursor:pointer; padding:10px; flex-direction:column; gap:6px; }
 .burger span { width:28px; height:2.5px; background:#fff; border-radius:2px; transition: .3s var(--e-out); }
 .header.open .burger span:nth-child(1){ transform: translateY(8.5px) rotate(45deg); }
