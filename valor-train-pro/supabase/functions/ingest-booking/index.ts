@@ -14,6 +14,15 @@ const STATUS: Record<string, string> = {
   booked: "booked", rescheduled: "booked", requested: "requested", canceled: "canceled",
   attended: "attended", "no-show": "no_show", no_show: "no_show",
 };
+// case-insensitive exact match: escape LIKE wildcards so "%" in a form field can't match every row
+const likeExact = (v: string) => v.replace(/[\\%_]/g, (c) => `\\${c}`);
+// constant-time compare for the shared ingest key
+function sameKey(a: string, b: string) {
+  const x = new TextEncoder().encode(a), y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  for (let i = 0; i < Math.max(x.length, y.length); i++) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0;
+}
 const str = (v: unknown, max = 200) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
 
 // The website quiz: score + the parent's answers (from the portal lead), kept on the athlete.
@@ -40,7 +49,8 @@ async function saveQuiz(athleteId: string | null, src: Record<string, unknown>) 
 async function ingestOne(src: Record<string, unknown>) {
   const sid = str(src.id, 60);
   if (!sid) return { error: "missing id" };
-  const email = (str(src.email) || "").toLowerCase();
+  const rawEmail = (str(src.email) || "").toLowerCase();
+  const email = /^[^\s@%]+@[^\s@%]+\.[^\s@%]+$/.test(rawEmail) ? rawEmail : "";
   const full = str(src.athlete_name, 120) || "";
   const [first, ...rest] = full.split(/\s+/);
   const age = parseInt(String(src.athlete_age ?? ""), 10);
@@ -86,19 +96,21 @@ async function ingestOne(src: Record<string, unknown>) {
     return { id: existing.id, updated: true };
   }
 
-  // first sighting: find or create the athlete under this parent email
-  const { data: parent } = email
-    ? await admin.from("profiles").select("id").ilike("email", email).eq("role", "parent").maybeSingle()
-    : { data: null };
+  // first sighting: find or create the athlete under this parent email. The email comes from the
+  // public booking form, so it never attaches the booking to an existing parent login (security
+  // audit 9/30); staff link the family with "Show login QR", which checks the account first.
+  // A returning athlete (same parent email + first name) keeps its row and its parent.
   let athleteId: string | null = null;
+  let parentId: string | null = null;
   if (email) {
-    const { data: a } = await admin.from("athletes").select("id").ilike("parent_email", email)
-      .ilike("first_name", String(row.athlete_first_name)).limit(1).maybeSingle();
+    const { data: a } = await admin.from("athletes").select("id, parent_id").ilike("parent_email", likeExact(email))
+      .ilike("first_name", likeExact(String(row.athlete_first_name))).limit(1).maybeSingle();
     athleteId = a?.id ?? null;
+    parentId = a?.parent_id ?? null;
   }
   if (!athleteId) {
     const { data: a, error } = await admin.from("athletes").insert({
-      parent_id: parent?.id ?? null,
+      parent_id: null,
       first_name: row.athlete_first_name, last_name: row.athlete_last_name, age: row.athlete_age, sport: row.sport,
       parent_name: row.parent_name, parent_email: email || null, parent_phone: row.parent_phone,
     }).select("id").single();
@@ -106,12 +118,12 @@ async function ingestOne(src: Record<string, unknown>) {
     athleteId = a.id;
   }
   const { data: b, error } = await admin.from("bookings")
-    .insert({ ...row, status: row.status ?? incoming, athlete_id: athleteId, parent_id: parent?.id ?? null })
+    .insert({ ...row, status: row.status ?? incoming, athlete_id: athleteId, parent_id: parentId })
     .select("id").single();
   if (error) {
     // two active bookings on one slot can only happen if the site allowed it; keep the row without the slot
     if (error.code === "23505") {
-      const retry = await admin.from("bookings").insert({ ...row, status: row.status ?? incoming, athlete_id: athleteId, parent_id: parent?.id ?? null, notes: `Slot clash on import: ${row.slot_start}`, slot_start: null, slot_end: null }).select("id").single();
+      const retry = await admin.from("bookings").insert({ ...row, status: row.status ?? incoming, athlete_id: athleteId, parent_id: parentId, notes: `Slot clash on import: ${row.slot_start}`, slot_start: null, slot_end: null }).select("id").single();
       if (retry.error) return { error: retry.error.message };
       await saveQuiz(athleteId, src);
       return { id: retry.data.id, created: true, clash: true };
@@ -126,7 +138,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return bad("POST only", 405);
   const key = Deno.env.get("INGEST_KEY");
-  if (!key || req.headers.get("x-ingest-key") !== key) return bad("unauthorized", 401);
+  if (!key || !sameKey(req.headers.get("x-ingest-key") || "", key)) return bad("unauthorized", 401);
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return bad("invalid json"); }
   const list = Array.isArray(body.bookings) ? body.bookings : body.booking ? [body.booking] : [];

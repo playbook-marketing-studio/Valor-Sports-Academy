@@ -18,11 +18,12 @@ const cryptoProvider = Stripe.createSubtleCryptoProvider();
 Deno.serve(async (req) => {
   if (req.method !== "POST") return bad("POST only", 405);
   const secret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
-  if (!secret) return bad("webhook secret not configured", 500);
+  // until scripts/connect_stripe.sh runs, the secret is a placeholder anyone could sign with
+  if (!secret || /placeholder/i.test(secret) || !Deno.env.get("STRIPE_SECRET_KEY")) return bad("stripe not connected", 503);
   const sig = req.headers.get("stripe-signature");
   if (!sig) return bad("missing signature", 400);
   const raw = await req.text();
-  const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "sk_test_placeholder", {
+  const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
     apiVersion: "2025-02-24.acacia", httpClient: Stripe.createFetchHttpClient(),
   });
   let event: Stripe.Event;
@@ -51,7 +52,8 @@ Deno.serve(async (req) => {
           patch.status = "paid"; patch.paid_at = now.toISOString();
           patch.covers_until = expiryFrom(now, Number(obj.metadata?.expires_days) || null);
         }
-        await admin.from("payments").update(patch).eq("id", paymentId).neq("status", "paid");
+        // only a pending checkout moves to paid (a late re-delivery must not revive a refunded or canceled row)
+        await admin.from("payments").update(patch).eq("id", paymentId).eq("status", "pending");
         break;
       }
       case "checkout.session.expired":

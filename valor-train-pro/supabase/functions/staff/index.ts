@@ -18,22 +18,52 @@ import Stripe from "npm:stripe@17.7.0";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import { admin, appOrigin, bad, cors, enrollmentConfig, json, userFromRequest } from "../_shared/common.ts";
 
+/**
+ * The parent login this athlete should use, resolved safely (security audit 9/30).
+ * athletes.parent_email can come from the public booking form, so an email match alone
+ * never gets anyone a login link:
+ *  - an email that belongs to a staff login is refused;
+ *  - an existing account not yet linked to this athlete is linked only when its email is
+ *    vouched for (staff invited it, or it confirmed a sign-up email), and then no QR/text link
+ *    is issued: they sign in as usual or get the login emailed to their own inbox.
+ */
+async function resolveParent(a: Record<string, any>) {
+  let email = (a.parent_email || "").toLowerCase();
+  if (a.parent_id) {
+    const { data } = await admin.auth.admin.getUserById(a.parent_id);
+    email = (data?.user?.email || email).toLowerCase();
+  }
+  if (!email) return { error: bad("add the parent's email first") };
+  const { data: prof } = await admin.from("profiles").select("id, role").eq("email", email).maybeSingle();
+  if (!prof) return { email, prof: null, linked: false };
+  if (prof.role !== "parent") return { error: bad("That email belongs to a staff login. Use the parent's own email.", 409) };
+  if (a.parent_id === prof.id) return { email, prof, linked: true };
+  const { data: u } = await admin.auth.admin.getUserById(prof.id);
+  const vouched = !!u?.user && (!!u.user.invited_at || (!!u.user.confirmation_sent_at && !!u.user.email_confirmed_at));
+  if (!vouched) {
+    return { error: bad("An account with this email was made through open sign-up, so the app can't tell it belongs to this parent. Ask Omar to check it before linking.", 409) };
+  }
+  await admin.from("athletes").update({ parent_id: prof.id }).eq("id", a.id).is("parent_id", null);
+  return { email, prof, linked: false, justLinked: true };
+}
+
 async function inviteParent(req: Request, athleteId: string) {
   const { data: a } = await admin.from("athletes").select("*").eq("id", athleteId).maybeSingle();
   if (!a) return bad("athlete not found", 404);
-  let email = (a.parent_email || "").toLowerCase();
-  if (a.parent_id) {
-    const { data: p } = await admin.from("profiles").select("email").eq("id", a.parent_id).maybeSingle();
-    email = (p?.email || email).toLowerCase();
-  }
-  if (!email) return bad("add the parent's email first");
+  const r = await resolveParent(a);
+  if (r.error) return r.error;
+  const { email, prof } = r;
   const redirectTo = `${appOrigin(req)}/welcome`;
 
-  // existing account? (they booked before, or staff invited them for a sibling)
-  const { data: prof } = await admin.from("profiles").select("id, role").ilike("email", email).maybeSingle();
   let link: string | undefined;
+  if (prof && r.justLinked) {
+    await admin.from("athletes").update({ invited_at: new Date().toISOString() }).eq("id", a.id);
+    return json({
+      link: null, email, existing_account: true, linked: true,
+      message: `${email} already has a Valor login, so ${a.first_name} is now on that account. They sign in with their password, or tap "Email it to them".`,
+    });
+  }
   if (prof) {
-    if (!a.parent_id && prof.role === "parent") await admin.from("athletes").update({ parent_id: prof.id }).eq("id", a.id);
     const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email, options: { redirectTo } });
     if (error) return bad(error.message, 500);
     link = data.properties?.action_link;
@@ -44,7 +74,7 @@ async function inviteParent(req: Request, athleteId: string) {
     });
     if (error) return bad(error.message, 500);
     link = data.properties?.action_link;
-    // the new-user trigger links athletes by email; make sure this one is linked
+    // link this athlete (the database no longer links by email; see the 9/30 security migration)
     if (data.user?.id) await admin.from("athletes").update({ parent_id: data.user.id }).eq("id", a.id).is("parent_id", null);
   }
   await admin.from("athletes").update({ invited_at: new Date().toISOString() }).eq("id", a.id);
@@ -62,14 +92,10 @@ async function emailParentLogin(req: Request, athleteId: string) {
   }
   const { data: a } = await admin.from("athletes").select("*").eq("id", athleteId).maybeSingle();
   if (!a) return bad("athlete not found", 404);
-  let email = (a.parent_email || "").toLowerCase();
-  if (a.parent_id) {
-    const { data: p } = await admin.from("profiles").select("email").eq("id", a.parent_id).maybeSingle();
-    email = (p?.email || email).toLowerCase();
-  }
-  if (!email) return bad("add the parent's email first");
+  const r = await resolveParent(a);
+  if (r.error) return r.error;
+  const { email, prof } = r;
   const redirectTo = `${appOrigin(req)}/welcome`;
-  const { data: prof } = await admin.from("profiles").select("id, role").ilike("email", email).maybeSingle();
   if (!prof) {
     const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
       redirectTo, data: { full_name: a.parent_name, phone: a.parent_phone, role: "parent", athlete_first_name: a.first_name },
@@ -77,7 +103,6 @@ async function emailParentLogin(req: Request, athleteId: string) {
     if (error) return bad(error.message, 502);
     if (data.user?.id) await admin.from("athletes").update({ parent_id: data.user.id }).eq("id", a.id).is("parent_id", null);
   } else {
-    if (!a.parent_id && prof.role === "parent") await admin.from("athletes").update({ parent_id: prof.id }).eq("id", a.id);
     const anon = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { auth: { persistSession: false } });
     const { error } = await anon.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo, shouldCreateUser: false } });
     if (error) return bad(error.message, 502);

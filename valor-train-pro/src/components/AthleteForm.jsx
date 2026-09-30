@@ -48,11 +48,9 @@ export default function AthleteForm({ open, onOpenChange, mode = 'add', athlete 
     };
     if (staff) Object.assign(values, { season: f.season || null, frequency: f.frequency || null, class_days: f.class_days.trim() || null, nutrition_plan: !!f.nutrition_plan, notes: f.notes.trim() || null, parent_name: f.parent_name.trim() || null, parent_email: email || null, parent_phone: f.parent_phone.trim() || null });
 
-    // link to an existing parent login with this email (siblings, returning families)
-    if (staff && email && !athlete?.parent_id) {
-      const { data: p } = await supabase.from('profiles').select('id, role').ilike('email', email).maybeSingle();
-      if (p?.role === 'parent') values.parent_id = p.id;
-    }
+    // No linking to an existing parent login by typed email here (security audit 9/30): an email
+    // alone doesn't prove the account is this family's. "Show login QR" on the athlete page checks
+    // the account and links it.
     if (mode === 'sibling' && athlete?.parent_id) values.parent_id = athlete.parent_id;
 
     let id = athlete?.id;

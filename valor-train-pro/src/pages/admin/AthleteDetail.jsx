@@ -200,7 +200,8 @@ function ParentLogin({ athlete, onChanged }) {
         await supabase.from('athletes').update({ parent_email: email.trim().toLowerCase() }).eq('id', athlete.id);
       }
       const r = await callFn('staff', { body: { action: 'invite_parent', athlete_id: athlete.id } });
-      setInvite(r); setOpen(true); onChanged();
+      if (r.link) { setInvite(r); setOpen(true); } else toast({ title: 'Linked to their login', description: r.message });
+      onChanged();
     } catch (e) { toast({ title: 'Could not create the login', description: e.message }); }
     setBusy(false);
   };
