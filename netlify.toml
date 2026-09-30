@@ -27,6 +27,10 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+    # Structural lock-down (security audit 9/30). No script/img/connect allow-list on
+    # purpose: GTM and the Meta pixel load tags from many hosts, and a script-src list
+    # would silently break any tag added later. This static site has no user content.
+    Content-Security-Policy = "frame-ancestors 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; upgrade-insecure-requests"
     # Optional, stronger lock-down. Test before enabling — it must allow Google
     # Fonts, the Wix image CDN, and the Google Maps embed used on /contact:
     # Content-Security-Policy = "default-src 'self'; img-src 'self' https://static.wixstatic.com data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; frame-src https://www.google.com; form-action 'self' https://api.netlify.com"
