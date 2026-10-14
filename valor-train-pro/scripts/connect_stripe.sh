@@ -2,7 +2,7 @@
 # Connect Valor's Stripe account to Train Pro (test or live), in one step.
 # Prereq: Valor adds omar@playbookmarketing.studio to their Stripe account as a Developer.
 # 1. In Stripe (top right toggle) pick Test mode (or live later) → Developers → API keys → reveal Secret key.
-# 2. Put it in ~/Documents/Claude/Projects/playbook/.env as VALOR_STRIPE_SECRET_KEY=sk_test_... (sk_live_... for live)
+# 2. Put it in ~/Documents/Claude/Projects/playbook/.env as VALOR_STRIPE_SECRET_KEY=sk_test_... (sk_live_... or a restricted rk_live_... for live)
 # 3. Run:  scripts/connect_stripe.sh
 # The script creates (or reuses) the webhook endpoint for the app, saves its signing secret to the vault as
 # VALOR_STRIPE_WEBHOOK_SECRET, and sets both as Supabase secrets. Card payments then work in the app.
@@ -12,7 +12,7 @@ VAULT=~/Documents/Claude/Projects/playbook/.env
 set -a; source "$VAULT"; set +a
 : "${VALOR_STRIPE_SECRET_KEY:?add VALOR_STRIPE_SECRET_KEY to the vault first}"
 URL="https://gpotwyuttkkygvxzktep.supabase.co/functions/v1/stripe-webhook"
-MODE=$([[ "$VALOR_STRIPE_SECRET_KEY" == sk_live_* ]] && echo live || echo test)
+MODE=$([[ "$VALOR_STRIPE_SECRET_KEY" == sk_live_* || "$VALOR_STRIPE_SECRET_KEY" == rk_live_* ]] && echo live || echo test)
 EXISTING=$(curl -s -u "$VALOR_STRIPE_SECRET_KEY:" "https://api.stripe.com/v1/webhook_endpoints?limit=100" | python3 -c "import json,sys;d=json.load(sys.stdin);print(next((w['id'] for w in d.get('data',[]) if w['url']=='$URL'),''))")
 if [ -n "$EXISTING" ]; then
   echo "webhook already exists ($EXISTING, $MODE). Stripe only shows its signing secret once; if VALOR_STRIPE_WEBHOOK_SECRET is missing, delete that endpoint in the Stripe dashboard and re-run."
