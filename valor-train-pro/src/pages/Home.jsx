@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useViewAs } from '@/lib/ViewAsContext';
 import { EmptyState, ProgressRing, ProgressBar, StatTile, Chip } from '@/components/vtp';
 import { photoPosition } from '@/lib/photos';
+import { useUnreadCount } from '@/lib/messages';
+import { MessageCircle } from 'lucide-react';
 
 export default function Home() {
   const viewAs = useViewAs();
@@ -108,6 +110,8 @@ export default function Home() {
           <p className="mt-1 text-sm text-muted-foreground">Your athlete's results, this week's workouts, meals and progress, all here.</p>
         </div>
       </div>
+
+      {!viewAs.isActive && <NewMessagesCard />}
 
       {/* Next up: each enrolled kid's next workout, one tap to start */}
       {athletes.some((a) => upcoming.some((w) => w.athlete_id === a.id)) && (
@@ -228,5 +232,26 @@ export default function Home() {
         />
       )}
     </div>
+  );
+}
+
+/** On login: the newest unread note from Valor, one tap into Messages. */
+function NewMessagesCard() {
+  const unread = useUnreadCount();
+  const [latest, setLatest] = useState(null);
+  useEffect(() => {
+    if (!unread) { setLatest(null); return; }
+    supabase.from('messages').select('kind, title, body, created_at').eq('from_staff', true).order('created_at', { ascending: false }).limit(1).maybeSingle().then(({ data }) => setLatest(data));
+  }, [unread]);
+  if (!unread || !latest) return null;
+  return (
+    <Link to="/messages" className="flex items-start gap-3 rounded-xl border border-primary/60 bg-primary/5 p-4 transition hover:bg-primary/10">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"><MessageCircle className="h-5 w-5" /></span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold">{unread === 1 ? 'New message from Valor' : `${unread} new messages from Valor`}</span>
+        <span className="mt-0.5 line-clamp-2 block text-sm text-muted-foreground">{latest.kind === 'announcement' && latest.title ? `${latest.title}: ` : ''}{latest.body}</span>
+      </span>
+      <span className="shrink-0 self-center rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Read</span>
+    </Link>
   );
 }

@@ -18,7 +18,7 @@ import { athleteName, classesLeft, countsAsEnrollment, defaultItem, loadSettings
 import { loginState } from './Athletes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal } from 'lucide-react';
+import { MessageCircle, MoreHorizontal } from 'lucide-react';
 import AthleteForm from '@/components/AthleteForm';
 import WorkoutEditor from '@/components/WorkoutEditor';
 import AssignProgramDialog from '@/components/AssignProgramDialog';
@@ -699,9 +699,10 @@ export default function AthleteDetail() {
             {booking.status === 'requested' && phone && <Button asChild size="sm" variant={booking.contacted_at ? 'outline' : 'default'} className="h-10 gap-1"><a href={smsHref(phone, askSms(booking))} onClick={() => { if (!booking.contacted_at) supabase.from('bookings').update({ contacted_at: new Date().toISOString() }).eq('id', booking.id).then(() => {}); }}><MessageSquare className="h-4 w-4" /> {booking.contacted_at ? 'Text again' : 'Text to set a time'}</a></Button>}
           </div>
         )}
-        <div className="mt-4 flex items-center gap-2">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           {phone && <Button asChild size="icon" variant="secondary" className="h-11 w-11"><a href={telHref(phone)} aria-label={`Call ${athlete.parent_name || 'parent'}`}><Phone className="h-4 w-4" /></a></Button>}
           {phone && <Button asChild size="icon" variant="secondary" className="h-11 w-11"><a href={smsHref(phone, '')} aria-label={`Text ${athlete.parent_name || 'parent'}`}><MessageSquare className="h-4 w-4" /></a></Button>}
+          <Button size="sm" variant="secondary" className="h-11 gap-1" onClick={() => navigate(`/admin/messages/${athlete.id}`)}><MessageCircle className="h-4 w-4" /> Message</Button>
           <Button size="sm" variant="secondary" className="h-11 gap-1" onClick={() => setForm('edit')}><Pencil className="h-4 w-4" /> Edit</Button>
           <Button size="sm" variant="secondary" className="h-11 gap-1" onClick={() => navigate(`/admin/view-as-athlete/${athlete.id}`)}><Eye className="h-4 w-4" /> View as athlete</Button>
           <DropdownMenu>

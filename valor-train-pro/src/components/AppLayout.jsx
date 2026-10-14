@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   Dumbbell, Apple, TrendingUp, LogOut, ClipboardList, Users, Tag, BookOpen,
-  NotebookPen, CalendarCheck, Eye, Plus, MoreHorizontal, HelpCircle, Home as HomeIcon,
+  NotebookPen, CalendarCheck, Eye, Plus, MoreHorizontal, HelpCircle, Home as HomeIcon, MessageCircle,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { cn } from '@/lib/utils';
@@ -11,12 +11,14 @@ import ThemeToggle from '@/components/ThemeToggle';
 import BottomTabBar from '@/components/BottomTabBar';
 import Onboarding, { hasSeenOnboarding, markOnboardingSeen } from '@/components/Onboarding';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useUnreadCount } from '@/lib/messages';
 
 const parentTabs = [
   { to: '/', label: 'Home', icon: HomeIcon, end: true },
   { to: '/workouts', label: 'Workouts', icon: Dumbbell },
   { to: '/nutrition', label: 'Nutrition', icon: Apple },
   { to: '/progress', label: 'Progress', icon: TrendingUp },
+  { to: '/messages', label: 'Messages', icon: MessageCircle },
 ];
 
 const adminTabs = [
@@ -34,6 +36,7 @@ const adminNavFull = [
   { to: '/admin/bookings', label: 'Assessments', icon: ClipboardList },
   { to: '/admin/athletes', label: 'Athletes', icon: Users },
   { to: '/admin/programs', label: 'Programs', icon: BookOpen },
+  { to: '/admin/messages', label: 'Messages', icon: MessageCircle },
   { to: '/admin/log', label: 'Class log', icon: NotebookPen },
   { to: '/admin/enrollment', label: 'Enrollment', icon: Tag },
   { to: '/admin/view-as-athlete', label: 'View as athlete', icon: Eye },
@@ -43,7 +46,10 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const isAdmin = user?.role === 'admin';
-  const navItems = isAdmin ? adminNavFull : parentTabs;
+  const unread = useUnreadCount();
+  const msgPath = isAdmin ? '/admin/messages' : '/messages';
+  const withBadge = (items) => items.map((i) => (i.to === msgPath ? { ...i, badge: unread } : i));
+  const navItems = withBadge(isAdmin ? adminNavFull : parentTabs);
   const [moreOpen, setMoreOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(() => !!user && !hasSeenOnboarding(user.id, user.role));
 
@@ -76,6 +82,7 @@ export default function AppLayout() {
           >
             <item.icon className="h-4 w-4" />
             {item.label}
+            {item.badge > 0 && <span className="ml-auto rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-primary-foreground">{item.badge}</span>}
           </NavLink>
         ))}
         <button
@@ -138,11 +145,11 @@ export default function AppLayout() {
       {/* Phone navigation: floating bottom tab bar instead of a hamburger drawer. */}
       {isAdmin ? (
         <BottomTabBar
-          items={[...adminTabs, ...adminTabsRight, { to: '#more', label: 'More', icon: MoreHorizontal, onClick: (e) => { e.preventDefault(); setMoreOpen(true); } }]}
+          items={[...adminTabs, ...adminTabsRight, { to: '#more', label: 'More', icon: MoreHorizontal, badge: unread, onClick: (e) => { e.preventDefault(); setMoreOpen(true); } }]}
           centerAction={{ label: 'Walk-in', icon: Plus, onClick: () => navigate('/admin/bookings?walkin=1') }}
         />
       ) : (
-        <BottomTabBar items={parentTabs} />
+        <BottomTabBar items={withBadge(parentTabs)} />
       )}
 
       {/* Staff "More" sheet — the rest of the destinations, plus the utilities. */}
@@ -154,6 +161,7 @@ export default function AppLayout() {
             </SheetHeader>
             <div className="space-y-1">
               {[
+                { to: '/admin/messages', label: 'Messages', icon: MessageCircle, badge: unread },
                 { to: '/admin/log', label: 'Class log', icon: NotebookPen },
                 { to: '/admin/enrollment', label: 'Enrollment', icon: Tag },
                 { to: '/admin/view-as-athlete', label: 'View as athlete', icon: Eye },
@@ -165,6 +173,7 @@ export default function AppLayout() {
                   className="flex min-h-[48px] items-center gap-3 rounded-xl px-3 text-base font-medium text-foreground hover:bg-accent"
                 >
                   <item.icon className="h-5 w-5 text-primary" /> {item.label}
+                  {item.badge > 0 && <span className="ml-auto rounded-full bg-primary px-2 py-0.5 text-xs font-bold text-primary-foreground">{item.badge}</span>}
                 </NavLink>
               ))}
               <button

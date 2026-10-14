@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
  * Floating bottom tab bar for phones — replaces the old hamburger-first nav.
  * `items` are the persistent destinations; `centerAction` (staff only, per
  * Omar's brief) is a raised red quick-action button in the middle, like the
- * reference apps' raised "+" tab.
+ * reference apps' raised "+" tab. An item's `badge` (number) shows an unread count.
  */
 export default function BottomTabBar({ items, centerAction }) {
   const left = centerAction ? items.slice(0, Math.ceil(items.length / 2)) : items;
@@ -26,7 +26,10 @@ export default function BottomTabBar({ items, centerAction }) {
     >
       {({ isActive }) => (
         <>
-          <item.icon className={cn('h-5 w-5', isActive && 'drop-shadow-[0_0_10px_hsl(var(--primary)/0.6)]')} />
+          <span className="relative">
+            <item.icon className={cn('h-5 w-5', isActive && 'drop-shadow-[0_0_10px_hsl(var(--primary)/0.6)]')} />
+            {item.badge > 0 && <span className="absolute -right-2.5 -top-1.5 min-w-[18px] rounded-full bg-primary px-1 text-center text-[10px] font-bold leading-[18px] text-primary-foreground ring-2 ring-card">{item.badge > 9 ? '9+' : item.badge}</span>}
+          </span>
           <span className="truncate">{item.label}</span>
         </>
       )}

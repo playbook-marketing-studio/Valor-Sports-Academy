@@ -28,6 +28,8 @@ import { ProgramsList, ProgramDetail } from '@/pages/admin/Programs';
 import ClassLog from '@/pages/admin/ClassLog';
 import Today from '@/pages/admin/Today';
 import ViewAsAthlete, { ViewAsPickerPage } from '@/pages/admin/ViewAsAthlete';
+import Messages from '@/pages/Messages';
+import AdminMessages, { AdminMessageThread } from '@/pages/admin/Messages';
 import { useAuth as useAuthForHome } from '@/lib/AuthContext';
 
 // Staff land on Today; parents on their athlete home.
@@ -78,6 +80,8 @@ const AuthenticatedApp = () => {
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<HomeRoute />} />
+          {/* messages are not behind enrollment: any family can hear from (and write to) the coaches */}
+          <Route path="/messages" element={<Messages />} />
           {/* included with enrollment: unpaid families get the enroll-and-pay screen */}
           <Route element={<RequireEnrollment />}>
             <Route path="/workouts" element={<Workouts />} />
@@ -93,6 +97,8 @@ const AuthenticatedApp = () => {
             <Route path="/admin/programs" element={<ProgramsList />} />
             <Route path="/admin/programs/:id" element={<ProgramDetail />} />
             <Route path="/admin/log" element={<ClassLog />} />
+            <Route path="/admin/messages" element={<AdminMessages />} />
+            <Route path="/admin/messages/:athleteId" element={<AdminMessageThread />} />
           </Route>
         </Route>
         {/* Own shell, not AppLayout: read-only, no admin sidebar/mobile menu —
