@@ -11,3 +11,5 @@ export const SOURCE_LABEL = { meta: 'Meta ad', facebook: 'Meta ad', instagram: '
 export const sourceLabel = (s) => (!s || s === 'app' ? '' : SOURCE_LABEL[String(s).toLowerCase()] || s);
 
 export const fmtContacted = (iso) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+/** "Oct 18", or "Jul 29, 2025" when it's from another year. */
+export const fmtAsked = (iso) => { const d = new Date(iso); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(d.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) }); };

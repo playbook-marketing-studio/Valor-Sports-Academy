@@ -11,7 +11,7 @@ import { toast } from '@/components/ui/use-toast';
 import { fmtTime } from '@/lib/slots';
 import { smsHref, telHref } from '@/lib/valor';
 import { cn } from '@/lib/utils';
-import { askSms, askText, fmtContacted, reqDay, sourceLabel, STATUS_LABEL } from '@/lib/leads';
+import { askSms, askText, fmtAsked, fmtContacted, reqDay, sourceLabel, STATUS_LABEL } from '@/lib/leads';
 import { ToastAction } from '@/components/ui/toast';
 
 const TZ = 'America/Los_Angeles';
@@ -44,8 +44,11 @@ export default function AdminBookings() {
   const term = q.trim().toLowerCase();
   const match = (r) => !term || [r.athlete_first_name, r.athlete_last_name, r.parent_name, r.parent_email, r.parent_phone, r.sport].join(' ').toLowerCase().includes(term);
 
-  const requests = rows.filter((r) => r.status === 'requested' && !r.contacted_at && match(r));
-  const texted = rows.filter((r) => r.status === 'requested' && r.contacted_at && match(r));
+  // newest inquiry first: the 9/25 import gave every old lead the same created_at, so sort on when they actually asked
+  const asked = (r) => r.inquired_at || r.created_at;
+  const newestAsked = (a, b) => asked(b).localeCompare(asked(a));
+  const requests = rows.filter((r) => r.status === 'requested' && !r.contacted_at && match(r)).sort(newestAsked);
+  const texted = rows.filter((r) => r.status === 'requested' && r.contacted_at && match(r)).sort(newestAsked);
   const days = useMemo(() => {
     const groups = {};
     rows.filter((r) => r.slot_start && r.status !== 'requested' && match(r)).forEach((r) => {
@@ -109,7 +112,7 @@ export default function AdminBookings() {
             {r.source && r.source !== 'app' && <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">{sourceLabel(r.source)}</span>}
           </div>
           {r.quiz_result && <p className="text-xs text-muted-foreground">Quiz: {r.quiz_result}</p>}
-          {r.status === 'requested' && <p className="text-sm">{askText(r)}</p>}
+          {r.status === 'requested' && <p className="text-sm">{askText(r)} <span className="text-xs text-muted-foreground">· asked {fmtAsked(asked(r))}</span></p>}
           {r.status === 'requested' && r.contacted_at && <p className="text-xs font-medium text-warning">Reached out {fmtContacted(r.contacted_at)}, waiting to hear back</p>}
           <p className="text-xs text-muted-foreground">{r.parent_name} · {r.parent_email}{r.parent_phone ? ` · ${r.parent_phone}` : ''}</p>
         </div>
@@ -166,7 +169,7 @@ export default function AdminBookings() {
           {!past && requests.length > 0 && (
             <section className="space-y-3">
               <h2 className="font-display text-xl">Waiting on a text <span className="ml-1 font-body text-sm normal-case text-muted-foreground">{requests.length}</span></h2>
-              <p className="-mt-1 text-sm text-muted-foreground">They want a free assessment but have no time yet. Tap Text to set a time; they move to Reached out.</p>
+              <p className="-mt-1 text-sm text-muted-foreground">They want a free assessment but have no time yet. Newest first. Tap Text to set a time; they move to Reached out.</p>
               {requests.map((r) => <Row key={r.id} r={r} />)}
             </section>
           )}

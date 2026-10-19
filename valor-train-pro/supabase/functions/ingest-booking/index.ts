@@ -57,6 +57,8 @@ async function ingestOne(src: Record<string, unknown>) {
   const incoming = STATUS[String(src.status || "")] || "booked";
 
   const { data: existing } = await admin.from("bookings").select("id, status, athlete_id, parent_id").eq("source_booking_id", sid).maybeSingle();
+  // when the family booked on the site (a late push, like a retry, must not make an old request look new)
+  const askedAt = (() => { const t = Date.parse(String(src.created_at || "")); return Number.isFinite(t) ? new Date(t).toISOString() : new Date().toISOString(); })();
 
   const row: Record<string, unknown> = {
     source_booking_id: sid,
@@ -118,12 +120,12 @@ async function ingestOne(src: Record<string, unknown>) {
     athleteId = a.id;
   }
   const { data: b, error } = await admin.from("bookings")
-    .insert({ ...row, status: row.status ?? incoming, athlete_id: athleteId, parent_id: parentId })
+    .insert({ ...row, inquired_at: askedAt, status: row.status ?? incoming, athlete_id: athleteId, parent_id: parentId })
     .select("id").single();
   if (error) {
     // two active bookings on one slot can only happen if the site allowed it; keep the row without the slot
     if (error.code === "23505") {
-      const retry = await admin.from("bookings").insert({ ...row, status: row.status ?? incoming, athlete_id: athleteId, parent_id: parentId, notes: `Slot clash on import: ${row.slot_start}`, slot_start: null, slot_end: null }).select("id").single();
+      const retry = await admin.from("bookings").insert({ ...row, inquired_at: askedAt, status: row.status ?? incoming, athlete_id: athleteId, parent_id: parentId, notes: `Slot clash on import: ${row.slot_start}`, slot_start: null, slot_end: null }).select("id").single();
       if (retry.error) return { error: retry.error.message };
       await saveQuiz(athleteId, src);
       return { id: retry.data.id, created: true, clash: true };

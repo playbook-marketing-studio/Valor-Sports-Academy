@@ -64,7 +64,7 @@ export default function Today() {
         supabase.from('workouts').select('id, template_id, day_key, week, title, program, athlete_id').eq('date', today).not('template_id', 'is', null),
         supabase.from('workouts').select('date').not('template_id', 'is', null).gt('date', today).order('date').limit(1),
         supabase.from('bookings').select('*').in('status', ['booked', 'attended', 'no_show']).gte('slot_start', new Date(now.getTime() - 12 * 3600000).toISOString()).lte('slot_start', weekAhead).order('slot_start'),
-        supabase.from('bookings').select('*').eq('status', 'requested').order('created_at'),
+        supabase.from('bookings').select('*').eq('status', 'requested').order('inquired_at', { ascending: false }),
         supabase.from('athletes_admin').select('id, first_name, last_name, parent_name, parent_phone, stage, archived_at').eq('stage', 'assessed'),
         supabase.from('athletes_admin').select('id', { count: 'exact', head: true }).eq('stage', 'enrolled'),
         supabase.from('athletes_admin').select('id', { count: 'exact', head: true }).eq('stage', 'lead'),
