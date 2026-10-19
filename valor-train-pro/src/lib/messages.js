@@ -1,7 +1,7 @@
 // Messages between Valor staff and families (migration 20261014000000_messages.sql).
 // announcement = staff to every family; direct = one thread per athlete, parents can reply.
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/api/supabaseClient';
+import { supabase, callFn } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 
 export const UNREAD_KEY = ['messages-unread'];
@@ -40,12 +40,21 @@ export async function loadThread(athleteId) {
   return data || [];
 }
 
-export async function sendDirect(athleteId, body) {
-  return supabase.from('messages').insert({ kind: 'direct', athlete_id: athleteId, body: body.trim() }).select('*').single();
+/** Email alert for a message just sent (fn notify). Never blocks or fails the send itself. */
+export function notifyMessage(id, opts = {}) {
+  callFn('notify', { body: { message_id: id, ...opts } }).catch(() => { /* the message is saved; the email is a bonus */ });
 }
 
-export async function sendAnnouncement(title, body) {
-  return supabase.from('messages').insert({ kind: 'announcement', title: title.trim() || null, body: body.trim() }).select('*').single();
+export async function sendDirect(athleteId, body) {
+  const res = await supabase.from('messages').insert({ kind: 'direct', athlete_id: athleteId, body: body.trim() }).select('*').single();
+  if (!res.error) notifyMessage(res.data.id);
+  return res;
+}
+
+export async function sendAnnouncement(title, body, { emailFamilies = true } = {}) {
+  const res = await supabase.from('messages').insert({ kind: 'announcement', title: title.trim() || null, body: body.trim() }).select('*').single();
+  if (!res.error) notifyMessage(res.data.id, { email_families: emailFamilies });
+  return res;
 }
 
 export const fmtWhen = (iso) => {

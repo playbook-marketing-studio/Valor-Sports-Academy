@@ -6,12 +6,20 @@
 //       covers_until = expiry when the item has expires_days
 //   checkout.session.expired / async_payment_failed      → payments row canceled
 //   charge.refunded                                       → payments row refunded (locks content)
+// A row that actually moves to paid or refunded emails the coaches (_shared/alerts.ts); mail errors never fail the webhook.
 // Idempotent on re-delivery.
 // Stripe → Developers → Webhooks → https://gpotwyuttkkygvxzktep.supabase.co/functions/v1/stripe-webhook
 // Deploy: supabase functions deploy stripe-webhook --no-verify-jwt --project-ref gpotwyuttkkygvxzktep --use-api
 // ════════════════════════════════════════════════════════════════════════
 import Stripe from "npm:stripe@17.7.0";
 import { admin, bad, expiryFrom } from "../_shared/common.ts";
+import { alertForPayment } from "../_shared/alerts.ts";
+
+const alertSafely = async (ids: string[], kind: "paid" | "refunded") => {
+  for (const id of ids) {
+    try { console.log("alert", kind, id, JSON.stringify(await alertForPayment(id, kind))); } catch (e) { console.error("payment alert failed", id, e); }
+  }
+};
 
 const cryptoProvider = Stripe.createSubtleCryptoProvider();
 
@@ -53,7 +61,8 @@ Deno.serve(async (req) => {
           patch.covers_until = expiryFrom(now, Number(obj.metadata?.expires_days) || null);
         }
         // only a pending checkout moves to paid (a late re-delivery must not revive a refunded or canceled row)
-        await admin.from("payments").update(patch).eq("id", paymentId).eq("status", "pending");
+        const { data: moved } = await admin.from("payments").update(patch).eq("id", paymentId).eq("status", "pending").select("id");
+        if (paid) await alertSafely((moved || []).map((r) => r.id), "paid");
         break;
       }
       case "checkout.session.expired":
@@ -65,8 +74,12 @@ Deno.serve(async (req) => {
       case "charge.refunded": {
         const pi = typeof obj.payment_intent === "string" ? obj.payment_intent : null;
         const paymentId = obj.metadata?.payment_id;
-        if (paymentId) await admin.from("payments").update({ status: "refunded" }).eq("id", paymentId);
-        else if (pi) await admin.from("payments").update({ status: "refunded" }).eq("stripe_payment_intent_id", pi);
+        let q = admin.from("payments").update({ status: "refunded" }).neq("status", "refunded");
+        if (paymentId) q = q.eq("id", paymentId);
+        else if (pi) q = q.eq("stripe_payment_intent_id", pi);
+        else break;
+        const { data: moved } = await q.select("id");
+        await alertSafely((moved || []).map((r) => r.id), "refunded");
         break;
       }
       default:

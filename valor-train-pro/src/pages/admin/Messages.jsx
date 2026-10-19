@@ -95,6 +95,7 @@ function Announcements() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
+  const [emailToo, setEmailToo] = useState(true);
 
   const load = useCallback(async () => {
     const [{ data: ann }, { data: kids }] = await Promise.all([
@@ -113,13 +114,13 @@ function Announcements() {
 
   const post = async () => {
     if (!body.trim()) return;
-    if (!window.confirm(`Post this to all ${families} families with a login? They see it the next time they open the app.`)) return;
+    if (!window.confirm(`Post this to all ${families} families with a login?${emailToo ? ' They also get it by email.' : ' They see it the next time they open the app.'}`)) return;
     setBusy(true);
-    const { error } = await sendAnnouncement(title, body);
+    const { error } = await sendAnnouncement(title, body, { emailFamilies: emailToo });
     setBusy(false);
     if (error) return toast({ title: 'Could not post', description: error.message });
     setTitle(''); setBody('');
-    toast({ title: 'Posted', description: 'Families see it under Messages and on their home screen.' });
+    toast({ title: 'Posted', description: emailToo ? 'Families see it in the app and get it by email.' : 'Families see it under Messages and on their home screen.' });
     load();
   };
   const remove = async (m) => {
@@ -135,7 +136,11 @@ function Announcements() {
         <p className="text-sm font-semibold">New announcement <span className="font-normal text-muted-foreground">· goes to {families} {families === 1 ? 'family' : 'families'} with a login</span></p>
         <Input value={title} onChange={(e) => setTitle(e.target.value.slice(0, 120))} placeholder="Headline (optional), e.g. No class Thursday" className="h-11 text-base sm:text-sm" />
         <Textarea value={body} onChange={(e) => setBody(e.target.value.slice(0, 2000))} rows={4} placeholder="What do families need to know?" className="text-base sm:text-sm" />
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <label className="flex min-h-[44px] cursor-pointer items-center gap-2 text-sm">
+            <input type="checkbox" checked={emailToo} onChange={(e) => setEmailToo(e.target.checked)} className="h-5 w-5 accent-[hsl(var(--primary))]" />
+            Also email every family
+          </label>
           <Button onClick={post} disabled={busy || !body.trim()} className="h-11 gap-2">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Megaphone className="h-4 w-4" />} Post to all families</Button>
         </div>
       </div>
@@ -200,7 +205,7 @@ export function AdminMessageThread() {
       />
       {phone && (
         <div className={cn('flex flex-col gap-2 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between', justSent ? 'border-primary/60 bg-primary/5' : 'border-border bg-card')}>
-          <p className="text-sm">{justSent ? 'Sent. Want to give them a heads-up by text so they check the app?' : 'Parents see messages when they open the app. A quick text gets them to look.'}</p>
+          <p className="text-sm">{justSent ? (athlete.parent_id ? 'Sent. They get an email too. Want to text them as well?' : 'Sent. Want to give them a heads-up by text so they check the app?') : (athlete.parent_id ? 'Parents get an email for each new message. A quick text works too.' : 'Parents see messages when they open the app. A quick text gets them to look.')}</p>
           <Button asChild variant={justSent ? 'default' : 'outline'} size="sm" className="h-10 shrink-0 gap-1.5">
             <a href={smsHref(phone, nudge)}><MessageSquare className="h-4 w-4" /> Text a heads-up</a>
           </Button>
