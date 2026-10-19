@@ -114,7 +114,7 @@ function NextSteps({ athlete, booking, hasAssignment, navigate, onGoto, onAssign
             <li key={s.key} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2.5">
               <span className="flex items-center gap-2 text-sm">
                 {s.done
-                  ? <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
+                  ? <CheckCircle2 className="h-5 w-5 shrink-0 text-success" />
                   : <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-muted-foreground/40 text-[10px] font-bold text-muted-foreground">{i + 1}</span>}
                 <span className={s.done ? 'text-foreground' : 'text-muted-foreground'}>{s.label}</span>
               </span>
@@ -335,14 +335,14 @@ function Payment({ athlete, cfg, recommendedKey }) {
     <Card>
       <CardHeader className="pb-3"><CardTitle className="text-lg">3. Classes &amp; enrollment</CardTitle><p className="mt-1 text-xs text-muted-foreground">One-time payment for a class or class pack. Workouts, nutrition and training plans are included while one is active.</p></CardHeader>
       <CardContent className="space-y-4">
-        {cfg.placeholder && <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">Prices and packs are placeholders: confirm with Corey.</p>}
+        {cfg.placeholder && <p className="rounded-lg border border-warning-border bg-warning-surface px-3 py-2 text-xs text-warning">Prices and packs are placeholders: confirm with Corey.</p>}
         {active.length > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-green-50 px-3 py-2">
-            <p className="flex items-center gap-2 text-sm font-semibold text-green-800"><CheckCircle2 className="h-5 w-5" /> Enrolled · {left == null ? 'unlimited classes' : `${left} class${left === 1 ? '' : 'es'} left`}{active[0].covers_until ? ` · good through ${new Date(active[0].covers_until).toLocaleDateString()}` : ''}</p>
-            <Button size="sm" variant="outline" onClick={logVisit} disabled={!!busy}>{busy === 'visit' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Log a class visit'}</Button>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-success-border bg-success-surface px-3 py-2">
+            <p className="flex items-center gap-2 text-sm font-semibold text-success"><CheckCircle2 className="h-5 w-5" /> Enrolled · {left == null ? 'unlimited classes' : `${left} class${left === 1 ? '' : 'es'} left`}{active[0].covers_until ? ` · good through ${new Date(active[0].covers_until).toLocaleDateString()}` : ''}</p>
+            <Button size="sm" variant="outline" className="border-success-border bg-card text-foreground hover:bg-accent" onClick={logVisit} disabled={!!busy}>{busy === 'visit' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Log a class visit'}</Button>
           </div>
         )}
-        {usedUp && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-800">Classes used up or expired. {athlete.first_name}'s family is locked out of workouts and nutrition until they buy more.</p>}
+        {usedUp && <p className="rounded-lg border border-danger-border bg-danger-surface px-3 py-2 text-sm text-danger">Classes used up or expired. {athlete.first_name}'s family is locked out of workouts and nutrition until they buy more.</p>}
         {!items.length ? <p className="text-sm text-muted-foreground">Add a class or pack on the Enrollment screen first.</p> : (
           <>
             <div className="space-y-1">
@@ -379,7 +379,7 @@ function Payment({ athlete, cfg, recommendedKey }) {
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>{chosen ? `${chosen.name} · ${money(chosen.amount_cents)}` : 'Payment'}</DialogTitle></DialogHeader>
           {checkout && (paidNow ? (
-            <div className="flex flex-col items-center gap-2 py-6 text-center"><Check className="h-10 w-10 text-green-600" /><p className="font-semibold">Paid. Welcome to Valor.</p></div>
+            <div className="flex flex-col items-center gap-2 py-6 text-center"><Check className="h-10 w-10 text-success" /><p className="font-semibold">Paid. Welcome to Valor.</p></div>
           ) : (
             <div className="space-y-4">
               <QrPanel value={checkout.url} caption="Parent scans with their phone camera and pays with card, Apple Pay or Google Pay. This screen updates when it goes through." />
@@ -525,7 +525,7 @@ function TrainingTab({ athlete, recKey, cfg }) {
               <Card key={w.id} className={cn(w.date === today && 'border-primary')}>
                 <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
-                    <p className="font-semibold">{done[w.id] && <CheckCircle2 className="mr-1 inline h-4 w-4 text-green-600" />}{w.title} <span className="text-xs font-normal text-muted-foreground">{w.day} {new Date(w.date + 'T12:00:00').toLocaleDateString()}</span></p>
+                    <p className="font-semibold">{done[w.id] && <CheckCircle2 className="mr-1 inline h-4 w-4 text-success" />}{w.title} <span className="text-xs font-normal text-muted-foreground">{w.day} {new Date(w.date + 'T12:00:00').toLocaleDateString()}</span></p>
                     <p className="truncate text-xs text-muted-foreground">{(w.exercises || []).map((e) => `${e.name} ${e.target || (e.sets ? `${e.sets}x${e.reps}` : '')}`).join(' · ')}</p>
                   </div>
                   <div className="flex gap-1">
@@ -690,12 +690,12 @@ export default function AthleteDetail() {
         {booking && (booking.status === 'requested' || booking.requested_note || sourceLabel(booking.source) || athlete.quiz_result || booking.quiz_result) && (
           <div className="mt-3 space-y-2 rounded-2xl border border-border bg-background/60 p-3">
             <div className="flex flex-wrap items-center gap-1.5">
-              {booking.status && <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-semibold', booking.status === 'requested' ? 'bg-amber-100 text-amber-900' : 'bg-muted text-foreground')}>{STATUS_LABEL[booking.status] || booking.status}</span>}
+              {booking.status && <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-semibold', booking.status === 'requested' ? 'bg-warning-surface text-warning' : 'bg-muted text-foreground')}>{STATUS_LABEL[booking.status] || booking.status}</span>}
               {sourceLabel(booking.source) && <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground">{sourceLabel(booking.source)}</span>}
               {(athlete.quiz_result || booking.quiz_result) && <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground">Quiz: {athlete.quiz_result || booking.quiz_result}</span>}
             </div>
             {(booking.status === 'requested' || booking.requested_note) && <p className="text-sm">{booking.status === 'requested' ? askText(booking) : booking.requested_note}</p>}
-            {booking.status === 'requested' && booking.contacted_at && <p className="text-xs font-medium text-amber-700 dark:text-amber-300">Reached out {fmtContacted(booking.contacted_at)}, waiting to hear back</p>}
+            {booking.status === 'requested' && booking.contacted_at && <p className="text-xs font-medium text-warning">Reached out {fmtContacted(booking.contacted_at)}, waiting to hear back</p>}
             {booking.status === 'requested' && phone && <Button asChild size="sm" variant={booking.contacted_at ? 'outline' : 'default'} className="h-10 gap-1"><a href={smsHref(phone, askSms(booking))} onClick={() => { if (!booking.contacted_at) supabase.from('bookings').update({ contacted_at: new Date().toISOString() }).eq('id', booking.id).then(() => {}); }}><MessageSquare className="h-4 w-4" /> {booking.contacted_at ? 'Text again' : 'Text to set a time'}</a></Button>}
           </div>
         )}

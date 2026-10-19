@@ -17,7 +17,7 @@ import { ToastAction } from '@/components/ui/toast';
 const TZ = 'America/Los_Angeles';
 const dayKey = (iso) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
 const dayLabel = (iso) => new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'long', month: 'short', day: 'numeric' }).format(new Date(iso));
-const STATUS_STYLE = { booked: 'bg-muted', requested: 'bg-amber-100 text-amber-900', attended: 'bg-green-100 text-green-800', no_show: 'bg-rose-100 text-rose-800', canceled: 'bg-muted text-muted-foreground line-through' };
+const STATUS_STYLE = { booked: 'bg-muted', requested: 'bg-warning-surface text-warning', attended: 'bg-success-surface text-success', no_show: 'bg-danger-surface text-danger', canceled: 'bg-muted text-muted-foreground line-through' };
 
 export default function AdminBookings() {
   const navigate = useNavigate();
@@ -110,7 +110,7 @@ export default function AdminBookings() {
           </div>
           {r.quiz_result && <p className="text-xs text-muted-foreground">Quiz: {r.quiz_result}</p>}
           {r.status === 'requested' && <p className="text-sm">{askText(r)}</p>}
-          {r.status === 'requested' && r.contacted_at && <p className="text-xs font-medium text-amber-700 dark:text-amber-300">Reached out {fmtContacted(r.contacted_at)}, waiting to hear back</p>}
+          {r.status === 'requested' && r.contacted_at && <p className="text-xs font-medium text-warning">Reached out {fmtContacted(r.contacted_at)}, waiting to hear back</p>}
           <p className="text-xs text-muted-foreground">{r.parent_name} · {r.parent_email}{r.parent_phone ? ` · ${r.parent_phone}` : ''}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

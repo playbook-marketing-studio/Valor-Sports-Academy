@@ -31,6 +31,21 @@
     --chart-3: 35 10% 32%;
     --chart-4: 32 85% 42%;
     --chart-5: 165 45% 30%;
+    /* Red used as TEXT (links, tags, numbers). Same as primary in light. */
+    --primary-text: 350 85% 42%;
+    /* Status tones: ink = text/icon color (AA on card), surface = tinted box, border = its edge. */
+    --success: 142 72% 24%;
+    --success-surface: 140 45% 92%;
+    --success-border: 142 35% 72%;
+    --warning: 30 85% 26%;
+    --warning-surface: 45 90% 91%;
+    --warning-border: 42 75% 62%;
+    --info: 201 85% 26%;
+    --info-surface: 200 75% 92%;
+    --info-border: 200 55% 72%;
+    --danger: 351 75% 34%;
+    --danger-surface: 350 80% 95%;
+    --danger-border: 350 60% 80%;
     --radius: 1.125rem;                 /* modern rounded cards, 18-28px scale */
     --radius-lg: 1.75rem;                /* hero / photo card radius */
     --font-heading: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
@@ -76,6 +91,20 @@
     --chart-3: 42 12% 68%;
     --chart-4: 32 90% 58%;
     --chart-5: 165 55% 48%;
+    /* Brand red is too dark to read as text on ink (3.2:1); lift it for text only. */
+    --primary-text: 352 100% 73%;
+    --success: 142 60% 62%;
+    --success-surface: 145 35% 13%;
+    --success-border: 142 30% 28%;
+    --warning: 42 90% 66%;
+    --warning-surface: 38 45% 13%;
+    --warning-border: 38 40% 30%;
+    --info: 199 85% 70%;
+    --info-surface: 200 40% 14%;
+    --info-border: 200 35% 30%;
+    --danger: 352 95% 75%;
+    --danger-surface: 350 40% 14%;
+    --danger-border: 350 35% 32%;
   }
 }
 

@@ -80,9 +80,14 @@ export default function AppLayout() {
               )
             }
           >
-            <item.icon className="h-4 w-4" />
-            {item.label}
-            {item.badge > 0 && <span className="ml-auto rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-primary-foreground">{item.badge}</span>}
+            {({ isActive }) => (
+              <>
+                <item.icon className="h-4 w-4" />
+                {item.label}
+                {/* on the active (red) item the badge flips to white so it doesn't vanish */}
+                {item.badge > 0 && <span className={cn('ml-auto rounded-full px-2 py-0.5 text-[11px] font-bold', isActive ? 'bg-white text-[hsl(var(--primary))]' : 'bg-primary text-primary-foreground')}>{item.badge}</span>}
+              </>
+            )}
           </NavLink>
         ))}
         <button

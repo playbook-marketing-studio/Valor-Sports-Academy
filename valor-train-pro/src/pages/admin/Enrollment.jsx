@@ -52,7 +52,7 @@ export default function AdminEnrollment() {
         <p className="mt-1 text-sm text-muted-foreground">The assessment is free. After it, families buy a class or a class pack, one time, the way they would at the front desk. Workouts, nutrition and training plans are included until the classes are used up or the pack expires.</p>
       </div>
       {cfg.placeholder && (
-        <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <p className="rounded-lg border border-warning-border bg-warning-surface px-4 py-3 text-sm text-warning">
           These prices are placeholders copied from your website. Change each one to what you actually charge: the price, how many classes it includes (leave blank for unlimited) and how many days it lasts (leave blank for no expiry). Then tap Save.
         </p>
       )}

@@ -11,15 +11,15 @@ import { athleteName } from '@/lib/valor';
 import { cn } from '@/lib/utils';
 
 export function loginState(a) {
-  if (a.parent_last_sign_in_at) return { label: 'Parent active', cls: 'bg-green-100 text-green-800' };
-  if (a.invited_at) return { label: 'Login sent', cls: 'bg-amber-100 text-amber-900' };
+  if (a.parent_last_sign_in_at) return { label: 'Parent active', cls: 'bg-success-surface text-success' };
+  if (a.invited_at) return { label: 'Login sent', cls: 'bg-warning-surface text-warning' };
   return { label: 'No login yet', cls: 'bg-muted text-muted-foreground' };
 }
 
 const STAGES = [['active', 'All active'], ['lead', 'Waiting on a text'], ['reached_out', 'Reached out'], ['booked', 'Booked'], ['assessed', 'Assessed'], ['enrolled', 'Enrolled'], ['archived', 'Archived']];
 // lead -> reached_out -> booked (has an assessment time) -> assessed -> enrolled (paid or in a class)
 const STAGE_LABEL = { lead: 'Waiting on a text', reached_out: 'Reached out', booked: 'Booked', assessed: 'Assessed', enrolled: 'Enrolled', archived: 'Archived', new: 'New' };
-const STAGE_STYLE = { lead: 'bg-amber-100 text-amber-900', reached_out: 'bg-sky-100 text-sky-900', new: 'bg-muted text-muted-foreground', booked: 'bg-muted text-muted-foreground', assessed: 'bg-amber-100 text-amber-900', enrolled: 'bg-green-100 text-green-800', archived: 'bg-muted text-muted-foreground line-through' };
+const STAGE_STYLE = { lead: 'bg-warning-surface text-warning', reached_out: 'bg-info-surface text-info', new: 'bg-muted text-muted-foreground', booked: 'bg-muted text-muted-foreground', assessed: 'bg-warning-surface text-warning', enrolled: 'bg-success-surface text-success', archived: 'bg-muted text-muted-foreground line-through' };
 
 export default function AdminAthletes() {
   const navigate = useNavigate();
@@ -59,7 +59,7 @@ export default function AdminAthletes() {
       </div>
       <div className="flex flex-wrap gap-1">
         {STAGES.map(([k, l]) => (
-          <button key={k} onClick={() => setStage(k)} className={cn('rounded-full px-4 py-1.5 text-sm font-medium', stage === k ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground')}>{l} <span className="opacity-70">{count(k)}</span></button>
+          <button key={k} onClick={() => setStage(k)} className={cn('rounded-full px-4 py-1.5 text-sm font-medium', stage === k ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground')}>{l} <span className="font-normal tabular-nums">{count(k)}</span></button>
         ))}
         <select aria-label="Season" value={season} onChange={(e) => setSeason(e.target.value)} className="ml-auto h-9 rounded-full border border-input bg-background px-3 text-sm">
           <option value="">All seasons</option><option value="in_season">In-season</option><option value="off_season">Off-season</option>

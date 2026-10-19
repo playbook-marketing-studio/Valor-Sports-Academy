@@ -9,11 +9,28 @@ import { athleteName, displayFirstName, smsHref, weekRange } from '@/lib/valor';
 import { photoPosition } from '@/lib/photos';
 import { askSms, askText, reqDay } from '@/lib/leads';
 import { StatTile } from '@/components/vtp';
+import { useUnreadCount } from '@/lib/messages';
 
 const TZ = 'America/Los_Angeles';
 const ymd = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
 const longDay = (d) => new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'long', month: 'long', day: 'numeric' }).format(d);
 const shortDay = (iso) => new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(iso));
+
+/** Family replies nobody on staff has opened yet (shared inbox), one tap into Messages. */
+function FamilyMessagesCard() {
+  const unread = useUnreadCount();
+  if (!unread) return null;
+  return (
+    <Link to="/admin/messages" className="flex items-center gap-3 rounded-xl border border-primary/60 bg-primary/5 p-4 transition hover:bg-primary/10">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"><MessageSquare className="h-5 w-5" /></span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold">{unread === 1 ? 'New message from a family' : `${unread} new messages from families`}</span>
+        <span className="block text-sm text-muted-foreground">Open Messages to read and reply.</span>
+      </span>
+      <span className="shrink-0 rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Read</span>
+    </Link>
+  );
+}
 
 function Section({ title, count, action, children }) {
   return (
@@ -95,6 +112,8 @@ export default function Today() {
         </div>
       </div>
 
+      <FamilyMessagesCard />
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <StatTile to="/admin/athletes?stage=enrolled" icon={Users} label="Enrolled" value={d.enrolledCount} />
         <StatTile to="/admin/athletes?stage=lead" icon={MessageSquareText} label="Waiting on a text" value={d.waitingCount} />
@@ -106,7 +125,7 @@ export default function Today() {
       <Section title="Classes today" count={d.classes.length || null}>
         {d.classes.length ? d.classes.map((c) => (
           <Row key={`${c.template_id}${c.day_key}${c.week}`} to={`/admin/log?program=${c.template_id}&day=${c.day_key}&week=${c.week}`}
-            right={<span className={c.logged === c.n ? 'text-sm font-medium text-green-700' : 'text-sm text-muted-foreground'}>{c.logged}/{c.n} logged</span>}>
+            right={<span className={c.logged === c.n ? 'text-sm font-medium text-success' : 'text-sm text-muted-foreground'}>{c.logged}/{c.n} logged</span>}>
             <div className="min-w-0"><p className="truncate font-medium">{c.title} · week {c.week}</p><p className="truncate text-xs text-muted-foreground">{c.program} · {c.n} athlete{c.n === 1 ? '' : 's'}</p></div>
           </Row>
         )) : <Empty>No program classes today.{d.nextClass ? ` Next one is ${shortDay(d.nextClass + 'T12:00:00')}.` : ' Assign a program to athletes to see classes here.'}</Empty>}
@@ -116,7 +135,7 @@ export default function Today() {
         action={<Link to="/admin/bookings" className="text-sm text-primary hover:underline">All bookings</Link>}>
         {d.assessments.length ? d.assessments.map((b) => (
           <Row key={b.id} to={b.athlete_id ? `/admin/athletes/${b.athlete_id}` : '/admin/bookings'}
-            right={<span className={b.status === 'attended' ? 'text-xs font-medium text-green-700' : b.status === 'no_show' ? 'text-xs text-rose-700' : 'text-xs text-muted-foreground'}>{b.status === 'attended' ? 'Checked in' : b.status === 'no_show' ? 'No-show' : 'Booked'}</span>}>
+            right={<span className={b.status === 'attended' ? 'text-xs font-medium text-success' : b.status === 'no_show' ? 'text-xs text-danger' : 'text-xs text-muted-foreground'}>{b.status === 'attended' ? 'Checked in' : b.status === 'no_show' ? 'No-show' : 'Booked'}</span>}>
             <div className="flex min-w-0 items-baseline gap-3"><span className="w-[4.75rem] shrink-0 whitespace-nowrap font-display text-lg">{fmtTime(new Date(b.slot_start))}</span><span className="truncate"><span className="font-medium">{b.athlete_first_name} {b.athlete_last_name || ''}</span><span className="text-xs text-muted-foreground"> · {[b.athlete_age && `age ${b.athlete_age}`, b.sport].filter(Boolean).join(' · ')}</span></span></div>
           </Row>
         )) : <Empty>No assessments booked this week.</Empty>}

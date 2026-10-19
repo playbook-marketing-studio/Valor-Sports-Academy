@@ -11,6 +11,12 @@ module.exports = {
   			sm: 'calc(var(--radius) - 4px)',
   			xl: 'var(--radius-lg)'
   		},
+  		textColor: {
+  			primary: {
+  				DEFAULT: 'hsl(var(--primary-text))',
+  				foreground: 'hsl(var(--primary-foreground))'
+  			}
+  		},
   		colors: {
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
@@ -41,6 +47,26 @@ module.exports = {
   			destructive: {
   				DEFAULT: 'hsl(var(--destructive))',
   				foreground: 'hsl(var(--destructive-foreground))'
+  			},
+  			success: {
+  				DEFAULT: 'hsl(var(--success))',
+  				surface: 'hsl(var(--success-surface))',
+  				border: 'hsl(var(--success-border))'
+  			},
+  			warning: {
+  				DEFAULT: 'hsl(var(--warning))',
+  				surface: 'hsl(var(--warning-surface))',
+  				border: 'hsl(var(--warning-border))'
+  			},
+  			info: {
+  				DEFAULT: 'hsl(var(--info))',
+  				surface: 'hsl(var(--info-surface))',
+  				border: 'hsl(var(--info-border))'
+  			},
+  			danger: {
+  				DEFAULT: 'hsl(var(--danger))',
+  				surface: 'hsl(var(--danger-surface))',
+  				border: 'hsl(var(--danger-border))'
   			},
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',

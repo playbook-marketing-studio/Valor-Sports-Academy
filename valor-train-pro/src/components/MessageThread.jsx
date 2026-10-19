@@ -10,8 +10,9 @@ import { fmtWhen, loadThread, markRead, sendDirect, useRefreshUnread } from '@/l
  * One athlete's conversation between Valor staff and the parent, chat style.
  * `side` = 'staff' or 'family': whose bubbles sit on the right.
  * Opening it marks the other side's messages read. `onSent` lets staff offer the text heads-up.
+ * `readOnly` (staff "view as athlete"): no composer and nothing gets marked read.
  */
-export default function MessageThread({ athleteId, side, placeholder, onSent, emptyText }) {
+export default function MessageThread({ athleteId, side, placeholder, onSent, emptyText, readOnly = false }) {
   const [rows, setRows] = useState(null);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -22,13 +23,16 @@ export default function MessageThread({ athleteId, side, placeholder, onSent, em
     const data = await loadThread(athleteId);
     setRows(data);
     const theirs = data.filter((m) => (side === 'staff' ? !m.from_staff : m.from_staff)).map((m) => m.id);
-    if (theirs.length) { await markRead(theirs); refreshUnread(); }
+    // only count as read while the screen is actually showing, not from a tab left open in the background
+    if (theirs.length && !readOnly && document.visibilityState === 'visible') { await markRead(theirs); refreshUnread(); }
   };
   useEffect(() => {
     setRows(null);
     load();
     const t = setInterval(load, 20000);
-    return () => clearInterval(t);
+    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVisible); };
   }, [athleteId]);
   useEffect(() => { end.current?.scrollIntoView({ block: 'nearest' }); }, [rows?.length]);
 
@@ -62,7 +66,7 @@ export default function MessageThread({ athleteId, side, placeholder, onSent, em
         })}
         <div ref={end} />
       </div>
-      <div className="flex items-end gap-2 border-t border-border p-3">
+      {!readOnly && <div className="flex items-end gap-2 border-t border-border p-3">
         <Textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value.slice(0, 2000))}
@@ -74,7 +78,7 @@ export default function MessageThread({ athleteId, side, placeholder, onSent, em
         <Button onClick={send} disabled={busy || !draft.trim()} className="h-[52px] shrink-0 gap-1.5 px-4">
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Send
         </Button>
-      </div>
+      </div>}
     </div>
   );
 }

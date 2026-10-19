@@ -56,7 +56,7 @@ export function StatTile({ label, value, unit, icon: Icon, trend, to, onClick, c
         <p
           className={cn(
             'mt-1.5 flex items-center gap-1 text-xs font-medium',
-            trend.tone === 'good' && 'text-green-600 dark:text-green-400',
+            trend.tone === 'good' && 'text-success',
             trend.tone === 'bad' && 'text-destructive',
             (!trend.tone || trend.tone === 'neutral') && 'text-muted-foreground'
           )}

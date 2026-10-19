@@ -93,7 +93,7 @@ export default function ClassLog() {
   // gray hint: the kid's target weight from their own max, else the target as written ("x10", "Bodyweight")
   const hint = (ex, maxes) => (ex.intensity && maxes[ex.name] ? `${Math.round((maxes[ex.name] * ex.intensity) / 100)}` : ex.intensity ? `${ex.intensity}%` : (ex.target || 'lb'));
   const status = (id) => saved[id] === 'saving' ? <span className="text-muted-foreground">Saving…</span>
-    : saved[id] === 'saved' ? <span className="inline-flex items-center gap-1 text-green-700"><Check className="h-3 w-3" /> Saved</span>
+    : saved[id] === 'saved' ? <span className="inline-flex items-center gap-1 text-success"><Check className="h-3 w-3" /> Saved</span>
     : saved[id] === 'error' ? <span className="text-destructive">Not saved</span> : null;
 
   return (

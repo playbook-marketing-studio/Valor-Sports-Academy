@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useNavigate, useParams } from 'react-router-dom';
-import { Dumbbell, Apple, TrendingUp, LayoutDashboard, LogOut, Loader2, ChevronRight, Search, Users } from 'lucide-react';
+import { Dumbbell, Apple, TrendingUp, LayoutDashboard, LogOut, Loader2, ChevronRight, Search, Users, MessageSquare, Megaphone } from 'lucide-react';
 import { supabase } from '@/api/supabaseClient';
 import { useViewAs } from '@/lib/ViewAsContext';
 import { Button } from '@/components/ui/button';
@@ -10,13 +10,54 @@ import { cn } from '@/lib/utils';
 import Brand from '@/components/Brand';
 import ThemeToggle from '@/components/ThemeToggle';
 import { athleteName } from '@/lib/valor';
+import { PageHeader, SegmentedTabs, EmptyState } from '@/components/vtp';
+import MessageThread from '@/components/MessageThread';
+import { fmtWhen } from '@/lib/messages';
 
 const navItems = (base) => [
   { to: base, label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: `${base}/workouts`, label: 'Workouts', icon: Dumbbell },
   { to: `${base}/nutrition`, label: 'Nutrition', icon: Apple },
   { to: `${base}/progress`, label: 'Progress', icon: TrendingUp },
+  { to: `${base}/messages`, label: 'Messages', icon: MessageSquare },
 ];
+
+/** The family's Messages screen for this athlete, read-only: their chat with Valor plus announcements. Marks nothing read. */
+export function ViewAsMessages() {
+  const { athlete } = useViewAs();
+  const [news, setNews] = useState(null);
+  const [tab, setTab] = useState('chat');
+  useEffect(() => {
+    supabase.from('messages').select('*').eq('kind', 'announcement').order('created_at', { ascending: false }).limit(30)
+      .then(({ data }) => setNews(data || []));
+  }, []);
+  if (!athlete) return null;
+  return (
+    <div className="space-y-5">
+      <PageHeader title="Messages" subtitle="What the family sees: their chat with Valor about this athlete, plus announcements." />
+      <SegmentedTabs options={[{ value: 'chat', label: 'Coach' }, { value: 'news', label: 'Announcements' }]} value={tab} onChange={setTab} />
+      {tab === 'chat' && (
+        <MessageThread key={athlete.id} athleteId={athlete.id} side="family" readOnly
+          emptyText={`No messages yet between Valor and ${athlete.first_name}'s family.`} />
+      )}
+      {tab === 'news' && (news === null ? <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+        : news.length === 0 ? <EmptyState icon={Megaphone} title="No announcements yet" message="Announcements you send from Messages show up here for every family." />
+        : (
+          <div className="space-y-3">
+            {news.map((m) => (
+              <article key={m.id} className="rounded-xl border border-border bg-card p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="font-display text-xl">{m.title || 'From Valor'}</h2>
+                  <span className="shrink-0 text-xs text-muted-foreground">{fmtWhen(m.created_at)}</span>
+                </div>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{m.body}</p>
+              </article>
+            ))}
+          </div>
+        ))}
+    </div>
+  );
+}
 
 /** Staff picks ONE athlete (searchable by athlete or parent name) to enter view-as mode. */
 function ViewAsPicker({ onPick }) {
@@ -108,7 +149,7 @@ export default function ViewAsAthlete() {
     <div className="min-h-screen bg-background">
       <div className="sticky top-0 z-50 flex flex-wrap items-center justify-between gap-3 bg-primary px-4 py-3 text-primary-foreground shadow-[0_8px_24px_-8px_rgba(0,0,0,.6)]">
         <p className="text-sm font-semibold">
-          Viewing as <span className="font-display font-normal tracking-wide">{athleteName(athlete)}</span> <span className="font-normal opacity-85">(read-only)</span>
+          Viewing as <span className="font-display font-normal tracking-wide">{athleteName(athlete)}</span> <span className="font-normal">(read-only)</span>
         </p>
         <div className="flex shrink-0 items-center gap-2">
           <ThemeToggle compact className="h-11 text-primary-foreground hover:bg-white/15 hover:text-primary-foreground" />

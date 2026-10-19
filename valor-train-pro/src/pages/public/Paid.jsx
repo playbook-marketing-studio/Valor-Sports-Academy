@@ -18,7 +18,7 @@ export default function Paid() {
   return (
     <PublicLayout title="You're all set">
       <div className="flex items-start gap-3">
-        <CheckCircle2 className="mt-0.5 h-6 w-6 text-green-600" />
+        <CheckCircle2 className="mt-0.5 h-6 w-6 text-success" />
         <div className="text-sm">
           <p className="font-semibold">Payment received. Welcome to Valor.</p>
           <p className="mt-1 text-muted-foreground">Your receipt is on its way to your email. Workouts, nutrition and your athlete's training plan are unlocked. Questions? Call or text {VALOR_PHONE}.</p>

@@ -21,7 +21,7 @@ export default function WorkoutDayCard({ workout, latest1rm, isCompleted, onLog 
         <div className="flex flex-col items-end gap-1">
           <span className="flex items-center gap-1 text-xs text-muted-foreground"><Calendar className="h-3 w-3" />{workout.date}</span>
           {isToday && <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">Today</span>}
-          {done && <span className="flex items-center gap-1 text-xs text-green-500"><CheckCircle2 className="h-3 w-3" />Done</span>}
+          {done && <span className="flex items-center gap-1 text-xs text-success"><CheckCircle2 className="h-3 w-3" />Done</span>}
         </div>
       </div>
 

@@ -45,7 +45,7 @@ export function AssessmentTrends({ assessments = [], metrics = [] }) {
           <div className="flex items-center gap-3">
             <Sparkline data={r.points.map((p) => p.value)} width={90} height={28} />
             {r.delta && (
-              <span className={r.delta.tone === 'good' ? 'text-xs font-semibold text-green-600 dark:text-green-400' : r.delta.tone === 'bad' ? 'text-xs font-semibold text-destructive' : 'text-xs font-semibold text-muted-foreground'}>
+              <span className={r.delta.tone === 'good' ? 'text-xs font-semibold text-success' : r.delta.tone === 'bad' ? 'text-xs font-semibold text-destructive' : 'text-xs font-semibold text-muted-foreground'}>
                 {r.delta.label}
               </span>
             )}
@@ -90,7 +90,7 @@ export function MaxLiftTrends({ maxes = [] }) {
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{l.name}</p>
               <p className="stat-number mt-1 text-3xl text-foreground">{l.latest.weight}<span className="ml-1 font-body text-sm font-normal text-muted-foreground">lbs</span></p>
               {l.delta && (
-                <p className={l.delta.tone === 'good' ? 'mt-1 text-xs font-semibold text-green-600 dark:text-green-400' : 'mt-1 text-xs font-semibold text-muted-foreground'}>
+                <p className={l.delta.tone === 'good' ? 'mt-1 text-xs font-semibold text-success' : 'mt-1 text-xs font-semibold text-muted-foreground'}>
                   {l.delta.label} lbs since last
                 </p>
               )}

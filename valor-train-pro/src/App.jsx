@@ -27,7 +27,7 @@ import AdminEnrollment from '@/pages/admin/Enrollment';
 import { ProgramsList, ProgramDetail } from '@/pages/admin/Programs';
 import ClassLog from '@/pages/admin/ClassLog';
 import Today from '@/pages/admin/Today';
-import ViewAsAthlete, { ViewAsPickerPage } from '@/pages/admin/ViewAsAthlete';
+import ViewAsAthlete, { ViewAsPickerPage, ViewAsMessages } from '@/pages/admin/ViewAsAthlete';
 import Messages from '@/pages/Messages';
 import AdminMessages, { AdminMessageThread } from '@/pages/admin/Messages';
 import { useAuth as useAuthForHome } from '@/lib/AuthContext';
@@ -48,7 +48,7 @@ const AuthenticatedApp = () => {
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -108,6 +108,7 @@ const AuthenticatedApp = () => {
           <Route path="/admin/view-as-athlete" element={<ViewAsPickerPage />} />
           <Route path="/admin/view-as-athlete/:athleteId" element={<ViewAsAthlete />}>
             <Route index element={<Home />} />
+            <Route path="messages" element={<ViewAsMessages />} />
             <Route element={<RequireEnrollment />}>
               <Route path="workouts" element={<Workouts />} />
               <Route path="nutrition" element={<Nutrition />} />

@@ -187,7 +187,7 @@ export function AdminMessageThread() {
         className="mb-2"
       />
       {!athlete.parent_id && (
-        <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+        <p className="rounded-xl border border-warning-border bg-warning-surface p-3 text-sm text-warning">
           {athlete.parent_name || 'This parent'} doesn't have a login yet, so they won't see messages until they sign in. Show them the login QR on the <Link className="underline" to={`/admin/athletes/${athlete.id}`}>athlete page</Link> first.
         </p>
       )}

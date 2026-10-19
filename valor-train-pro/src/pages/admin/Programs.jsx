@@ -25,7 +25,7 @@ const PROGRAM_PHOTOS = [
   '/images/photos/facility-wide.webp',
 ];
 
-const GROUP_STYLE = { primary: 'bg-primary/10 text-primary', superset: 'bg-muted', finisher: 'bg-amber-100 text-amber-900', extra: 'bg-sky-100 text-sky-900', other: 'bg-muted' };
+const GROUP_STYLE = { primary: 'bg-primary/10 text-primary', superset: 'bg-muted', finisher: 'bg-warning-surface text-warning', extra: 'bg-info-surface text-info', other: 'bg-muted' };
 
 const blankTemplate = () => ({
   name: 'New program', season: 'in_season', weeks: 4, description: '',

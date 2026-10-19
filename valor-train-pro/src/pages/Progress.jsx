@@ -281,7 +281,7 @@ export default function Progress() {
                     fontSize: '12px',
                   }}
                 />
-                <Legend wrapperStyle={{ fontSize: '12px' }} />
+                <Legend wrapperStyle={{ fontSize: '12px' }} formatter={(v) => <span className="text-foreground">{v}</span>} />
                 {exercises.map((ex, i) => (
                   <Line key={ex} type="monotone" dataKey={ex} stroke={colors[i % colors.length]} strokeWidth={2} dot={{ r: 4 }} />
                 ))}
