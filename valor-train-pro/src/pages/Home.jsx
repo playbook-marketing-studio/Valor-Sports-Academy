@@ -4,6 +4,8 @@ import { base44 } from '@/api/base44Client';
 import { loadSettings, DEFAULT_METRICS, countsAsEnrollment, classesLeft, enrolledIds, itemName, weekRange, metricDelta } from '@/lib/valor';
 import { supabase } from '@/api/supabaseClient';
 import EnrollButton from '@/components/EnrollButton';
+import AutopayCard from '@/components/AutopayCard';
+import { currentSub } from '@/lib/autopay';
 import AthleteForm from '@/components/AthleteForm';
 import { Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +22,7 @@ export default function Home() {
   const [athletes, setAthletes] = useState([]);
   const [assessments, setAssessments] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [subs, setSubs] = useState([]);
   const [weekWorkouts, setWeekWorkouts] = useState([]);
   const [weekLoggedIds, setWeekLoggedIds] = useState(new Set());
   const [settings, setSettings] = useState({ enrollment: null, metrics: DEFAULT_METRICS });
@@ -55,14 +58,15 @@ export default function Home() {
           const a = viewAs.athlete;
           setUser({ full_name: a.first_name, role: 'parent' });
           setAthletes([a]);
-          const [{ data: next }, { data: as }, { data: ps }, st] = await Promise.all([
+          const [{ data: next }, { data: as }, { data: ps }, st, { data: sb }] = await Promise.all([
             supabase.from('workouts').select('id, athlete_id, title, date, day, week, program').gte('date', today).eq('athlete_id', a.id).order('date').limit(40),
             supabase.from('assessments').select('*').eq('athlete_id', a.id).order('date', { ascending: false }),
             supabase.from('payments').select('*').eq('athlete_id', a.id).eq('status', 'paid').order('paid_at', { ascending: false }),
             loadSettings(),
+            supabase.from('subscriptions').select('*').eq('athlete_id', a.id).in('status', ['active', 'past_due']),
           ]);
           setUpcoming(next || []);
-          setAssessments(as || []); setPayments(ps || []); setSettings(st);
+          setAssessments(as || []); setPayments(ps || []); setSettings(st); setSubs(sb || []);
           loadWeek([a.id]);
           return;
         }
@@ -78,12 +82,13 @@ export default function Home() {
         setAthletes(kids);
         if (me.role !== 'admin' && kids.length) {
           const ids = kids.map((k) => k.id);
-          const [{ data: as }, { data: ps }, st] = await Promise.all([
+          const [{ data: as }, { data: ps }, st, { data: sb }] = await Promise.all([
             supabase.from('assessments').select('*').in('athlete_id', ids).order('date', { ascending: false }),
             supabase.from('payments').select('*').in('athlete_id', ids).eq('status', 'paid').order('paid_at', { ascending: false }),
             loadSettings(),
+            supabase.from('subscriptions').select('*').in('athlete_id', ids).in('status', ['active', 'past_due']),
           ]);
-          setAssessments(as || []); setPayments(ps || []); setSettings(st);
+          setAssessments(as || []); setPayments(ps || []); setSettings(st); setSubs(sb || []);
           loadWeek(ids);
         }
 
@@ -146,6 +151,7 @@ export default function Home() {
             const paid = enrolledPays.find((x) => x.athlete_id === a.id);
             const enrolledNoPack = !paid && inClass.has(a.id);
             const lapsed = !paid && !enrolledNoPack && payments.some((x) => x.athlete_id === a.id);
+            const autopay = currentSub(subs.filter((x) => x.athlete_id === a.id));
             const left = enrolledPays.filter((x) => x.athlete_id === a.id).reduce((n, x) => (n == null || classesLeft(x) == null ? null : n + classesLeft(x)), 0);
             const packTotal = enrolledPays.filter((x) => x.athlete_id === a.id).reduce((n, x) => n + (x.classes_total || 0), 0);
             const cls = itemName(settings.enrollment, as?.recommended_plan);
@@ -211,8 +217,9 @@ export default function Home() {
                     {enrolledNoPack ? <p><span className="font-semibold text-success">Enrolled.</span> {a.first_name} is in a class at Valor. Workouts, nutrition and their training plan are unlocked.</p>
                       : paid ? <p><span className="font-semibold text-success">Enrolled.</span> {left == null ? 'Unlimited classes' : `${left} class${left === 1 ? '' : 'es'} left`}{paid.covers_until ? `, good through ${new Date(paid.covers_until).toLocaleDateString()}` : ''}. Workouts, nutrition and their training plan are unlocked.</p>
                       : <p>{lapsed ? `${a.first_name}'s classes are used up or expired. Buy more` : `Enroll ${a.first_name}`} to unlock workouts, nutrition and their training plan.</p>}
-                    {!paid && !enrolledNoPack && !viewAs.isActive && <EnrollButton athlete={a} cfg={settings.enrollment} recommendedKey={as?.recommended_plan} label={lapsed ? 'Buy more classes' : undefined} />}
+                    {!paid && !enrolledNoPack && !autopay && !viewAs.isActive && <EnrollButton athlete={a} cfg={settings.enrollment} recommendedKey={as?.recommended_plan} label={lapsed ? 'Buy more classes' : undefined} />}
                   </div>
+                  {autopay && <AutopayCard sub={autopay} commitmentMonths={settings.enrollment?.monthly?.commitment_months ?? 3} readOnly={viewAs.isActive} onChanged={() => setReload((n) => n + 1)} />}
                 </CardContent>
               </Card>
             );

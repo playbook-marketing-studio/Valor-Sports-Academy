@@ -3,6 +3,7 @@
 //   parent reply       -> every coach (staff_allowlist, minus *.test), same list the site's booking alerts use
 //   announcement       -> every family with a login (BCC), only when the coach leaves "Also email" on
 //   card payment paid  -> every coach;  refund -> every coach
+//   autopay charge failed -> every coach + the parent (update card);  autopay ended -> every coach
 // The "Live example" athlete (Test Omar) only ever emails Omar, so testing never reaches Corey, Michael or families.
 // Each alert sends once: message_alerts(key) is claimed before sending.
 import { admin } from "./common.ts";
@@ -108,15 +109,56 @@ export async function alertForPayment(paymentId: string, kind: "paid" | "refunde
   const to = await staffRecipients(!!a?.is_example);
   const item = String(pay.description || pay.plan_key || "Class pack").split(" · ")[0];
   const amount = money(pay.amount_cents || 0);
+  const auto = pay.kind === "subscription";
   const subject = kind === "paid"
-    ? `Payment: ${amount} for ${fullName(a)}${a?.parent_name ? ` from ${a.parent_name}` : ""}`
+    ? `${auto ? "Autopay" : "Payment"}: ${amount} for ${fullName(a)}${a?.parent_name ? ` from ${a.parent_name}` : ""}`
     : `Refund: ${amount} for ${fullName(a)}`;
   const lines = kind === "paid"
-    ? `<p><strong>${esc(amount)}</strong> paid by card for <strong>${esc(item)}</strong>.</p><p>${esc(fullName(a))}'s workouts, nutrition and training plan are unlocked.</p>`
+    ? `<p><strong>${esc(amount)}</strong> ${auto ? "monthly autopay charged" : "paid by card"} for <strong>${esc(item)}</strong>${auto && pay.classes_total ? ` (${pay.classes_total} classes this month)` : ""}.</p><p>${esc(fullName(a))}'s workouts, nutrition and training plan are unlocked.</p>`
     : `<p>${esc(amount)} for <strong>${esc(item)}</strong> was refunded in Stripe.</p><p>If that was their only active pack, ${esc(a?.first_name || "the athlete")} is locked out of workouts and nutrition until they buy again.</p>`;
   return deliver(`pay:${pay.id}:${kind}`, {
     to, subject,
     text: `${subject}. ${item}. Athlete page: ${appUrl()}/admin/athletes/${pay.athlete_id}`,
     html: wrapHtml(subject, `${lines}${btn(`${appUrl()}/admin/athletes/${pay.athlete_id}`, "Open athlete page")}`),
   }, !!opts.dryRun);
+}
+
+/** Autopay problems: a failed monthly charge (coaches + parent) or autopay ending (coaches). */
+export async function alertForSubscription(subId: string, kind: "failed" | "ended", eventKey: string, opts: { dryRun?: boolean } = {}): Promise<AlertResult[]> {
+  const { data: sub } = await admin.from("subscriptions").select("*").eq("id", subId).maybeSingle();
+  if (!sub) return [{ sent: false, reason: "no such subscription" }];
+  const { data: a } = await admin.from("athletes").select("id, first_name, last_name, parent_name, is_example").eq("id", sub.athlete_id).maybeSingle();
+  const staff = await staffRecipients(!!a?.is_example);
+  const amount = money(sub.amount_cents || 0);
+  const page = `${appUrl()}/admin/athletes/${sub.athlete_id}`;
+  const out: AlertResult[] = [];
+  if (kind === "failed") {
+    const subject = `Autopay failed: ${amount} for ${fullName(a)}`;
+    out.push(await deliver(`sub:${eventKey}:failed:staff`, {
+      to: staff, subject,
+      text: `${subject}. Stripe will retry. ${a?.parent_name || "The parent"} gets an email to update their card. Athlete page: ${page}`,
+      html: wrapHtml(subject, `<p>The monthly ${esc(sub.plan_name)} charge didn't go through. Stripe retries over the next few days, and ${esc(a?.parent_name || "the parent")} gets an email asking them to update their card.</p><p>Their classes stay unlocked for 3 days past the charge date.</p>${btn(page, "Open athlete page")}`),
+    }, !!opts.dryRun));
+    if (sub.parent_id) {
+      const { data: p } = await admin.from("profiles").select("email, full_name").eq("id", sub.parent_id).maybeSingle();
+      if (p?.email) {
+        const hi = first(p.full_name || a?.parent_name);
+        const ps = `Your Valor payment for ${a?.first_name || "your athlete"} didn't go through`;
+        out.push(await deliver(`sub:${eventKey}:failed:parent`, {
+          to: p.email, subject: ps,
+          text: `${hi ? `Hi ${hi}, ` : ""}the ${amount} monthly payment for ${a?.first_name} didn't go through. Update your card in the app: ${appUrl()}/`,
+          html: wrapHtml(ps, `<p>${hi ? `Hi ${esc(hi)}, the` : "The"} ${esc(amount)} monthly payment for ${esc(a?.first_name || "your athlete")}'s ${esc(sub.plan_name)} didn't go through. It's usually an expired card.</p><p>Open the app and tap <strong>Update card</strong> on ${esc(a?.first_name || "your athlete")}'s card. We'll retry automatically.</p>${btn(`${appUrl()}/`, "Update card in the app")}`,
+            "Questions? Call or text Valor."),
+        }, !!opts.dryRun));
+      }
+    }
+    return out;
+  }
+  const subject = `Autopay ended: ${fullName(a)} (${sub.plan_name})`;
+  out.push(await deliver(`sub:${eventKey}:ended`, {
+    to: staff, subject,
+    text: `${subject}. No more monthly charges. Athlete page: ${page}`,
+    html: wrapHtml(subject, `<p>${esc(fullName(a))}'s ${esc(amount)}/month autopay has ended, so there are no more monthly charges. They keep any classes left from the last paid month until it runs out.</p>${btn(page, "Open athlete page")}`),
+  }, !!opts.dryRun));
+  return out;
 }

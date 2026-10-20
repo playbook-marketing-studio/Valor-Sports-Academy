@@ -12,11 +12,18 @@
 //          STRIPE_SECRET_KEY is set; cash / Venmo are recorded straight from the app.
 //        A PARENT may call take_payment for their own athlete (pay later from their phone);
 //        everything else is staff only.
+//   Monthly plans (item.billing = "monthly", Corey 10/19/2026): take_payment starts a Stripe
+//   subscription instead: charged on the 1st, first month reduced (see _shared/billing.ts).
+//   POST {action:"billing_portal", subscription_id}  → Stripe page to update the card / see invoices
+//   POST {action:"cancel_autopay", subscription_id}  → stops at the end of the paid month. Parents only
+//        after the commitment (3 paid months); coaches any time.
+//   POST {action:"resume_autopay", subscription_id}  → undo a pending cancel
 // Deploy: supabase functions deploy staff --no-verify-jwt --project-ref gpotwyuttkkygvxzktep --use-api
 // ════════════════════════════════════════════════════════════════════════
 import Stripe from "npm:stripe@17.7.0";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import { admin, appOrigin, bad, cors, enrollmentConfig, json, userFromRequest } from "../_shared/common.ts";
+import { firstMonthClasses, fmtDayPT, isMonthly, monthlySettings, nextAnchor } from "../_shared/billing.ts";
 
 /**
  * The parent login this athlete should use, resolved safely (security audit 9/30).
@@ -111,7 +118,9 @@ async function emailParentLogin(req: Request, athleteId: string) {
   return json({ sent: true, email, existing_account: !!prof });
 }
 
-async function takePayment(req: Request, staffId: string | null, athleteId: string, planKey: string) {
+const stripeClient = () => new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, { apiVersion: "2025-02-24.acacia", httpClient: Stripe.createFetchHttpClient() });
+
+async function takePayment(req: Request, staffId: string | null, athleteId: string, planKey: string, testMonthly = false) {
   const cfg = await enrollmentConfig();
   const item = cfg.items.find((x) => x.key === planKey);
   if (!item || !(item.amount_cents >= 50)) return bad("pick a class or pack with a price");
@@ -119,6 +128,8 @@ async function takePayment(req: Request, staffId: string | null, athleteId: stri
   if (!a) return bad("athlete not found", 404);
   const key = Deno.env.get("STRIPE_SECRET_KEY");
   if (!key) return json({ configured: false, message: "Card payments are not connected yet. Record cash or Venmo for now." });
+  // test_monthly: staff only, Live example athlete only: run a one-time item through autopay checkout (testing before monthly plans go live)
+  if (isMonthly(item as any) || (testMonthly && staffId && a.is_example)) return await startSubscription(req, staffId, a, item, cfg);
 
   const athlete = [a.first_name, a.last_name].filter(Boolean).join(" ");
   const { data: pay, error } = await admin.from("payments").insert({
@@ -150,6 +161,108 @@ async function takePayment(req: Request, staffId: string | null, athleteId: stri
   }
 }
 
+/** Monthly plan: Stripe Checkout in subscription mode, anchored to the 1st (9am Pacific). */
+async function startSubscription(req: Request, staffId: string | null, a: Record<string, any>, item: Record<string, any>, cfg: any) {
+  const { data: live } = await admin.from("subscriptions").select("id, status").eq("athlete_id", a.id).in("status", ["active", "past_due"]).limit(1);
+  if (live?.length) return json({ already_subscribed: true, subscription_id: live[0].id });
+  const rules = monthlySettings(cfg);
+  const now = new Date();
+  const anchor = nextAnchor(now);
+  const firstClasses = firstMonthClasses(item.classes ?? null, now, anchor);
+  const athlete = [a.first_name, a.last_name].filter(Boolean).join(" ");
+  const { data: sub, error } = await admin.from("subscriptions").insert({
+    athlete_id: a.id, parent_id: a.parent_id, plan_key: item.key, plan_name: item.name, amount_cents: item.amount_cents,
+    classes_per_month: item.classes ?? null, first_month: rules.first_month === "half" && anchor && anchor.getTime() - now.getTime() > 49 * 3600000 ? "half" : "prorate",
+    first_month_classes: firstClasses, created_by: staffId,
+  }).select("*").single();
+  if (error) return bad(error.message, 500);
+
+  const meta: Record<string, string> = { subscription_row_id: sub.id, athlete_id: a.id, plan_key: item.key, first_month_classes: String(firstClasses ?? "") };
+  const product_data = { name: `Valor Sports Academy: ${item.name}`, description: `${athlete} · monthly, charged on the 1st` };
+  const line_items: any[] = [{ quantity: 1, price_data: { currency: "usd", unit_amount: item.amount_cents, recurring: { interval: "month" }, product_data } }];
+  const subscription_data: Record<string, unknown> = { metadata: meta, description: `${item.name} · ${athlete}` };
+  // Stripe needs a trial to end 48h+ out; in the last 2 days of a month half price falls back to prorated
+  const halfOk = rules.first_month === "half" && anchor && anchor.getTime() - now.getTime() > 49 * 3600000;
+  if (anchor && halfOk) {
+    // flat half price today (one-time line), recurring billing starts on the 1st. Checkout can't mix
+    // proration "none" with one-time prices, so the days until the 1st are a Stripe trial.
+    subscription_data.trial_end = Math.floor(anchor.getTime() / 1000);
+    line_items.push({ quantity: 1, price_data: { currency: "usd", unit_amount: Math.round(item.amount_cents / 2), product_data: { name: `Rest of this month (half price, through ${fmtDayPT(new Date(anchor.getTime() - 86400000))})`, description: athlete } } });
+  } else if (anchor) {
+    subscription_data.billing_cycle_anchor = Math.floor(anchor.getTime() / 1000);
+    subscription_data.proration_behavior = "create_prorations"; // Stripe charges the exact days left in the month
+  }
+  const origin = appOrigin(req);
+  try {
+    const session = await stripeClient().checkout.sessions.create({
+      mode: "subscription",
+      customer_email: a.parent_email || undefined,
+      client_reference_id: sub.id,
+      line_items,
+      subscription_data: subscription_data as any,
+      metadata: meta,
+      success_url: `${origin}/paid?s=${sub.id}`,
+      cancel_url: `${origin}/paid?s=${sub.id}&canceled=1`,
+    });
+    await admin.from("subscriptions").update({ stripe_checkout_session_id: session.id }).eq("id", sub.id);
+    return json({ configured: true, url: session.url, subscription_id: sub.id, first_amount_cents: session.amount_total, next_charge_at: anchor?.toISOString() || null, first_month_classes: firstClasses });
+  } catch (e) {
+    await admin.from("subscriptions").update({ status: "expired" }).eq("id", sub.id);
+    return bad(`Stripe error: ${(e as Error).message}`, 502);
+  }
+}
+
+/** The subscription row, if the caller is staff or that athlete's parent. */
+async function subForCaller(userId: string, isStaff: boolean, subId: string) {
+  const { data: sub } = await admin.from("subscriptions").select("*").eq("id", subId).maybeSingle();
+  if (!sub) return { error: bad("autopay not found", 404) };
+  if (!isStaff) {
+    const { data: a } = await admin.from("athletes").select("parent_id").eq("id", sub.athlete_id).maybeSingle();
+    if (!a || a.parent_id !== userId) return { error: bad("not your athlete", 403) };
+  }
+  return { sub };
+}
+
+/** One Stripe portal configuration for Valor: update card + invoices only (cancel goes through the app, for the commitment). */
+async function portalConfigId(stripe: Stripe) {
+  const list = await stripe.billingPortal.configurations.list({ limit: 10, active: true });
+  const mine = list.data.find((c) => c.metadata?.app === "valor-train-pro");
+  if (mine) return mine.id;
+  const c = await stripe.billingPortal.configurations.create({
+    business_profile: { headline: "Valor Sports Academy: update your card or see receipts" },
+    features: {
+      payment_method_update: { enabled: true },
+      invoice_history: { enabled: true },
+      customer_update: { enabled: true, allowed_updates: ["email"] },
+      subscription_cancel: { enabled: false },
+      subscription_update: { enabled: false },
+    },
+    metadata: { app: "valor-train-pro" },
+  } as any);
+  return c.id;
+}
+
+async function billingPortal(req: Request, sub: Record<string, any>) {
+  if (!sub.stripe_customer_id) return bad("This autopay isn't connected to Stripe yet", 409);
+  const stripe = stripeClient();
+  const s = await stripe.billingPortal.sessions.create({ customer: sub.stripe_customer_id, configuration: await portalConfigId(stripe), return_url: `${appOrigin(req)}/` });
+  return json({ url: s.url });
+}
+
+async function setCancel(userId: string, isStaff: boolean, sub: Record<string, any>, cancel: boolean) {
+  if (!sub.stripe_subscription_id || !["active", "past_due"].includes(sub.status)) return bad("No active autopay to change", 409);
+  if (cancel && !isStaff) {
+    const rules = monthlySettings(await enrollmentConfig() as any);
+    if (sub.paid_months < rules.commitment_months) {
+      const left = rules.commitment_months - sub.paid_months;
+      return bad(`Autopay has a ${rules.commitment_months}-month commitment. You can cancel after ${left} more payment${left === 1 ? "" : "s"}. Questions? Call or text 509-987-4612.`, 409);
+    }
+  }
+  const updated = await stripeClient().subscriptions.update(sub.stripe_subscription_id, { cancel_at_period_end: cancel });
+  await admin.from("subscriptions").update({ cancel_at_period_end: updated.cancel_at_period_end, cancel_requested_by: cancel ? userId : null, updated_at: new Date().toISOString() }).eq("id", sub.id);
+  return json({ ok: true, cancel_at_period_end: updated.cancel_at_period_end });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return bad("POST only", 405);
@@ -166,7 +279,14 @@ Deno.serve(async (req) => {
         const { data: a } = await admin.from("athletes").select("parent_id").eq("id", athleteId).maybeSingle();
         if (!a || a.parent_id !== user.id) return bad("not your athlete", 403);
       }
-      return await takePayment(req, isStaff ? user.id : null, athleteId, String(body.plan_key || ""));
+      return await takePayment(req, isStaff ? user.id : null, athleteId, String(body.plan_key || ""), isStaff && body.test_monthly === true);
+    }
+    if (body.action === "billing_portal" || body.action === "cancel_autopay" || body.action === "resume_autopay") {
+      if (!Deno.env.get("STRIPE_SECRET_KEY")) return json({ configured: false });
+      const r = await subForCaller(user.id, isStaff, String(body.subscription_id || ""));
+      if (r.error) return r.error;
+      if (body.action === "billing_portal") return await billingPortal(req, r.sub);
+      return await setCancel(user.id, isStaff, r.sub, body.action === "cancel_autopay");
     }
     if (!isStaff) return bad("staff only", 403);
     if (body.action === "invite_parent") return await inviteParent(req, athleteId);

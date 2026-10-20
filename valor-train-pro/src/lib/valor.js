@@ -19,7 +19,7 @@ export async function loadSettings() {
   const e = map.enrollment || {};
   return {
     // One-time classes and class packs (Omar 9/23: no subscriptions). Content is included while one is active.
-    enrollment: { placeholder: !!e.placeholder, note: e.note || '', items: Array.isArray(e.items) ? e.items : [] },
+    enrollment: { placeholder: !!e.placeholder, note: e.note || '', items: Array.isArray(e.items) ? e.items : [], monthly: e.monthly || {} },
     metrics: Array.isArray(map.assessment_metrics) ? map.assessment_metrics : DEFAULT_METRICS,
   };
 }
@@ -27,7 +27,9 @@ export async function loadSettings() {
 const usd = (c) => `$${(c / 100).toFixed(c % 100 ? 2 : 0)}`;
 const classesText = (n) => (n == null ? 'unlimited classes' : `${n} class${n === 1 ? '' : 'es'}`);
 /** "$199 · 8 classes" (+ " · expires after 60 days"). */
-export const priceLabel = (item) => (!item ? '' : `${usd(item.amount_cents)} · ${classesText(item.classes)}${item.expires_days ? ` · expires after ${item.expires_days} days` : ''}`);
+export const priceLabel = (item) => (!item ? '' : item.billing === 'monthly'
+  ? `${usd(item.amount_cents)}/mo · ${item.classes == null ? 'unlimited classes' : `${item.classes} classes a month`} · autopay`
+  : `${usd(item.amount_cents)} · ${classesText(item.classes)}${item.expires_days ? ` · expires after ${item.expires_days} days` : ''}`);
 /** The class/pack offered by default: the coach's recommendation, else the only item, else null (let them pick). */
 export const defaultItem = (cfg, recommendedKey) => cfg?.items?.find((x) => x.key === recommendedKey) || (cfg?.items?.length === 1 ? cfg.items[0] : null);
 export const itemName = (cfg, key) => cfg?.items?.find((x) => x.key === key)?.name || '';

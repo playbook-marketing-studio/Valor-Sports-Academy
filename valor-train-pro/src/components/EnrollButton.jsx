@@ -4,10 +4,11 @@ import { startEnrollment } from '@/lib/enroll';
 import { defaultItem, priceLabel } from '@/lib/valor';
 import { money } from '@/lib/slots';
 import { useViewAs } from '@/lib/ViewAsContext';
+import { autopayTerms, isMonthlyItem } from '@/lib/autopay';
 
 /**
- * Parent's "Enroll and pay" for one athlete: a one-time class or class pack. Uses the coach's
- * recommendation, or the only item; otherwise shows a small picker.
+ * Parent's "Enroll and pay" for one athlete: a one-time class or pack, or a monthly autopay plan
+ * (charged on the 1st). Uses the coach's recommendation, or the only item; otherwise a small picker.
  */
 export default function EnrollButton({ athlete, cfg, recommendedKey, label }) {
   const initial = defaultItem(cfg, recommendedKey);
@@ -23,6 +24,7 @@ export default function EnrollButton({ athlete, cfg, recommendedKey, label }) {
   if (viewingAsFamily) {
     return <span className="text-xs text-muted-foreground">{label || 'Enroll and pay'} (off in read-only view)</span>;
   }
+  const monthly = isMonthlyItem(program);
   return (
     <div className="flex flex-wrap items-center gap-2">
       {needsPick && (
@@ -32,8 +34,9 @@ export default function EnrollButton({ athlete, cfg, recommendedKey, label }) {
         </select>
       )}
       <Button size="sm" disabled={!program || busy} onClick={async () => { setBusy(true); await startEnrollment(athlete, program.key); setBusy(false); }}>
-        {busy ? 'One moment…' : `${label || 'Enroll and pay'}${program ? ` · ${money(program.amount_cents)}` : ''}`}
+        {busy ? 'One moment…' : monthly ? `Start autopay · ${money(program.amount_cents)}/mo` : `${label || 'Enroll and pay'}${program ? ` · ${money(program.amount_cents)}` : ''}`}
       </Button>
+      {monthly && <p className="w-full text-xs text-muted-foreground">{autopayTerms(program, cfg.monthly)}</p>}
     </div>
   );
 }

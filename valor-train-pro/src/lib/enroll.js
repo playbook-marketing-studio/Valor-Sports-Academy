@@ -6,7 +6,7 @@ import { VALOR_PHONE } from '@/lib/valor';
 export async function startEnrollment(athlete, planKey) {
   try {
     const r = await callFn('staff', { body: { action: 'take_payment', athlete_id: athlete.id, plan_key: planKey } });
-    if (r.already_enrolled) { window.location.reload(); return; }
+    if (r.already_enrolled || r.already_subscribed) { window.location.reload(); return; }
     if (r.configured === false) {
       toast({ title: 'Online payment is not set up yet', description: `Pay at Valor with a coach, or call or text ${VALOR_PHONE}.` });
       return;

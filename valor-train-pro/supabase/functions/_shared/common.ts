@@ -43,13 +43,13 @@ export function appOrigin(req: Request) {
   return (Deno.env.get("APP_URL") || "http://localhost:5173").replace(/\/$/, "");
 }
 
-/** A class or class pack, sold the way Valor sells at the gym. One-time only (Omar 9/23: no subscriptions). */
-export type Item = { key: string; name: string; amount_cents: number; classes: number | null; expires_days: number | null };
-export type EnrollmentConfig = { placeholder?: boolean; items: Item[] };
+/** One-time class/pack, or a monthly autopay plan when billing = "monthly" (Corey 10/19/2026; rules in billing.ts). */
+export type Item = { key: string; name: string; amount_cents: number; classes: number | null; expires_days: number | null; billing?: "monthly" };
+export type EnrollmentConfig = { placeholder?: boolean; items: Item[]; monthly?: { first_month?: string; commitment_months?: number } };
 export async function enrollmentConfig(): Promise<EnrollmentConfig> {
   const { data } = await admin.from("settings").select("value").eq("key", "enrollment").maybeSingle();
   const v = (data?.value || {}) as Partial<EnrollmentConfig>;
-  return { placeholder: !!v.placeholder, items: Array.isArray(v.items) ? v.items : [] };
+  return { placeholder: !!v.placeholder, items: Array.isArray(v.items) ? v.items : [], monthly: v.monthly || {} };
 }
 /** Expiry for a purchase made now, or null when the item never expires. */
 export function expiryFrom(from: Date, days: number | null | undefined) {

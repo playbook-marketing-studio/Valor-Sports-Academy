@@ -15,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from '@/components/ui/use-toast';
 import { fmtSlot, money } from '@/lib/slots';
 import { athleteName, classesLeft, countsAsEnrollment, defaultItem, loadSettings, priceLabel, smsHref, telHref } from '@/lib/valor';
+import AutopayCard from '@/components/AutopayCard';
+import { autopayTerms, currentSub, isMonthlyItem } from '@/lib/autopay';
 import { loginState } from './Athletes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -256,10 +258,16 @@ function ParentLogin({ athlete, onChanged }) {
   );
 }
 
-// ── payment: one-time classes and class packs (no subscriptions) ──────────
+// ── payment: one-time classes and packs, or monthly autopay (charged on the 1st) ──
+/** Cash/Venmo for a monthly plan covers this month: through the next 1st (+3 days grace, like autopay). */
+function monthEnd(now = new Date()) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: 'numeric' }).formatToParts(now).filter((x) => x.type !== 'literal').map((x) => [x.type, Number(x.value)]));
+  return new Date(Date.UTC(p.month === 12 ? p.year + 1 : p.year, p.month === 12 ? 0 : p.month, 4, 17)).toISOString();
+}
 function Payment({ athlete, cfg, recommendedKey }) {
   const { user } = useAuth();
   const [rows, setRows] = useState([]);
+  const [subs, setSubs] = useState([]);
   const [key, setKey] = useState('');
   const [checkout, setCheckout] = useState(null); // {url, payment_id}
   const [busy, setBusy] = useState('');
@@ -267,9 +275,12 @@ function Payment({ athlete, cfg, recommendedKey }) {
   const poll = useRef(null);
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from('payments').select('*').eq('athlete_id', athlete.id).order('created_at', { ascending: false });
-    setRows(data || []);
-    return data || [];
+    const [{ data }, { data: sb }] = await Promise.all([
+      supabase.from('payments').select('*').eq('athlete_id', athlete.id).order('created_at', { ascending: false }),
+      supabase.from('subscriptions').select('*').eq('athlete_id', athlete.id).order('created_at', { ascending: false }),
+    ]);
+    setRows(data || []); setSubs(sb || []);
+    return { pays: data || [], subs: sb || [] };
   }, [athlete.id]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => () => clearInterval(poll.current), []);
@@ -281,19 +292,25 @@ function Payment({ athlete, cfg, recommendedKey }) {
   const active = rows.filter(countsAsEnrollment);
   const left = active.reduce((n, x) => (n == null || classesLeft(x) == null ? null : n + classesLeft(x)), 0);
   const usedUp = !active.length && rows.some((r) => r.status === 'paid');
-  const paidNow = checkout && rows.find((r) => r.id === checkout.payment_id)?.status === 'paid';
+  const paidNow = checkout && (checkout.subscription_id
+    ? subs.find((x) => x.id === checkout.subscription_id)?.status === 'active'
+    : rows.find((r) => r.id === checkout.payment_id)?.status === 'paid');
+  const autopay = currentSub(subs);
+  const monthly = isMonthlyItem(chosen);
 
   const showCardQr = async () => {
     setBusy('card');
     try {
       const r = await callFn('staff', { body: { action: 'take_payment', athlete_id: athlete.id, plan_key: key } });
       if (r.configured === false) toast({ title: 'Card payments are not connected yet', description: r.message });
+      else if (r.already_subscribed) { toast({ title: `${athlete.first_name} is already on autopay` }); await load(); }
       else {
         setCheckout(r);
         clearInterval(poll.current);
         poll.current = setInterval(async () => {
-          const data = await load();
-          if (data.find((x) => x.id === r.payment_id)?.status === 'paid') clearInterval(poll.current);
+          const { pays, subs: sb } = await load();
+          const done = r.subscription_id ? sb.find((x) => x.id === r.subscription_id)?.status === 'active' : pays.find((x) => x.id === r.payment_id)?.status === 'paid';
+          if (done) clearInterval(poll.current);
         }, 3000);
         await load();
       }
@@ -310,7 +327,7 @@ function Payment({ athlete, cfg, recommendedKey }) {
       description: `${chosen.name} · ${athleteName(athlete)}`, amount_cents: chosen.amount_cents,
       kind: 'one_time', method, status: 'paid', paid_at: now.toISOString(), recorded_by: user.id, note: note.trim() || null,
       classes_total: chosen.classes ?? null,
-      covers_until: chosen.expires_days ? new Date(now.getTime() + chosen.expires_days * 86400000).toISOString() : null,
+      covers_until: isMonthlyItem(chosen) ? monthEnd(now) : chosen.expires_days ? new Date(now.getTime() + chosen.expires_days * 86400000).toISOString() : null,
     });
     setBusy('');
     if (error) return toast({ title: 'Could not record it', description: error.message });
@@ -333,9 +350,10 @@ function Payment({ athlete, cfg, recommendedKey }) {
 
   return (
     <Card>
-      <CardHeader className="pb-3"><CardTitle className="text-lg">3. Classes &amp; enrollment</CardTitle><p className="mt-1 text-xs text-muted-foreground">One-time payment for a class or class pack. Workouts, nutrition and training plans are included while one is active.</p></CardHeader>
+      <CardHeader className="pb-3"><CardTitle className="text-lg">3. Classes &amp; enrollment</CardTitle><p className="mt-1 text-xs text-muted-foreground">{(cfg.items || []).some(isMonthlyItem) ? 'A class pack paid once, or a monthly plan on autopay (charged on the 1st).' : 'One-time payment for a class or class pack.'} Workouts, nutrition and training plans are included while one is active.</p></CardHeader>
       <CardContent className="space-y-4">
         {cfg.placeholder && <p className="rounded-lg border border-warning-border bg-warning-surface px-3 py-2 text-xs text-warning">Prices and packs are placeholders: confirm with Corey.</p>}
+        {autopay && <AutopayCard sub={autopay} staff commitmentMonths={cfg.monthly?.commitment_months ?? 3} onChanged={load} />}
         {active.length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-success-border bg-success-surface px-3 py-2">
             <p className="flex items-center gap-2 text-sm font-semibold text-success"><CheckCircle2 className="h-5 w-5" /> Enrolled · {left == null ? 'unlimited classes' : `${left} class${left === 1 ? '' : 'es'} left`}{active[0].covers_until ? ` · good through ${new Date(active[0].covers_until).toLocaleDateString()}` : ''}</p>
@@ -353,7 +371,8 @@ function Payment({ athlete, cfg, recommendedKey }) {
               </Select>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <Button onClick={showCardQr} disabled={!chosen || !!busy} className="col-span-3 gap-2">{busy === 'card' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Smartphone className="h-4 w-4" />} Card: show QR to scan</Button>
+              <Button onClick={showCardQr} disabled={!chosen || !!busy || (monthly && !!autopay)} className="col-span-3 gap-2">{busy === 'card' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Smartphone className="h-4 w-4" />} {monthly ? (autopay ? 'Already on autopay' : 'Card: QR to start autopay') : 'Card: show QR to scan'}</Button>
+              {monthly && !autopay && <p className="col-span-3 text-xs text-muted-foreground">{autopayTerms(chosen, cfg.monthly)} Paid cash or Venmo covers this month only.</p>}
               <Button variant="outline" onClick={() => record('cash')} disabled={!chosen || !!busy} className="gap-2"><Banknote className="h-4 w-4" /> Paid cash</Button>
               <Button variant="outline" onClick={() => record('venmo')} disabled={!chosen || !!busy} className="gap-2">Paid Venmo</Button>
               <Button variant="outline" onClick={() => record('other')} disabled={!chosen || !!busy} className="gap-2">Other</Button>
@@ -377,12 +396,14 @@ function Payment({ athlete, cfg, recommendedKey }) {
       </CardContent>
       <Dialog open={!!checkout} onOpenChange={(o) => { if (!o) { setCheckout(null); clearInterval(poll.current); } }}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>{chosen ? `${chosen.name} · ${money(chosen.amount_cents)}` : 'Payment'}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{chosen ? `${chosen.name} · ${money(chosen.amount_cents)}${checkout?.subscription_id ? '/mo autopay' : ''}` : 'Payment'}</DialogTitle></DialogHeader>
           {checkout && (paidNow ? (
-            <div className="flex flex-col items-center gap-2 py-6 text-center"><Check className="h-10 w-10 text-success" /><p className="font-semibold">Paid. Welcome to Valor.</p></div>
+            <div className="flex flex-col items-center gap-2 py-6 text-center"><Check className="h-10 w-10 text-success" /><p className="font-semibold">{checkout.subscription_id ? 'Autopay is on. Welcome to Valor.' : 'Paid. Welcome to Valor.'}</p></div>
           ) : (
             <div className="space-y-4">
-              <QrPanel value={checkout.url} caption="Parent scans with their phone camera and pays with card, Apple Pay or Google Pay. This screen updates when it goes through." />
+              <QrPanel value={checkout.url} caption={checkout.subscription_id
+                ? `Parent scans with their phone camera and saves a card for autopay. ${checkout.first_amount_cents != null ? `Today: ${money(checkout.first_amount_cents)}` : 'First payment today'}, then ${money(chosen?.amount_cents)} on the 1st. This screen updates when it goes through.`
+                : 'Parent scans with their phone camera and pays with card, Apple Pay or Google Pay. This screen updates when it goes through.'} />
               <div className="grid grid-cols-2 gap-2">
                 {athlete.parent_phone && <Button asChild variant="outline" size="sm"><a href={smsHref(athlete.parent_phone, `Here's the link to finish ${athlete.first_name}'s Valor sign-up: ${checkout.url}`)}><MessageSquare className="h-4 w-4" /> Text link</a></Button>}
                 <Button variant="outline" size="sm" onClick={() => { navigator.clipboard?.writeText(checkout.url); toast({ title: 'Payment link copied' }); }}><Copy className="h-4 w-4" /> Copy link</Button>
