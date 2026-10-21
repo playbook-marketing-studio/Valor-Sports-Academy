@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   Dumbbell, Apple, TrendingUp, LogOut, ClipboardList, Users, Tag, BookOpen,
   NotebookPen, CalendarCheck, Eye, Plus, MoreHorizontal, HelpCircle, Home as HomeIcon, MessageCircle,
+  Wallet,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { cn } from '@/lib/utils';
@@ -49,7 +50,8 @@ export default function AppLayout() {
   const unread = useUnreadCount();
   const msgPath = isAdmin ? '/admin/messages' : '/messages';
   const withBadge = (items) => items.map((i) => (i.to === msgPath ? { ...i, badge: unread } : i));
-  const navItems = withBadge(isAdmin ? adminNavFull : parentTabs);
+  // Account is always there for families (Omar 10/21): sidebar item on desktop, header button on phones
+  const navItems = withBadge(isAdmin ? adminNavFull : [...parentTabs, { to: '/account', label: 'Account', icon: Wallet }]);
   const [moreOpen, setMoreOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(() => !!user && !hasSeenOnboarding(user.id, user.role));
 
@@ -128,6 +130,11 @@ export default function AppLayout() {
       <header className="vtp-stripes sticky top-0 z-40 flex items-center justify-between border-b border-border bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
         <Brand size="sm" />
         <div className="flex items-center gap-1">
+          {!isAdmin && (
+            <NavLink to="/account" aria-label="Account and billing" className={({ isActive }) => cn('flex h-11 w-11 items-center justify-center rounded-lg hover:bg-accent', isActive ? 'text-primary' : 'text-foreground')}>
+              <Wallet className="h-5 w-5" />
+            </NavLink>
+          )}
           <ThemeToggle compact className="h-11 w-11 justify-center px-0" />
           <button
             onClick={handleLogout}

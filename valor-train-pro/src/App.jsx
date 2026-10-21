@@ -29,6 +29,7 @@ import ClassLog from '@/pages/admin/ClassLog';
 import Today from '@/pages/admin/Today';
 import ViewAsAthlete, { ViewAsPickerPage, ViewAsMessages } from '@/pages/admin/ViewAsAthlete';
 import Messages from '@/pages/Messages';
+import Account from '@/pages/Account';
 import AdminMessages, { AdminMessageThread } from '@/pages/admin/Messages';
 import { useAuth as useAuthForHome } from '@/lib/AuthContext';
 
@@ -82,6 +83,7 @@ const AuthenticatedApp = () => {
           <Route path="/" element={<HomeRoute />} />
           {/* messages are not behind enrollment: any family can hear from (and write to) the coaches */}
           <Route path="/messages" element={<Messages />} />
+          <Route path="/account" element={<Account />} />
           {/* included with enrollment: unpaid families get the enroll-and-pay screen */}
           <Route element={<RequireEnrollment />}>
             <Route path="/workouts" element={<Workouts />} />
@@ -109,6 +111,7 @@ const AuthenticatedApp = () => {
           <Route path="/admin/view-as-athlete/:athleteId" element={<ViewAsAthlete />}>
             <Route index element={<Home />} />
             <Route path="messages" element={<ViewAsMessages />} />
+            <Route path="account" element={<Account />} />
             <Route element={<RequireEnrollment />}>
               <Route path="workouts" element={<Workouts />} />
               <Route path="nutrition" element={<Nutrition />} />

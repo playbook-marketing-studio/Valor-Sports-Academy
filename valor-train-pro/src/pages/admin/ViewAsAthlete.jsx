@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useNavigate, useParams } from 'react-router-dom';
-import { Dumbbell, Apple, TrendingUp, LayoutDashboard, LogOut, Loader2, ChevronRight, Search, Users, MessageSquare, Megaphone } from 'lucide-react';
+import { Dumbbell, Apple, TrendingUp, LayoutDashboard, LogOut, Loader2, ChevronRight, Search, Users, MessageSquare, Megaphone, Wallet } from 'lucide-react';
 import { supabase } from '@/api/supabaseClient';
 import { useViewAs } from '@/lib/ViewAsContext';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ const navItems = (base) => [
   { to: `${base}/nutrition`, label: 'Nutrition', icon: Apple },
   { to: `${base}/progress`, label: 'Progress', icon: TrendingUp },
   { to: `${base}/messages`, label: 'Messages', icon: MessageSquare },
+  { to: `${base}/account`, label: 'Account', icon: Wallet },
 ];
 
 /** The family's Messages screen for this athlete, read-only: their chat with Valor plus announcements. Marks nothing read. */

@@ -239,6 +239,7 @@ export default function Home() {
                     {!paid && (!enrolledNoPack || hasMonthly) && !autopay && !viewAs.isActive && <EnrollButton athlete={a} cfg={settings.enrollment} recommendedKey={as?.recommended_plan || suggestedPlanKey(a, settings.enrollment)} label={lapsed ? 'Buy more classes' : undefined} />}
                   </div>
                   {autopay && <AutopayCard sub={autopay} commitmentMonths={settings.enrollment?.monthly?.commitment_months ?? 3} readOnly={viewAs.isActive} onChanged={() => setReload((n) => n + 1)} />}
+                  <Link to={`${viewAs.basePath}/account`} className="inline-block text-sm font-medium text-primary hover:underline">Account &amp; billing</Link>
                 </CardContent>
               </Card>
             );
