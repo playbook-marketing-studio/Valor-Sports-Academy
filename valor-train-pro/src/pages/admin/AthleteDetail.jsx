@@ -215,7 +215,8 @@ function ParentLogin({ athlete, onChanged }) {
       if (!athlete.parent_id && email.trim().toLowerCase() !== (athlete.parent_email || '')) {
         await supabase.from('athletes').update({ parent_email: email.trim().toLowerCase() }).eq('id', athlete.id);
       }
-      const r = await callFn('staff', { body: { action: 'email_parent_login', athlete_id: athlete.id } });
+      // style switch = the move-off-UpperHand email: new app, set password, Start autopay (10/21/2026)
+      const r = await callFn('staff', { body: { action: 'email_parent_login', athlete_id: athlete.id, style: 'switch' } });
       if (r.configured === false) toast({ title: 'Login emails are not on yet', description: r.message });
       else { toast({ title: 'Login emailed', description: `Sent to ${r.email}. It works once, for 24 hours.` }); onChanged(); }
     } catch (e) { toast({ title: 'Could not send the email', description: e.message }); }
@@ -229,6 +230,7 @@ function ParentLogin({ athlete, onChanged }) {
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', ls.cls)}>{ls.label}</span>
           {athlete.parent_last_sign_in_at && <span className="text-xs text-muted-foreground">last in {new Date(athlete.parent_last_sign_in_at).toLocaleDateString()}</span>}
+          {athlete.login_emailed_at && <span className="text-xs text-muted-foreground">· login emailed {new Date(athlete.login_emailed_at).toLocaleDateString()}</span>}
         </div>
         {!athlete.parent_id && (
           <div className="space-y-1"><Label className="text-xs">Parent email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>

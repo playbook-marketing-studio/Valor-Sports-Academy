@@ -4,7 +4,7 @@ import { startEnrollment } from '@/lib/enroll';
 import { defaultItem, priceLabel } from '@/lib/valor';
 import { money } from '@/lib/slots';
 import { useViewAs } from '@/lib/ViewAsContext';
-import { autopayTerms, isMonthlyItem } from '@/lib/autopay';
+import { autopayTerms, isMonthlyItem, money as perMonth } from '@/lib/autopay';
 
 /**
  * Parent's "Enroll and pay" for one athlete: a one-time class or pack, or a monthly autopay plan
@@ -34,7 +34,7 @@ export default function EnrollButton({ athlete, cfg, recommendedKey, label }) {
         </select>
       )}
       <Button size="sm" disabled={!program || busy} onClick={async () => { setBusy(true); await startEnrollment(athlete, program.key); setBusy(false); }}>
-        {busy ? 'One moment…' : monthly ? `Start autopay · ${money(program.amount_cents)}/mo` : `${label || 'Enroll and pay'}${program ? ` · ${money(program.amount_cents)}` : ''}`}
+        {busy ? 'One moment…' : monthly ? `Start autopay · ${perMonth(program.amount_cents)}/mo` : `${label || 'Enroll and pay'}${program ? ` · ${money(program.amount_cents)}` : ''}`}
       </Button>
       {monthly && <p className="w-full text-xs text-muted-foreground">{autopayTerms(program, cfg.monthly)}</p>}
     </div>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, Plus, Repeat, Trash2 } from 'lucide-react';
-import { supabase } from '@/api/supabaseClient';
+import { Loader2, Mail, Plus, Repeat, Trash2, Users } from 'lucide-react';
+import { callFn, supabase } from '@/api/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +20,75 @@ const blankNum = (v) => (v === '' || v == null ? null : Number(v));
  * One-time items are classes and packs bought at the front desk. billing 'monthly' items are autopay:
  * charged on the 1st, classes = per month (Corey 10/19/2026). The drop-in stays one-time.
  */
+/**
+ * Moving families off UpperHand (10/21/2026): per enrolled athlete, did we email the login, has the
+ * parent signed in, have they started autopay. Pilot a few, then everyone after the Nov 1 charges.
+ */
+function RolloutTracker() {
+  const [rows, setRows] = useState(null);
+  const [busy, setBusy] = useState('');
+  const load = async () => {
+    const [{ data: ath }, { data: sb }] = await Promise.all([
+      supabase.from('athletes_admin').select('id, first_name, last_name, parent_name, parent_email, parent_id, parent_last_sign_in_at, login_emailed_at, stage, is_example')
+        .is('archived_at', null).order('first_name'),
+      supabase.from('subscriptions').select('athlete_id, status, created_at, last_paid_at, cancel_at_period_end').order('created_at', { ascending: false }),
+    ]);
+    const subBy = {};
+    for (const x of sb || []) if (!subBy[x.athlete_id] || ['active', 'past_due'].includes(x.status)) subBy[x.athlete_id] = subBy[x.athlete_id] && ['active', 'past_due'].includes(subBy[x.athlete_id].status) ? subBy[x.athlete_id] : x;
+    setRows((ath || []).filter((a) => a.stage === 'enrolled' || a.login_emailed_at || subBy[a.id]).map((a) => ({ ...a, sub: subBy[a.id] || null })));
+  };
+  useEffect(() => { load(); }, []);
+  const emailLogin = async (a) => {
+    if (!window.confirm(`Email ${a.parent_name || 'the parent'} (${a.parent_email}) the new app login for ${a.first_name}? It says Valor moved to a new app and asks them to start autopay. The link works once, for 24 hours.`)) return;
+    setBusy(a.id);
+    try {
+      const r = await callFn('staff', { body: { action: 'email_parent_login', athlete_id: a.id, style: 'switch' } });
+      toast({ title: 'Login emailed', description: `Sent to ${r.email}.` });
+      await load();
+    } catch (e) { toast({ title: 'Could not send', description: e.message }); }
+    setBusy('');
+  };
+  if (rows === null) return null;
+  const d = (iso) => (iso ? fmtDay(iso) : null);
+  const done = rows.filter((r) => r.sub && ['active', 'past_due'].includes(r.sub.status)).length;
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-lg"><Users className="h-5 w-5 text-primary" /> Moving families over
+          <span className="font-body text-sm font-normal text-muted-foreground">{done} of {rows.length} on autopay</span>
+        </CardTitle>
+        <p className="text-xs text-muted-foreground">Email the login, they set a password, they tap Start autopay. A family with no email on file needs it added on the athlete's Profile tab first.</p>
+      </CardHeader>
+      <CardContent>
+        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+          {rows.map((a) => {
+            const on = a.sub && ['active', 'past_due'].includes(a.sub.status);
+            const step = (label, when, good) => (
+              <span className={cn('rounded-full px-2 py-0.5', when ? (good ? 'bg-success-surface text-success' : 'bg-muted text-foreground') : 'bg-muted text-muted-foreground')}>{label}{when ? ` ${when}` : ': not yet'}</span>
+            );
+            return (
+              <div key={a.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <Link to={`/admin/athletes/${a.id}`} className="min-w-0 hover:text-primary">
+                  <span className="block font-semibold">{athleteName(a)}{a.is_example && <span className="ml-2 text-xs font-normal text-muted-foreground">(test)</span>}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{a.parent_name || 'No parent on file'}{a.parent_email ? ` · ${a.parent_email}` : ''}</span>
+                </Link>
+                <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                  {step('Emailed', d(a.login_emailed_at), false)}
+                  {step('Signed in', d(a.parent_last_sign_in_at), false)}
+                  {on ? step(a.sub.status === 'past_due' ? 'Autopay past due' : 'Autopay', d(a.sub.created_at), a.sub.status === 'active') : step('Autopay', null)}
+                  {!on && (a.parent_email
+                    ? <Button size="sm" variant={a.login_emailed_at ? 'ghost' : 'outline'} className="h-8 gap-1" disabled={busy === a.id} onClick={() => emailLogin(a)}>{busy === a.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />} {a.login_emailed_at ? 'Resend' : 'Email login'}</Button>
+                    : <span className="text-warning">No email on file</span>)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AdminEnrollment() {
   const [cfg, setCfg] = useState(null);
   const [subs, setSubs] = useState(null);
@@ -76,6 +145,8 @@ export default function AdminEnrollment() {
           These prices are placeholders copied from your website. Change each one to what you actually charge, then tap Save.
         </p>
       )}
+
+      {anyMonthly && <RolloutTracker />}
 
       {subs !== null && (
         <Card>

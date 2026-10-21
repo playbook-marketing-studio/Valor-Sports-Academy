@@ -28,7 +28,19 @@ export function autopayTerms(item, monthly = {}) {
     : monthly.first_month === 'half'
       ? `half price (${money(Math.round(item.amount_cents / 2))}) for the rest of ${monthName(now)}`
       : `a prorated first payment for the rest of ${monthName(now)}`;
-  return `${first}, then ${money(item.amount_cents)} on the 1st of every month.${commit ? ` ${commit}-month commitment, no cancellation fee.` : ''}`;
+  const line = `${first}, then ${money(item.amount_cents)} on the 1st of every month.${commit ? ` ${commit}-month commitment, no cancellation fee.` : ''}`;
+  return line.charAt(0).toUpperCase() + line.slice(1);
+}
+
+/**
+ * The monthly plan that matches the athlete's roster season + days a week (Corey's sheet), so a family
+ * coming off UpperHand gets one tap: in-season 1x/2x, off-season 3x. Anything else: null (they pick).
+ */
+export function suggestedPlanKey(athlete, cfg) {
+  const freq = parseInt(String(athlete?.frequency || ''), 10);
+  const key = athlete?.season === 'in_season' && (freq === 1 || freq === 2) ? `inseason_${freq}x`
+    : athlete?.season === 'off_season' && freq === 3 ? 'offseason_3x' : null;
+  return key && cfg?.items?.some((x) => x.key === key && isMonthlyItem(x)) ? key : null;
 }
 
 /** The athlete's current autopay (active, past due or ending), else null. */

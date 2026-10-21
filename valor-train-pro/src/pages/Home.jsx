@@ -5,7 +5,7 @@ import { loadSettings, DEFAULT_METRICS, countsAsEnrollment, classesLeft, enrolle
 import { supabase } from '@/api/supabaseClient';
 import EnrollButton from '@/components/EnrollButton';
 import AutopayCard from '@/components/AutopayCard';
-import { currentSub } from '@/lib/autopay';
+import { currentSub, isMonthlyItem, suggestedPlanKey } from '@/lib/autopay';
 import AthleteForm from '@/components/AthleteForm';
 import { Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -103,6 +103,9 @@ export default function Home() {
   const firstName = user?.full_name?.split(' ')[0] || 'Athlete';
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const hasMonthly = (settings?.enrollment?.items || []).some(isMonthlyItem);
+  // kids with no autopay and no active paid pack: the rollout email sends their parents here to start autopay
+  const needsPlan = athletes.filter((a) => !currentSub(subs.filter((x) => x.athlete_id === a.id)) && !enrolledPays.some((x) => x.athlete_id === a.id));
 
 
   return (
@@ -117,6 +120,22 @@ export default function Home() {
       </div>
 
       {!viewAs.isActive && <NewMessagesCard />}
+
+      {/* The move off UpperHand (10/21/2026): the login email says "tap Start autopay", so it's the first thing they see */}
+      {!viewAs.isActive && hasMonthly && needsPlan.length > 0 && (
+        <div className="space-y-3 rounded-xl border border-primary/60 bg-primary/5 p-4">
+          <div>
+            <h2 className="font-display text-2xl">Set up your monthly plan</h2>
+            <p className="mt-1 text-sm text-muted-foreground">One step left: start autopay so {needsPlan.map((a) => a.first_name).join(' and ')} keep{needsPlan.length === 1 ? 's' : ''} training. Charged on the 1st of each month; this month is prorated.</p>
+          </div>
+          {needsPlan.map((a) => (
+            <div key={a.id} className="space-y-1">
+              {needsPlan.length > 1 && <p className="text-sm font-semibold">{a.first_name}</p>}
+              <EnrollButton athlete={a} cfg={settings.enrollment} recommendedKey={assessments.find((x) => x.athlete_id === a.id)?.recommended_plan || suggestedPlanKey(a, settings.enrollment)} />
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Next up: each enrolled kid's next workout, one tap to start */}
       {athletes.some((a) => upcoming.some((w) => w.athlete_id === a.id)) && (
@@ -217,7 +236,7 @@ export default function Home() {
                     {enrolledNoPack ? <p><span className="font-semibold text-success">Enrolled.</span> {a.first_name} is in a class at Valor. Workouts, nutrition and their training plan are unlocked.</p>
                       : paid ? <p><span className="font-semibold text-success">Enrolled.</span> {left == null ? 'Unlimited classes' : `${left} class${left === 1 ? '' : 'es'} left`}{paid.covers_until ? `, good through ${new Date(paid.covers_until).toLocaleDateString()}` : ''}. Workouts, nutrition and their training plan are unlocked.</p>
                       : <p>{lapsed ? `${a.first_name}'s classes are used up or expired. Buy more` : `Enroll ${a.first_name}`} to unlock workouts, nutrition and their training plan.</p>}
-                    {!paid && !enrolledNoPack && !autopay && !viewAs.isActive && <EnrollButton athlete={a} cfg={settings.enrollment} recommendedKey={as?.recommended_plan} label={lapsed ? 'Buy more classes' : undefined} />}
+                    {!paid && (!enrolledNoPack || hasMonthly) && !autopay && !viewAs.isActive && <EnrollButton athlete={a} cfg={settings.enrollment} recommendedKey={as?.recommended_plan || suggestedPlanKey(a, settings.enrollment)} label={lapsed ? 'Buy more classes' : undefined} />}
                   </div>
                   {autopay && <AutopayCard sub={autopay} commitmentMonths={settings.enrollment?.monthly?.commitment_months ?? 3} readOnly={viewAs.isActive} onChanged={() => setReload((n) => n + 1)} />}
                 </CardContent>

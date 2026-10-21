@@ -5,6 +5,9 @@
 //          for an existing one). Staff show it as a QR, text it or email it. Valid 24h.
 //   POST {action:"email_parent_login", athlete_id}
 //        → the app emails the login itself (Valor-branded, from Valor's Gmail). Off until AUTH_EMAIL_ENABLED=true.
+//        style:"switch" (10/21/2026, the move off UpperHand): "Valor moved to a new app" email from Valor's
+//        Gmail with a Set my password button, plus "tap Start autopay on <kid>'s card" when the kid has no
+//        autopay yet. Same one-time 24h link. Stamps athletes.login_emailed_at for the rollout tracker.
 //   POST {action:"take_payment", athlete_id, plan_key}
 //        → one-time Stripe Checkout for a class or class pack (settings.enrollment.items).
 //          No subscriptions. A paid class/pack unlocks content until its classes are used
@@ -24,6 +27,7 @@ import Stripe from "npm:stripe@17.7.0";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import { admin, appOrigin, bad, cors, enrollmentConfig, json, userFromRequest } from "../_shared/common.ts";
 import { firstMonthClasses, fmtDayPT, isMonthly, monthlySettings, nextAnchor } from "../_shared/billing.ts";
+import { btn, esc, mailConfigured, sendMail, wrapHtml } from "../_shared/mail.ts";
 
 /**
  * The parent login this athlete should use, resolved safely (security audit 9/30).
@@ -93,7 +97,58 @@ async function inviteParent(req: Request, athleteId: string) {
  * New parent: invite email (creates the account). Existing parent: one-tap login email.
  * Off until AUTH_EMAIL_ENABLED=true (set by scripts/enable_login_emails.sh once SMTP is connected).
  */
-async function emailParentLogin(req: Request, athleteId: string) {
+/** The move-to-the-new-app login email (style "switch"): our own Valor-branded email with the one-time link. */
+async function emailSwitchLogin(req: Request, a: Record<string, any>, email: string, prof: Record<string, any> | null) {
+  if (!mailConfigured()) return bad("Valor's Gmail isn't connected, so the login can't be emailed", 503);
+  const redirectTo = `${(Deno.env.get("APP_URL") || appOrigin(req)).replace(/\/$/, "")}/welcome`;
+  let link: string | undefined;
+  if (!prof) {
+    const { data, error } = await admin.auth.admin.generateLink({
+      type: "invite", email,
+      options: { redirectTo, data: { full_name: a.parent_name, phone: a.parent_phone, role: "parent", athlete_first_name: a.first_name } },
+    });
+    if (error) return bad(error.message, 502);
+    link = data.properties?.action_link;
+    if (data.user?.id) await admin.from("athletes").update({ parent_id: data.user.id }).eq("id", a.id).is("parent_id", null);
+  } else {
+    const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email, options: { redirectTo } });
+    if (error) return bad(error.message, 502);
+    link = data.properties?.action_link;
+  }
+  if (!link) return bad("could not make the login link", 500);
+  const cfg = await enrollmentConfig();
+  const { data: live } = await admin.from("subscriptions").select("id").eq("athlete_id", a.id).in("status", ["active", "past_due"]).limit(1);
+  const askAutopay = !live?.length && cfg.items.some((x) => isMonthly(x as any));
+  const hi = String(a.parent_name || "").trim().split(/\s+/)[0];
+  const kid = a.first_name || "your athlete";
+  const subject = "Your Valor app login";
+  const autopayHtml = askAutopay
+    ? `<p>Once you're in, tap <strong>Start autopay</strong> on ${esc(kid)}'s card to set up your monthly plan. Your card is charged on the 1st of each month, and your first month is prorated.</p>`
+    : `<p>Once you're in, you'll see ${esc(kid)}'s workouts and messages from the coaches.</p>`;
+  await sendMail({
+    to: email, subject,
+    text: `${hi ? `Hi ${hi}, ` : ""}Valor has moved to a new app. Your workouts, messages with the coaches and payments are all in one place now. Set your password: ${link} ${askAutopay ? `Once you're in, tap Start autopay on ${kid}'s card to set up your monthly plan. Your card is charged on the 1st of each month, and your first month is prorated. ` : ""}Questions? Message us in the app or text 509-987-4612.`,
+    html: wrapHtml(subject,
+      `<p>${hi ? `Hi ${esc(hi)}, ` : ""}Valor has moved to a new app. Your workouts, messages with the coaches and payments are all in one place now.</p>
+       ${btn(link, "Set my password")}
+       ${autopayHtml}
+       <p>Questions? Message us in the app or text <a href="sms:+15099874612" style="color:#c8102e">509-987-4612</a>.</p>
+       <p style="font-size:13px;color:#6b665c">Button not working? Copy this link into your browser:<br><span style="word-break:break-all">${esc(link)}</span></p>`,
+      "The link works once, for 24 hours. If it expires, ask a coach to send a new one."),
+  });
+  const now = new Date().toISOString();
+  await admin.from("athletes").update({ invited_at: now, login_emailed_at: now }).eq("id", a.id);
+  return json({ sent: true, email, existing_account: !!prof, style: "switch", asked_autopay: askAutopay });
+}
+
+async function emailParentLogin(req: Request, athleteId: string, style = "") {
+  if (style === "switch") {
+    const { data: a } = await admin.from("athletes").select("*").eq("id", athleteId).maybeSingle();
+    if (!a) return bad("athlete not found", 404);
+    const r = await resolveParent(a);
+    if (r.error) return r.error;
+    return await emailSwitchLogin(req, a, r.email!, r.prof);
+  }
   if (Deno.env.get("AUTH_EMAIL_ENABLED") !== "true") {
     return json({ configured: false, message: "Login emails switch on once Valor's Gmail is connected. Use the QR code or Text for now." });
   }
@@ -290,7 +345,7 @@ Deno.serve(async (req) => {
     }
     if (!isStaff) return bad("staff only", 403);
     if (body.action === "invite_parent") return await inviteParent(req, athleteId);
-    if (body.action === "email_parent_login") return await emailParentLogin(req, athleteId);
+    if (body.action === "email_parent_login") return await emailParentLogin(req, athleteId, String(body.style || ""));
     return bad("unknown action", 404);
   } catch (e) {
     console.error(e);
