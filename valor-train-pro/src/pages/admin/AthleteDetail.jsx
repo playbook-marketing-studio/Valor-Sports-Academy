@@ -618,10 +618,10 @@ function ProgressTab({ athlete, metrics }) {
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-lg">Max lifts</CardTitle><p className="text-xs text-muted-foreground">Workout targets use the latest max for each lift.</p></CardHeader>
         <CardContent className="space-y-3">
-          <form onSubmit={addMax} className="grid grid-cols-6 gap-2">
+          <form onSubmit={addMax} className="grid grid-cols-6 gap-2 [&>*]:min-w-0">
             <Input className="col-span-3" required placeholder="Lift, e.g. Back squat" value={f.exercise_name} onChange={(e) => setF({ ...f, exercise_name: e.target.value })} />
-            <Input className="col-span-1 px-2" required type="number" placeholder="lbs" value={f.weight} onChange={(e) => setF({ ...f, weight: e.target.value })} />
-            <Input className="col-span-2" type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} />
+            <Input className="col-span-1 min-w-0 px-2" required type="number" placeholder="lbs" value={f.weight} onChange={(e) => setF({ ...f, weight: e.target.value })} />
+            <Input className="col-span-2 min-w-0" type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} />
             <Button type="submit" size="sm" className="col-span-6 sm:col-span-2">Add max</Button>
           </form>
           <div className="divide-y divide-border text-sm">
