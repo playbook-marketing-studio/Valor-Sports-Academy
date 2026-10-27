@@ -120,14 +120,14 @@ export default function AppLayout() {
   );
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="vtp-shell bg-background">
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:block">
         <NavContent />
       </aside>
 
       {/* Mobile utility bar — brand + theme + sign out. Wayfinding now lives in the bottom tab bar. */}
-      <header className="vtp-stripes sticky top-0 z-40 flex items-center justify-between border-b border-border bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
+      <header className="vtp-stripes z-40 flex shrink-0 items-center justify-between border-b border-border bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
         <Brand size="sm" />
         <div className="flex items-center gap-1">
           {!isAdmin && (
@@ -147,7 +147,8 @@ export default function AppLayout() {
       </header>
 
       {/* Main content */}
-      <main className="lg:pl-64">
+      {/* The only scroller. html/body never scroll, so the fixed tab bar can't drift on iOS home-screen mode (10/27/2026). */}
+      <main id="vtp-main" className="vtp-scroll lg:pl-64">
         <div className="mx-auto max-w-6xl px-4 py-6 lg:px-10 lg:py-10">
           <Outlet />
         </div>

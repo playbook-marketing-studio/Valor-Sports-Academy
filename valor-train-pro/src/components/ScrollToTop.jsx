@@ -27,6 +27,7 @@ export default function ScrollToTop() {
     }
 
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    document.getElementById("vtp-main")?.scrollTo({ top: 0, left: 0, behavior: "instant" });
   }, [pathname, hash, navigationType]);
 
   return null;
