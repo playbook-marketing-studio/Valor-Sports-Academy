@@ -178,7 +178,8 @@ const stripeClient = () => new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, { apiV
 async function takePayment(req: Request, staffId: string | null, athleteId: string, planKey: string, testMonthly = false) {
   const cfg = await enrollmentConfig();
   const item = cfg.items.find((x) => x.key === planKey);
-  if (!item || !(item.amount_cents >= 50)) return bad("pick a class or pack with a price");
+  // a $0 MONTHLY plan is allowed (the TEST plan): the card still goes on file, Stripe bills $0 on the 1st
+  if (!item || !(item.amount_cents >= 50 || (isMonthly(item as any) && item.amount_cents === 0))) return bad("pick a class or pack with a price");
   const { data: a } = await admin.from("athletes").select("*").eq("id", athleteId).maybeSingle();
   if (!a) return bad("athlete not found", 404);
   const key = Deno.env.get("STRIPE_SECRET_KEY");
