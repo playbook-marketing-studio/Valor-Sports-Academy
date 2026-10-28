@@ -225,9 +225,12 @@ async function startSubscription(req: Request, staffId: string | null, a: Record
   const anchor = nextAnchor(now);
   const firstClasses = firstMonthClasses(item.classes ?? null, now, anchor);
   const athlete = [a.first_name, a.last_name].filter(Boolean).join(" ");
+  // Stripe needs a trial to end 48h+ out; in the last 2 days of a month "half" and "none" fall back to prorated
+  const trialOk = !!anchor && anchor.getTime() - now.getTime() > 49 * 3600000;
+  const firstMode: "prorate" | "half" | "none" = trialOk && rules.first_month !== "prorate" ? rules.first_month : "prorate";
   const { data: sub, error } = await admin.from("subscriptions").insert({
     athlete_id: a.id, parent_id: a.parent_id, plan_key: item.key, plan_name: item.name, amount_cents: item.amount_cents,
-    classes_per_month: item.classes ?? null, first_month: rules.first_month === "half" && anchor && anchor.getTime() - now.getTime() > 49 * 3600000 ? "half" : "prorate",
+    classes_per_month: item.classes ?? null, first_month: firstMode,
     first_month_classes: firstClasses, created_by: staffId,
   }).select("*").single();
   if (error) return bad(error.message, 500);
@@ -236,9 +239,12 @@ async function startSubscription(req: Request, staffId: string | null, a: Record
   const product_data = { name: `Valor Sports Academy: ${item.name}`, description: `${athlete} · monthly, charged on the 1st` };
   const line_items: any[] = [{ quantity: 1, price_data: { currency: "usd", unit_amount: item.amount_cents, recurring: { interval: "month" }, product_data } }];
   const subscription_data: Record<string, unknown> = { metadata: meta, description: `${item.name} · ${athlete}` };
-  // Stripe needs a trial to end 48h+ out; in the last 2 days of a month half price falls back to prorated
-  const halfOk = rules.first_month === "half" && anchor && anchor.getTime() - now.getTime() > 49 * 3600000;
-  if (anchor && halfOk) {
+  if (anchor && firstMode === "none") {
+    // card check only today (50 cents by default, Stripe's minimum; the family already paid this month elsewhere),
+    // the days until the 1st are a Stripe trial and the full plan bills on the 1st. Unlocks the app through the 1st.
+    subscription_data.trial_end = Math.floor(anchor.getTime() / 1000);
+    line_items.push({ quantity: 1, price_data: { currency: "usd", unit_amount: rules.first_fee_cents, product_data: { name: `Card on file (rest of this month already paid, through ${fmtDayPT(new Date(anchor.getTime() - 86400000))})`, description: athlete } } });
+  } else if (anchor && firstMode === "half") {
     // flat half price today (one-time line), recurring billing starts on the 1st. Checkout can't mix
     // proration "none" with one-time prices, so the days until the 1st are a Stripe trial.
     subscription_data.trial_end = Math.floor(anchor.getTime() / 1000);

@@ -1,7 +1,9 @@
 // Monthly autopay rules (Corey 10/19/2026), shared by fn staff (checkout) and stripe-webhook (renewals).
 //   - everyone is charged on the 1st, 9am Pacific (billing_cycle_anchor)
 //   - mid-month sign-up: first payment covers the rest of the month, either Stripe's exact
-//     proration ("prorate", default) or a flat half price ("half"); settings.enrollment.monthly.first_month
+//     proration ("prorate", default), a flat half price ("half"), or a small card-check charge today
+//     ("none", default 50 cents = Stripe's minimum, settings.enrollment.monthly.first_fee_cents) for
+//     families who already paid the current month elsewhere; settings.enrollment.monthly.first_month
 //   - first-month classes = the plan's classes per week x the weeks left in the month
 //   - 3-month commitment, no fee: a parent can cancel in the app after 3 paid months; coaches any time
 import type { EnrollmentConfig, Item } from "./common.ts";
@@ -10,11 +12,13 @@ export const TZ = "America/Los_Angeles";
 export const CHARGE_HOUR = 9;
 export const GRACE_DAYS = 3; // a month's classes stay usable 3 days past the next charge, so a slow renewal never locks anyone out
 
-export type MonthlySettings = { first_month: "prorate" | "half"; commitment_months: number };
+export type MonthlySettings = { first_month: "prorate" | "half" | "none"; first_fee_cents: number; commitment_months: number };
+export const STRIPE_MIN_CENTS = 50;
 export function monthlySettings(cfg: EnrollmentConfig & { monthly?: Partial<MonthlySettings> }): MonthlySettings {
   const m = cfg.monthly || {};
   return {
-    first_month: m.first_month === "half" ? "half" : "prorate",
+    first_month: m.first_month === "half" ? "half" : m.first_month === "none" ? "none" : "prorate",
+    first_fee_cents: Math.max(STRIPE_MIN_CENTS, Math.round(Number(m.first_fee_cents) || STRIPE_MIN_CENTS)),
     commitment_months: Number.isFinite(Number(m.commitment_months)) ? Math.max(0, Number(m.commitment_months)) : 3,
   };
 }
