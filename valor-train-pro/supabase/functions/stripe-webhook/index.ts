@@ -81,8 +81,8 @@ async function onInvoicePaid(inv: any, quiet: boolean) {
   const classes = first && sub.first_month_classes ? sub.first_month_classes : sub.classes_per_month;
   const { data: a } = await admin.from("athletes").select("first_name, last_name").eq("id", sub.athlete_id).maybeSingle();
   const now = new Date();
-  // a partial first month (signed up mid-month) doesn't count toward the commitment
-  const fullMonth = !first || !sub.first_month_classes || sub.first_month_classes >= (sub.classes_per_month || 0);
+  // a partial first month (prorated, half price, or the card-check charge) doesn't count toward the commitment
+  const fullMonth = !first || (inv.amount_paid ?? inv.total ?? 0) >= (sub.amount_cents || 0);
   const { data: pay, error } = await admin.from("payments").insert({
     athlete_id: sub.athlete_id, parent_id: sub.parent_id, plan_key: sub.plan_key, subscription_id: sub.id,
     description: `${sub.plan_name} · ${[a?.first_name, a?.last_name].filter(Boolean).join(" ")} · through ${fmtDayPT(new Date(periodEnd.getTime() - 86400000))}`,

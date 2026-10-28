@@ -67,3 +67,24 @@ export async function setAutopayCancel(sub, cancel) {
     return false;
   }
 }
+
+const ordinal = (n) => `${n}${[, 'st', 'nd', 'rd'][(n % 100 >> 3 ^ 1 && n % 10) || 0] || 'th'}`;
+const fmtPT = (d) => new Intl.DateTimeFormat('en-US', { timeZone: TZ, month: 'short', day: 'numeric' }).format(d);
+const nextFirst = (now) => { const y = Number(new Intl.DateTimeFormat('en-US', { timeZone: TZ, year: 'numeric' }).format(now)); const m = Number(new Intl.DateTimeFormat('en-US', { timeZone: TZ, month: 'numeric' }).format(now)); return new Date(Date.UTC(m === 12 ? y + 1 : y, m === 12 ? 0 : m, 1, 17)); };
+
+/** Terms for the staff-side first-charge choice: 'first' | 'now' | 'date' (+ 'YYYY-MM-DD'). */
+export function firstChargeTerms(item, monthly = {}, choice = 'first', date = '') {
+  const now = new Date();
+  const amt = money(item.amount_cents);
+  const fee = money(Math.max(50, Number(monthly.first_fee_cents) || 50));
+  const commit = Number(monthly.commitment_months ?? 3);
+  const tail = commit ? ` ${commit}-month commitment, no cancellation fee.` : '';
+  if (ptDay(now) === 1 && choice !== 'date') return `${amt} today for ${monthName(now)}, then ${amt} on the 1st of every month.${tail}`;
+  if (choice === 'now') return `${amt} today for the rest of ${monthName(now)}, then ${amt} on the 1st of every month.${tail}`;
+  if (choice === 'date') {
+    if (!date) return 'Pick the date of the first full payment. The card goes on file today.';
+    const [y, m, d] = date.split('-').map(Number);
+    return `${fee} today to put the card on file, then ${amt} on ${fmtPT(new Date(Date.UTC(y, m - 1, d, 17)))} and the ${ordinal(d)} of every month after.${tail}`;
+  }
+  return `${fee} today to put the card on file (${monthName(now)} is already paid), then ${amt} on ${fmtPT(nextFirst(now))} and the 1st of every month.${tail}`;
+}

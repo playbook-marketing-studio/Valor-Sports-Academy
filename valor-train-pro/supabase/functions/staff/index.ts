@@ -26,7 +26,7 @@
 import Stripe from "npm:stripe@17.7.0";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import { admin, appOrigin, bad, cors, enrollmentConfig, json, userFromRequest } from "../_shared/common.ts";
-import { firstMonthClasses, fmtDayPT, isMonthly, monthlySettings, nextAnchor } from "../_shared/billing.ts";
+import { CHARGE_HOUR, firstMonthClasses, fmtDayPT, isMonthly, monthlySettings, nextAnchor, ptToUtc } from "../_shared/billing.ts";
 import { btn, esc, mailConfigured, sendMail, wrapHtml } from "../_shared/mail.ts";
 
 /**
@@ -175,7 +175,7 @@ async function emailParentLogin(req: Request, athleteId: string, style = "") {
 
 const stripeClient = () => new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, { apiVersion: "2025-02-24.acacia", httpClient: Stripe.createFetchHttpClient() });
 
-async function takePayment(req: Request, staffId: string | null, athleteId: string, planKey: string, testMonthly = false) {
+async function takePayment(req: Request, staffId: string | null, athleteId: string, planKey: string, testMonthly = false, firstCharge = "") {
   const cfg = await enrollmentConfig();
   const item = cfg.items.find((x) => x.key === planKey);
   // a $0 MONTHLY plan is allowed (the TEST plan): the card still goes on file, Stripe bills $0 on the 1st
@@ -185,7 +185,7 @@ async function takePayment(req: Request, staffId: string | null, athleteId: stri
   const key = Deno.env.get("STRIPE_SECRET_KEY");
   if (!key) return json({ configured: false, message: "Card payments are not connected yet. Record cash or Venmo for now." });
   // test_monthly: staff only, Live example athlete only: run a one-time item through autopay checkout (testing before monthly plans go live)
-  if (isMonthly(item as any) || (testMonthly && staffId && a.is_example)) return await startSubscription(req, staffId, a, item, cfg);
+  if (isMonthly(item as any) || (testMonthly && staffId && a.is_example)) return await startSubscription(req, staffId, a, item, cfg, firstCharge);
 
   const athlete = [a.first_name, a.last_name].filter(Boolean).join(" ");
   const { data: pay, error } = await admin.from("payments").insert({
@@ -218,17 +218,31 @@ async function takePayment(req: Request, staffId: string | null, athleteId: stri
 }
 
 /** Monthly plan: Stripe Checkout in subscription mode, anchored to the 1st (9am Pacific). */
-async function startSubscription(req: Request, staffId: string | null, a: Record<string, any>, item: Record<string, any>, cfg: any) {
+/** first_charge (staff only): "" = the global first-month setting; "now" = full month today; "first" = card check today, full plan
+ *  on the 1st; "YYYY-MM-DD" = card check today, full plan on that date and the same day every month after (a family whose old
+ *  billing runs to a mid-month date). */
+async function startSubscription(req: Request, staffId: string | null, a: Record<string, any>, item: Record<string, any>, cfg: any, firstCharge = "") {
   const { data: live } = await admin.from("subscriptions").select("id, status").eq("athlete_id", a.id).in("status", ["active", "past_due"]).limit(1);
   if (live?.length) return json({ already_subscribed: true, subscription_id: live[0].id });
   const rules = monthlySettings(cfg);
   const now = new Date();
   const anchor = nextAnchor(now);
-  const firstClasses = firstMonthClasses(item.classes ?? null, now, anchor);
+  let firstClasses = firstMonthClasses(item.classes ?? null, now, anchor);
   const athlete = [a.first_name, a.last_name].filter(Boolean).join(" ");
-  // Stripe needs a trial to end 48h+ out; in the last 2 days of a month "half" and "none" fall back to prorated
+  // Stripe needs a trial to end 48h+ out; in the last 2 days of a month the trial modes fall back to prorated
   const trialOk = !!anchor && anchor.getTime() - now.getTime() > 49 * 3600000;
-  const firstMode: "prorate" | "half" | "none" = trialOk && rules.first_month !== "prorate" ? rules.first_month : "prorate";
+  let firstMode: "prorate" | "half" | "none" | "full" | "date" = trialOk && rules.first_month !== "prorate" ? rules.first_month : "prorate";
+  let trialEnd: Date | null = anchor; // when the first full payment lands for the trial modes
+  if (firstCharge === "now") { firstMode = trialOk ? "full" : "prorate"; firstClasses = item.classes ?? null; }
+  else if (firstCharge === "first") { firstMode = trialOk ? "none" : "prorate"; }
+  else if (/^\d{4}-\d{2}-\d{2}$/.test(firstCharge)) {
+    const [y, m, d] = firstCharge.split("-").map(Number);
+    const when = ptToUtc(y, m, d, CHARGE_HOUR);
+    if (Number.isNaN(when.getTime())) return bad("that date doesn't look right");
+    if (when.getTime() - now.getTime() < 49 * 3600000) return bad("pick a date at least 2 days out, or choose Today");
+    if (when.getTime() - now.getTime() > 70 * 86400000) return bad("pick a date within the next 2 months");
+    firstMode = "date"; trialEnd = when; firstClasses = item.classes ?? null;
+  }
   const { data: sub, error } = await admin.from("subscriptions").insert({
     athlete_id: a.id, parent_id: a.parent_id, plan_key: item.key, plan_name: item.name, amount_cents: item.amount_cents,
     classes_per_month: item.classes ?? null, first_month: firstMode,
@@ -240,11 +254,16 @@ async function startSubscription(req: Request, staffId: string | null, a: Record
   const product_data = { name: `Valor Sports Academy: ${item.name}`, description: `${athlete} · monthly, charged on the 1st` };
   const line_items: any[] = [{ quantity: 1, price_data: { currency: "usd", unit_amount: item.amount_cents, recurring: { interval: "month" }, product_data } }];
   const subscription_data: Record<string, unknown> = { metadata: meta, description: `${item.name} · ${athlete}` };
-  if (anchor && firstMode === "none") {
-    // card check only today (50 cents by default, Stripe's minimum; the family already paid this month elsewhere),
-    // the days until the 1st are a Stripe trial and the full plan bills on the 1st. Unlocks the app through the 1st.
+  if (trialEnd && (firstMode === "none" || firstMode === "date")) {
+    // card check only today (50 cents by default, Stripe's minimum; the family already paid elsewhere until then),
+    // the days until the first full payment are a Stripe trial. "none" lands on the 1st, "date" on the chosen day and
+    // renews on that day of the month. The 50 cent invoice still unlocks the app until then.
+    subscription_data.trial_end = Math.floor(trialEnd.getTime() / 1000);
+    line_items.push({ quantity: 1, price_data: { currency: "usd", unit_amount: rules.first_fee_cents, product_data: { name: `Card on file (first full payment ${fmtDayPT(trialEnd)})`, description: athlete } } });
+  } else if (anchor && firstMode === "full") {
+    // full month today (one-time line), the recurring plan starts on the 1st
     subscription_data.trial_end = Math.floor(anchor.getTime() / 1000);
-    line_items.push({ quantity: 1, price_data: { currency: "usd", unit_amount: rules.first_fee_cents, product_data: { name: `Card on file (rest of this month already paid, through ${fmtDayPT(new Date(anchor.getTime() - 86400000))})`, description: athlete } } });
+    line_items.push({ quantity: 1, price_data: { currency: "usd", unit_amount: item.amount_cents, product_data: { name: `Rest of this month (through ${fmtDayPT(new Date(anchor.getTime() - 86400000))})`, description: athlete } } });
   } else if (anchor && firstMode === "half") {
     // flat half price today (one-time line), recurring billing starts on the 1st. Checkout can't mix
     // proration "none" with one-time prices, so the days until the 1st are a Stripe trial.
@@ -267,7 +286,7 @@ async function startSubscription(req: Request, staffId: string | null, a: Record
       cancel_url: `${origin}/paid?s=${sub.id}&canceled=1`,
     });
     await admin.from("subscriptions").update({ stripe_checkout_session_id: session.id }).eq("id", sub.id);
-    return json({ configured: true, url: session.url, subscription_id: sub.id, first_amount_cents: session.amount_total, next_charge_at: anchor?.toISOString() || null, first_month_classes: firstClasses });
+    return json({ configured: true, url: session.url, subscription_id: sub.id, first_amount_cents: session.amount_total, next_charge_at: (firstMode === "date" ? trialEnd : anchor)?.toISOString() || null, first_charge: firstMode, first_month_classes: firstClasses });
   } catch (e) {
     await admin.from("subscriptions").update({ status: "expired" }).eq("id", sub.id);
     return bad(`Stripe error: ${(e as Error).message}`, 502);
@@ -341,7 +360,7 @@ Deno.serve(async (req) => {
         const { data: a } = await admin.from("athletes").select("parent_id").eq("id", athleteId).maybeSingle();
         if (!a || a.parent_id !== user.id) return bad("not your athlete", 403);
       }
-      return await takePayment(req, isStaff ? user.id : null, athleteId, String(body.plan_key || ""), isStaff && body.test_monthly === true);
+      return await takePayment(req, isStaff ? user.id : null, athleteId, String(body.plan_key || ""), isStaff && body.test_monthly === true, isStaff ? String(body.first_charge || "") : "");
     }
     if (body.action === "billing_portal" || body.action === "cancel_autopay" || body.action === "resume_autopay") {
       if (!Deno.env.get("STRIPE_SECRET_KEY")) return json({ configured: false });

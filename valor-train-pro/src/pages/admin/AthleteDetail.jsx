@@ -16,7 +16,7 @@ import { toast } from '@/components/ui/use-toast';
 import { fmtSlot, money } from '@/lib/slots';
 import { athleteName, classesLeft, countsAsEnrollment, defaultItem, loadSettings, priceLabel, smsHref, telHref } from '@/lib/valor';
 import AutopayCard from '@/components/AutopayCard';
-import { autopayTerms, currentSub, isMonthlyItem } from '@/lib/autopay';
+import { currentSub, firstChargeTerms, isMonthlyItem } from '@/lib/autopay';
 import { loginState } from './Athletes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -266,6 +266,8 @@ function monthEnd(now = new Date()) {
   const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: 'numeric' }).formatToParts(now).filter((x) => x.type !== 'literal').map((x) => [x.type, Number(x.value)]));
   return new Date(Date.UTC(p.month === 12 ? p.year + 1 : p.year, p.month === 12 ? 0 : p.month, 4, 17)).toISOString();
 }
+const dateInputMin = () => { const d = new Date(Date.now() + 3 * 86400000); return d.toISOString().slice(0, 10); };
+const dateInputMax = () => { const d = new Date(Date.now() + 69 * 86400000); return d.toISOString().slice(0, 10); };
 function Payment({ athlete, cfg, recommendedKey }) {
   const { user } = useAuth();
   const [rows, setRows] = useState([]);
@@ -274,6 +276,8 @@ function Payment({ athlete, cfg, recommendedKey }) {
   const [checkout, setCheckout] = useState(null); // {url, payment_id}
   const [busy, setBusy] = useState('');
   const [note, setNote] = useState('');
+  const [firstCharge, setFirstCharge] = useState('first'); // 'first' | 'now' | 'date'
+  const [chargeDate, setChargeDate] = useState('');
   const poll = useRef(null);
 
   const load = useCallback(async () => {
@@ -303,7 +307,7 @@ function Payment({ athlete, cfg, recommendedKey }) {
   const showCardQr = async () => {
     setBusy('card');
     try {
-      const r = await callFn('staff', { body: { action: 'take_payment', athlete_id: athlete.id, plan_key: key } });
+      const r = await callFn('staff', { body: { action: 'take_payment', athlete_id: athlete.id, plan_key: key, first_charge: monthly ? (firstCharge === 'date' ? chargeDate : firstCharge) : '' } });
       if (r.configured === false) toast({ title: 'Card payments are not connected yet', description: r.message });
       else if (r.already_subscribed) { toast({ title: `${athlete.first_name} is already on autopay` }); await load(); }
       else {
@@ -372,9 +376,20 @@ function Payment({ athlete, cfg, recommendedKey }) {
                 <SelectContent>{items.map((p) => <SelectItem key={p.key} value={p.key}>{p.name} · {priceLabel(p)}</SelectItem>)}</SelectContent>
               </Select>
             </div>
+            {monthly && !autopay && (
+              <div className="space-y-1">
+                <Label>First card charge</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[['first', 'On the 1st'], ['now', 'Today'], ['date', 'Pick a date']].map(([v, l]) => (
+                    <Button key={v} type="button" size="sm" variant={firstCharge === v ? 'default' : 'outline'} onClick={() => setFirstCharge(v)}>{l}</Button>
+                  ))}
+                </div>
+                {firstCharge === 'date' && <Input type="date" value={chargeDate} min={dateInputMin()} max={dateInputMax()} onChange={(e) => setChargeDate(e.target.value)} />}
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-2">
-              <Button onClick={showCardQr} disabled={!chosen || !!busy || (monthly && !!autopay)} className="col-span-3 gap-2">{busy === 'card' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Smartphone className="h-4 w-4" />} {monthly ? (autopay ? 'Already on autopay' : 'Card: QR to start autopay') : 'Card: show QR to scan'}</Button>
-              {monthly && !autopay && <p className="col-span-3 text-xs text-muted-foreground">{autopayTerms(chosen, cfg.monthly)} Paid cash or Venmo covers this month only.</p>}
+              <Button onClick={showCardQr} disabled={!chosen || !!busy || (monthly && (!!autopay || (firstCharge === 'date' && !chargeDate)))} className="col-span-3 gap-2">{busy === 'card' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Smartphone className="h-4 w-4" />} {monthly ? (autopay ? 'Already on autopay' : 'Card: QR to start autopay') : 'Card: show QR to scan'}</Button>
+              {monthly && !autopay && <p className="col-span-3 text-xs text-muted-foreground">{firstChargeTerms(chosen, cfg.monthly, firstCharge, chargeDate)} Paid cash or Venmo covers this month only.</p>}
               <Button variant="outline" onClick={() => record('cash')} disabled={!chosen || !!busy} className="gap-2"><Banknote className="h-4 w-4" /> Paid cash</Button>
               <Button variant="outline" onClick={() => record('venmo')} disabled={!chosen || !!busy} className="gap-2">Paid Venmo</Button>
               <Button variant="outline" onClick={() => record('other')} disabled={!chosen || !!busy} className="gap-2">Other</Button>
