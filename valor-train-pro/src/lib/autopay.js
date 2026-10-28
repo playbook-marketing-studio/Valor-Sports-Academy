@@ -27,7 +27,9 @@ export function autopayTerms(item, monthly = {}) {
     ? `${money(item.amount_cents)} today for ${monthName(now)}`
     : monthly.first_month === 'half'
       ? `half price (${money(Math.round(item.amount_cents / 2))}) for the rest of ${monthName(now)}`
-      : `a prorated first payment for the rest of ${monthName(now)}`;
+      : monthly.first_month === 'none'
+        ? `${money(Math.max(50, Number(monthly.first_fee_cents) || 50))} today to put the card on file (${monthName(now)} is already paid)`
+        : `a prorated first payment for the rest of ${monthName(now)}`;
   const line = `${first}, then ${money(item.amount_cents)} on the 1st of every month.${commit ? ` ${commit}-month commitment, no cancellation fee.` : ''}`;
   return line.charAt(0).toUpperCase() + line.slice(1);
 }
