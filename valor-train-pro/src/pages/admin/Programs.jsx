@@ -57,7 +57,7 @@ export function ProgramsList() {
         </div>
         <Button size="sm" className="gap-2" onClick={create}><Plus className="h-4 w-4" /> New program</Button>
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {rows.map((t, idx) => (
           <Link key={t.id} to={`/admin/programs/${t.id}`}>
             <Card className="h-full overflow-hidden transition hover:border-primary/50">

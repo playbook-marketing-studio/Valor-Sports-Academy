@@ -218,7 +218,7 @@ export default function Nutrition() {
       </div>
 
       {/* Today's calories vs goal, and macros */}
-      <div className="grid gap-4 lg:grid-cols-[auto_1fr]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[auto_1fr]">
         <Card>
           <CardContent className="flex flex-col items-center gap-1 p-5">
             <ArcGauge

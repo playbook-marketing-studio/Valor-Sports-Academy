@@ -162,7 +162,7 @@ export default function Home() {
 
       {/* Athletes: assessment results + program (parents) */}
       {athletes.length > 0 && (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {athletes.map((a) => {
             const athleteAssessments = assessments.filter((x) => x.athlete_id === a.id); // newest first
             const as = athleteAssessments[0];

@@ -429,7 +429,7 @@ function ProfileTab({ athlete, onEdit, onSibling }) {
   }, [athlete]);
   const row = (label, value) => value ? <div className="flex justify-between gap-4 border-b border-border py-2 text-sm last:border-0"><span className="text-muted-foreground">{label}</span><span className="text-right">{value}</span></div> : null;
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-lg">Athlete</CardTitle><Button size="sm" variant="outline" onClick={onEdit} className="gap-1"><Pencil className="h-3 w-3" /> Edit</Button></CardHeader>
         <CardContent>
@@ -603,7 +603,7 @@ function ProgressTab({ athlete, metrics }) {
       <MaxLiftTrends maxes={maxes} />
     </div>
     <WeightsUsed athleteId={athlete.id} />
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-lg">Test results over time</CardTitle><p className="text-xs text-muted-foreground">Add a re-test from the Assessment day tab.</p></CardHeader>
         <CardContent className="overflow-x-auto">
@@ -748,7 +748,7 @@ export default function AthleteDetail() {
         </TabsList>
         <TabsContent value="day" className="mt-5 space-y-6">
           <QuizCard athlete={athlete} />
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Results athlete={athlete} booking={booking} items={settings.enrollment?.items || []} metrics={settings.metrics} onSaved={load} />
             <div className="space-y-6">
               <ParentLogin athlete={athlete} onChanged={load} />
