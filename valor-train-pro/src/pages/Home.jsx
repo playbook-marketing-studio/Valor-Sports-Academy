@@ -5,7 +5,7 @@ import { loadSettings, DEFAULT_METRICS, countsAsEnrollment, classesLeft, enrolle
 import { supabase } from '@/api/supabaseClient';
 import EnrollButton from '@/components/EnrollButton';
 import AutopayCard from '@/components/AutopayCard';
-import { currentSub, isMonthlyItem, suggestedPlanKey } from '@/lib/autopay';
+import { currentSub, isMonthlyItem, suggestedPlanKey, firstMonthNote } from '@/lib/autopay';
 import AthleteForm from '@/components/AthleteForm';
 import { Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -126,7 +126,7 @@ export default function Home() {
         <div className="space-y-3 rounded-xl border border-primary/60 bg-primary/5 p-4">
           <div>
             <h2 className="font-display text-2xl">Set up your monthly plan</h2>
-            <p className="mt-1 text-sm text-muted-foreground">One step left: start autopay so {needsPlan.map((a) => a.first_name).join(' and ')} keep{needsPlan.length === 1 ? 's' : ''} training. Charged on the 1st of each month; this month is prorated.</p>
+            <p className="mt-1 text-sm text-muted-foreground">One step left: start autopay so {needsPlan.map((a) => a.first_name).join(' and ')} keep{needsPlan.length === 1 ? 's' : ''} training. {firstMonthNote(settings.enrollment?.monthly)}</p>
           </div>
           {needsPlan.map((a) => (
             <div key={a.id} className="space-y-1">

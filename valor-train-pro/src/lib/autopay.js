@@ -34,6 +34,15 @@ export function autopayTerms(item, monthly = {}) {
   return line.charAt(0).toUpperCase() + line.slice(1);
 }
 
+/** One sentence for the parent Home "Set up your monthly plan" card: follows settings.enrollment.monthly.first_month. */
+export function firstMonthNote(monthly = {}) {
+  const now = new Date();
+  if (ptDay(now) === 1) return `Charged on the 1st of each month, starting today for ${monthName(now)}.`;
+  if (monthly.first_month === 'none') return `Charged on the 1st of each month. Today is just ${money(Math.max(50, Number(monthly.first_fee_cents) || 50))} to put the card on file; ${monthName(now)} is already paid.`;
+  if (monthly.first_month === 'half') return 'Charged on the 1st of each month; this month is half price.';
+  return 'Charged on the 1st of each month; this month is prorated.';
+}
+
 /**
  * The monthly plan that matches the athlete's roster season + days a week (Corey's sheet), so a family
  * coming off UpperHand gets one tap: in-season 1x/2x, off-season 3x. Anything else: null (they pick).
