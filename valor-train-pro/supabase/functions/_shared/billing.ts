@@ -1,9 +1,10 @@
 // Monthly autopay rules (Corey 10/19/2026), shared by fn staff (checkout) and stripe-webhook (renewals).
 //   - everyone is charged on the 1st, 9am Pacific (billing_cycle_anchor)
 //   - mid-month sign-up: first payment covers the rest of the month, either Stripe's exact
-//     proration ("prorate", default), a flat half price ("half"), or a small card-check charge today
-//     ("none", default 50 cents = Stripe's minimum, settings.enrollment.monthly.first_fee_cents) for
-//     families who already paid the current month elsewhere; settings.enrollment.monthly.first_month
+//     proration ("prorate", default), a flat half price ("half"), or nothing today ("none": the card is saved
+//     with no charge; an optional card-check charge, settings.enrollment.monthly.first_fee_cents, at least
+//     Stripe's 50 cent minimum, is off by default since 11/1/2026) for families who already paid the current
+//     month elsewhere; settings.enrollment.monthly.first_month
 //   - first-month classes = the plan's classes per week x the weeks left in the month
 //   - 3-month commitment, no fee: a parent can cancel in the app after 3 paid months; coaches any time
 import type { EnrollmentConfig, Item } from "./common.ts";
@@ -18,7 +19,7 @@ export function monthlySettings(cfg: EnrollmentConfig & { monthly?: Partial<Mont
   const m = cfg.monthly || {};
   return {
     first_month: m.first_month === "half" ? "half" : m.first_month === "none" ? "none" : "prorate",
-    first_fee_cents: Math.max(STRIPE_MIN_CENTS, Math.round(Number(m.first_fee_cents) || STRIPE_MIN_CENTS)),
+    first_fee_cents: Math.round(Number(m.first_fee_cents) || 0) > 0 ? Math.max(STRIPE_MIN_CENTS, Math.round(Number(m.first_fee_cents))) : 0,
     commitment_months: Number.isFinite(Number(m.commitment_months)) ? Math.max(0, Number(m.commitment_months)) : 3,
   };
 }

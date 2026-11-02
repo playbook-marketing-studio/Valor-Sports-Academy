@@ -19,6 +19,11 @@ export const AUTOPAY_STATUS = {
   expired: { label: 'Not finished', cls: 'bg-muted text-muted-foreground' },
 };
 
+/** What happens today in the 'none' first-month mode: nothing (card saved), or the optional card-check fee. */
+const cardSavedToday = (monthly = {}) => Number(monthly.first_fee_cents) > 0
+  ? `${money(Math.max(50, Number(monthly.first_fee_cents)))} today to put the card on file`
+  : 'nothing today, the card is just saved';
+
 /** The one-line terms shown before someone starts autopay. */
 export function autopayTerms(item, monthly = {}) {
   const now = new Date();
@@ -28,7 +33,7 @@ export function autopayTerms(item, monthly = {}) {
     : monthly.first_month === 'half'
       ? `half price (${money(Math.round(item.amount_cents / 2))}) for the rest of ${monthName(now)}`
       : monthly.first_month === 'none'
-        ? `${money(Math.max(50, Number(monthly.first_fee_cents) || 50))} today to put the card on file (${monthName(now)} is already paid)`
+        ? `${cardSavedToday(monthly)} (${monthName(now)} is already paid)`
         : `a prorated first payment for the rest of ${monthName(now)}`;
   const line = `${first}, then ${money(item.amount_cents)} on the 1st of every month.${commit ? ` ${commit}-month commitment, no cancellation fee.` : ''}`;
   return line.charAt(0).toUpperCase() + line.slice(1);
@@ -38,7 +43,9 @@ export function autopayTerms(item, monthly = {}) {
 export function firstMonthNote(monthly = {}) {
   const now = new Date();
   if (ptDay(now) === 1) return `Charged on the 1st of each month, starting today for ${monthName(now)}.`;
-  if (monthly.first_month === 'none') return `Charged on the 1st of each month. Today is just ${money(Math.max(50, Number(monthly.first_fee_cents) || 50))} to put the card on file; ${monthName(now)} is already paid.`;
+  if (monthly.first_month === 'none') return Number(monthly.first_fee_cents) > 0
+    ? `Charged on the 1st of each month. Today is just ${money(Math.max(50, Number(monthly.first_fee_cents)))} to put the card on file; ${monthName(now)} is already paid.`
+    : `Charged on the 1st of each month. Nothing is charged today, your card is just saved; ${monthName(now)} is already paid.`;
   if (monthly.first_month === 'half') return 'Charged on the 1st of each month; this month is half price.';
   return 'Charged on the 1st of each month; this month is prorated.';
 }
@@ -85,7 +92,8 @@ const nextFirst = (now) => { const y = Number(new Intl.DateTimeFormat('en-US', {
 export function firstChargeTerms(item, monthly = {}, choice = 'first', date = '') {
   const now = new Date();
   const amt = money(item.amount_cents);
-  const fee = money(Math.max(50, Number(monthly.first_fee_cents) || 50));
+  const feeCents = Number(monthly.first_fee_cents) > 0 ? Math.max(50, Number(monthly.first_fee_cents)) : 0;
+  const today = feeCents ? `${money(feeCents)} today to put the card on file` : 'Nothing today, the card is saved';
   const commit = Number(monthly.commitment_months ?? 3);
   const tail = commit ? ` ${commit}-month commitment, no cancellation fee.` : '';
   if (ptDay(now) === 1 && choice !== 'date') return `${amt} today for ${monthName(now)}, then ${amt} on the 1st of every month.${tail}`;
@@ -93,7 +101,7 @@ export function firstChargeTerms(item, monthly = {}, choice = 'first', date = ''
   if (choice === 'date') {
     if (!date) return 'Pick the date of the first full payment. The card goes on file today.';
     const [y, m, d] = date.split('-').map(Number);
-    return `${fee} today to put the card on file, then ${amt} on ${fmtPT(new Date(Date.UTC(y, m - 1, d, 17)))} and the ${ordinal(d)} of every month after.${tail}`;
+    return `${today}, then ${amt} on ${fmtPT(new Date(Date.UTC(y, m - 1, d, 17)))} and the ${ordinal(d)} of every month after.${tail}`;
   }
-  return `${fee} today to put the card on file (${monthName(now)} is already paid), then ${amt} on ${fmtPT(nextFirst(now))} and the 1st of every month.${tail}`;
+  return `${today} (${monthName(now)} is already paid), then ${amt} on ${fmtPT(nextFirst(now))} and the 1st of every month.${tail}`;
 }

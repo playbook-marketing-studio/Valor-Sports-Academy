@@ -218,8 +218,8 @@ async function takePayment(req: Request, staffId: string | null, athleteId: stri
 }
 
 /** Monthly plan: Stripe Checkout in subscription mode, anchored to the 1st (9am Pacific). */
-/** first_charge (staff only): "" = the global first-month setting; "now" = full month today; "first" = card check today, full plan
- *  on the 1st; "YYYY-MM-DD" = card check today, full plan on that date and the same day every month after (a family whose old
+/** first_charge (staff only): "" = the global first-month setting; "now" = full month today; "first" = card saved today (no charge), full plan
+ *  on the 1st; "YYYY-MM-DD" = card saved today (no charge), full plan on that date and the same day every month after (a family whose old
  *  billing runs to a mid-month date). */
 async function startSubscription(req: Request, staffId: string | null, a: Record<string, any>, item: Record<string, any>, cfg: any, firstCharge = "") {
   const { data: live } = await admin.from("subscriptions").select("id, status").eq("athlete_id", a.id).in("status", ["active", "past_due"]).limit(1);
@@ -254,12 +254,18 @@ async function startSubscription(req: Request, staffId: string | null, a: Record
   const product_data = { name: `Valor Sports Academy: ${item.name}`, description: `${athlete} · monthly, charged on the 1st` };
   const line_items: any[] = [{ quantity: 1, price_data: { currency: "usd", unit_amount: item.amount_cents, recurring: { interval: "month" }, product_data } }];
   const subscription_data: Record<string, unknown> = { metadata: meta, description: `${item.name} · ${athlete}` };
+  let customText: Record<string, unknown> | undefined;
   if (trialEnd && (firstMode === "none" || firstMode === "date")) {
-    // card check only today (50 cents by default, Stripe's minimum; the family already paid elsewhere until then),
-    // the days until the first full payment are a Stripe trial. "none" lands on the 1st, "date" on the chosen day and
-    // renews on that day of the month. The 50 cent invoice still unlocks the app until then.
+    // nothing charged today (the family already paid elsewhere until then): Checkout saves the card and the days until the
+    // first full payment are a Stripe trial. "none" lands on the 1st, "date" on the chosen day and renews on that day of the
+    // month. The trial's $0 invoice (billing_reason subscription_create) still fires invoice.paid, which unlocks the app.
+    // An optional card-check charge (settings first_fee_cents > 0) is still supported.
     subscription_data.trial_end = Math.floor(trialEnd.getTime() / 1000);
-    line_items.push({ quantity: 1, price_data: { currency: "usd", unit_amount: rules.first_fee_cents, product_data: { name: `Card on file (first full payment ${fmtDayPT(trialEnd)})`, description: athlete } } });
+    if (rules.first_fee_cents > 0) {
+      line_items.push({ quantity: 1, price_data: { currency: "usd", unit_amount: rules.first_fee_cents, product_data: { name: `Card on file (first full payment ${fmtDayPT(trialEnd)})`, description: athlete } } });
+    } else {
+      customText = { submit: { message: `Nothing is charged today. Your card is saved for autopay, and your first payment of $${(item.amount_cents / 100).toFixed(2)} is on ${fmtDayPT(trialEnd)}.` } };
+    }
   } else if (anchor && firstMode === "full") {
     // full month today (one-time line), the recurring plan starts on the 1st
     subscription_data.trial_end = Math.floor(anchor.getTime() / 1000);
@@ -281,6 +287,7 @@ async function startSubscription(req: Request, staffId: string | null, a: Record
       client_reference_id: sub.id,
       line_items,
       subscription_data: subscription_data as any,
+      ...(customText ? { custom_text: customText as any } : {}),
       metadata: meta,
       success_url: `${origin}/paid?s=${sub.id}`,
       cancel_url: `${origin}/paid?s=${sub.id}&canceled=1`,

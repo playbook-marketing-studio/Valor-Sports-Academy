@@ -110,10 +110,15 @@ export async function alertForPayment(paymentId: string, kind: "paid" | "refunde
   const item = String(pay.description || pay.plan_key || "Class pack").split(" · ")[0];
   const amount = money(pay.amount_cents || 0);
   const auto = pay.kind === "subscription";
-  const subject = kind === "paid"
+  const cardSaved = kind === "paid" && auto && !(pay.amount_cents > 0); // autopay set up with nothing charged today
+  const subject = cardSaved
+    ? `Card on file: ${fullName(a)}${a?.parent_name ? ` from ${a.parent_name}` : ""}`
+    : kind === "paid"
     ? `${auto ? "Autopay" : "Payment"}: ${amount} for ${fullName(a)}${a?.parent_name ? ` from ${a.parent_name}` : ""}`
     : `Refund: ${amount} for ${fullName(a)}`;
-  const lines = kind === "paid"
+  const lines = cardSaved
+    ? `<p>Card saved for <strong>${esc(item)}</strong> autopay. Nothing was charged today; the first full payment comes out on its own.</p><p>${esc(fullName(a))}'s workouts, nutrition and training plan are unlocked. If they're still on UpperHand billing, turn that off now.</p>`
+    : kind === "paid"
     ? `<p><strong>${esc(amount)}</strong> ${auto ? "monthly autopay charged" : "paid by card"} for <strong>${esc(item)}</strong>${auto && pay.classes_total ? ` (${pay.classes_total} classes this month)` : ""}.</p><p>${esc(fullName(a))}'s workouts, nutrition and training plan are unlocked.</p>`
     : `<p>${esc(amount)} for <strong>${esc(item)}</strong> was refunded in Stripe.</p><p>If that was their only active pack, ${esc(a?.first_name || "the athlete")} is locked out of workouts and nutrition until they buy again.</p>`;
   return deliver(`pay:${pay.id}:${kind}`, {

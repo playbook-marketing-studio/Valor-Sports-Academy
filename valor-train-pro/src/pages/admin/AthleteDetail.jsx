@@ -419,7 +419,7 @@ function Payment({ athlete, cfg, recommendedKey }) {
           ) : (
             <div className="space-y-4">
               <QrPanel value={checkout.url} caption={checkout.subscription_id
-                ? `Parent scans with their phone camera and saves a card for autopay. ${checkout.first_amount_cents != null ? `Today: ${money(checkout.first_amount_cents)}` : 'First payment today'}, then ${money(chosen?.amount_cents)} on the 1st. This screen updates when it goes through.`
+                ? `Parent scans with their phone camera and saves a card for autopay. ${checkout.first_amount_cents === 0 ? 'Nothing charged today' : checkout.first_amount_cents != null ? `Today: ${money(checkout.first_amount_cents)}` : 'First payment today'}, then ${money(chosen?.amount_cents)} on the 1st. This screen updates when it goes through.`
                 : 'Parent scans with their phone camera and pays with card, Apple Pay or Google Pay. This screen updates when it goes through.'} />
               <div className="grid grid-cols-2 gap-2">
                 {athlete.parent_phone && <Button asChild variant="outline" size="sm"><a href={smsHref(athlete.parent_phone, `Here's the link to finish ${athlete.first_name}'s Valor sign-up: ${checkout.url}`)}><MessageSquare className="h-4 w-4" /> Text link</a></Button>}
