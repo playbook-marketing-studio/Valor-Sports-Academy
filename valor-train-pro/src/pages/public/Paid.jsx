@@ -22,7 +22,7 @@ export default function Paid() {
         <CheckCircle2 className="mt-0.5 h-6 w-6 text-success" />
         <div className="text-sm">
           <p className="font-semibold">{autopay ? 'Autopay is set up. Welcome to Valor.' : 'Payment received. Welcome to Valor.'}</p>
-          <p className="mt-1 text-muted-foreground">{autopay ? 'Your first payment is done and the receipt is on its way. From now on it charges on the 1st of each month; you can update your card in the app.' : 'Your receipt is on its way to your email.'} Workouts, nutrition and your athlete's training plan are unlocked. Questions? Call or text {VALOR_PHONE}.</p>
+          <p className="mt-1 text-muted-foreground">{autopay ? 'Your card is saved, and a receipt comes by email whenever a payment goes through. Autopay charges on the 1st of each month; you can update your card in the app.' : 'Your receipt is on its way to your email.'} Workouts, nutrition and your athlete's training plan are unlocked. Questions? Call or text {VALOR_PHONE}.</p>
         </div>
       </div>
       <Button asChild className="mt-5 w-full"><Link to="/">Go to my dashboard</Link></Button>
