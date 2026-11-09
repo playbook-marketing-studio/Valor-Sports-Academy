@@ -38,7 +38,10 @@
   "name": "Indoor Turf and Weight Room Rental in Richland, WA",
   "description": "Hourly rental of an indoor turf floor and full weight room in Richland, WA for youth teams, fitness groups and coaches across the Tri-Cities.",
   "areaServed": ["Richland WA", "Kennewick WA", "Pasco WA", "West Richland WA", "Tri-Cities WA"],
-  "offers": { "@type": "Offer", "price": "125", "priceCurrency": "USD", "unitText": "per hour", "url": "https://www.valorsportsacademywa.com/facility-rental" },
+  "offers": [
+    { "@type": "Offer", "name": "Full turf floor and weight room", "price": "125", "priceCurrency": "USD", "unitText": "per hour", "url": "https://www.valorsportsacademywa.com/facility-rental" },
+    { "@type": "Offer", "name": "Half the turf floor", "price": "50", "priceCurrency": "USD", "unitText": "per hour", "url": "https://www.valorsportsacademywa.com/facility-rental" }
+  ],
   "provider": {
     "@type": "SportsActivityLocation",
     "name": "Valor Sports Academy",
@@ -53,7 +56,7 @@
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": [
-    { "@type": "Question", "name": "How much does it cost to rent the space?", "acceptedAnswer": { "@type": "Answer", "text": "$125 per hour for the turf floor and the weight room. Tell us the day, time and how many hours you need and we confirm what is open." } },
+    { "@type": "Question", "name": "How much does it cost to rent the space?", "acceptedAnswer": { "@type": "Answer", "text": "$125 per hour for the full turf floor and the weight room, or $50 per hour for half the turf. Tell us the day, time and how many hours you need and we confirm what is open." } },
     { "@type": "Question", "name": "Who rents the space?", "acceptedAnswer": { "@type": "Answer", "text": "Youth teams looking for indoor practice space, CrossFit and fitness groups, and youth basketball programs have all trained at Valor. Coaches and trainers who need a floor for their own athletes are welcome too." } },
     { "@type": "Question", "name": "Where is the facility?", "acceptedAnswer": { "@type": "Answer", "text": "1973 Fowler Street in Richland, WA, next to the Chef'Store and Cost Less Carpet. Groups come from Kennewick, Pasco, West Richland and across the Tri-Cities." } },
     { "@type": "Question", "name": "How do I book?", "acceptedAnswer": { "@type": "Answer", "text": "Send the request form on this page or call or text 509-987-4612 with the day and time you want. A coach confirms availability with you directly." } }
@@ -160,6 +163,9 @@
     <div class="io">
       <p class="tag-line">The rate</p>
       <p class="rent-rate__num">$125<small>per hour</small></p>
+      <p style="color:#cbc5ba;margin-top:6px">Full turf floor and weight room</p>
+      <p class="rent-rate__num" style="margin-top:22px">$50<small>per hour</small></p>
+      <p style="color:#cbc5ba;margin-top:6px">Half the turf floor</p>
     </div>
     <div class="io">
       <h2 style="color:#fff">What is included</h2>
@@ -207,6 +213,13 @@
           <div><label for="remail">Email *</label><input id="remail" name="email" type="email" required autocomplete="email" placeholder="you@email.com"></div>
           <div><label for="rphone">Phone *</label><input id="rphone" name="phone" type="tel" required autocomplete="tel" placeholder="(509) 000-0000"></div>
         </div>
+        <label for="rspace">What space</label>
+        <select id="rspace" name="space">
+          <option value="">Select one</option>
+          <option>Full turf and weight room ($125 an hour)</option>
+          <option>Half the turf ($50 an hour)</option>
+          <option>Not sure yet</option>
+        </select>
         <div class="field-row">
           <div><label for="rwhen">Day and time you want</label><input id="rwhen" name="preferred-time" type="text" placeholder="e.g. Tuesdays 6 to 8pm"></div>
           <div><label for="rhours">How many hours</label>
@@ -232,7 +245,7 @@
   <div class="container">
     <div class="head io" style="margin-bottom:clamp(28px,4vw,44px)"><p class="tag-line">Questions</p><h2>Renting the space, answered</h2></div>
     <div class="faq io" style="max-width:820px">
-      <details style="border-top:1px solid rgba(0,0,0,.12);padding:18px 0"><summary style="font-weight:700;font-size:1.12rem;cursor:pointer;list-style:none">How much does it cost?</summary><p style="color:var(--muted);margin-top:12px">$125 per hour for the turf floor and the weight room. Tell us the day, time and how many hours you need and we confirm what is open.</p></details>
+      <details style="border-top:1px solid rgba(0,0,0,.12);padding:18px 0"><summary style="font-weight:700;font-size:1.12rem;cursor:pointer;list-style:none">How much does it cost?</summary><p style="color:var(--muted);margin-top:12px">$125 per hour for the full turf floor and the weight room, or $50 per hour for half the turf. Tell us the day, time and how many hours you need and we confirm what is open.</p></details>
       <details style="border-top:1px solid rgba(0,0,0,.12);padding:18px 0"><summary style="font-weight:700;font-size:1.12rem;cursor:pointer;list-style:none">Who rents the space?</summary><p style="color:var(--muted);margin-top:12px">Youth teams looking for indoor practice space, CrossFit and fitness groups, and youth basketball programs have all trained here. Coaches and trainers who need a floor for their own athletes are welcome too.</p></details>
       <details style="border-top:1px solid rgba(0,0,0,.12);padding:18px 0"><summary style="font-weight:700;font-size:1.12rem;cursor:pointer;list-style:none">Where is the facility?</summary><p style="color:var(--muted);margin-top:12px">1973 Fowler Street in Richland, next to the Chef'Store and Cost Less Carpet. Groups come from Kennewick, Pasco, West Richland and across the Tri-Cities.</p></details>
       <details style="border-top:1px solid rgba(0,0,0,.12);border-bottom:1px solid rgba(0,0,0,.12);padding:18px 0"><summary style="font-weight:700;font-size:1.12rem;cursor:pointer;list-style:none">How do I book?</summary><p style="color:var(--muted);margin-top:12px">Send the <a href="#book" style="color:var(--red);font-weight:700">request form</a> above or call or text 509-987-4612 with the day and time you want. A coach confirms availability with you directly.</p></details>
