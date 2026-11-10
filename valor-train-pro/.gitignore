@@ -38,3 +38,4 @@ base44/.app.jsonc
 .claude/
 screenshots/
 .vercel
+.backups/

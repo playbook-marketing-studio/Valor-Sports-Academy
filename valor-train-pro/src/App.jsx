@@ -38,6 +38,7 @@ const HomeRoute = () => { const { user } = useAuthForHome(); return user?.role =
 import RequireEnrollment from '@/components/RequireEnrollment';
 import Welcome from '@/pages/public/Welcome';
 import Paid from '@/pages/public/Paid';
+import Connect from '@/pages/Connect';
 import ExternalRedirect from '@/components/ExternalRedirect';
 import { SITE_ASSESSMENT_URL } from '@/lib/valor';
 import RequireRole from '@/components/RequireRole';
@@ -84,6 +85,7 @@ const AuthenticatedApp = () => {
           {/* messages are not behind enrollment: any family can hear from (and write to) the coaches */}
           <Route path="/messages" element={<Messages />} />
           <Route path="/account" element={<Account />} />
+          <Route path="/connect" element={<Connect />} />
           {/* included with enrollment: unpaid families get the enroll-and-pay screen */}
           <Route element={<RequireEnrollment />}>
             <Route path="/workouts" element={<Workouts />} />

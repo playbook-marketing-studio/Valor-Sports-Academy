@@ -128,6 +128,25 @@ export async function alertForPayment(paymentId: string, kind: "paid" | "refunde
   }, !!opts.dryRun);
 }
 
+/** A family added an athlete in the app themselves ("Who's training?", fn family, 11/10/2026). testOnly: a *.test login, Omar only. */
+export async function alertForSignup(athleteId: string, opts: { testOnly?: boolean; dryRun?: boolean } = {}): Promise<AlertResult> {
+  const { data: a } = await admin.from("athletes").select("*").eq("id", athleteId).maybeSingle();
+  if (!a) return { sent: false, reason: "no such athlete" };
+  const { data: login } = a.parent_id ? await admin.from("profiles").select("email, full_name").eq("id", a.parent_id).maybeSingle() : { data: null };
+  const to = opts.testOnly ? [TEST_ONLY] : await staffRecipients(!!a.is_example);
+  const who = a.app_signup_role === "athlete" ? "the athlete" : `a parent${login?.full_name ? ` (${login.full_name})` : ""}`;
+  const subject = `New in the app: ${fullName(a)}`;
+  const facts = [a.age && `Age ${a.age}`, a.sport, a.parent_name && `Parent ${a.parent_name}`, a.parent_phone, login?.email].filter(Boolean).join(" · ");
+  return deliver(`signup:${a.id}`, {
+    to, subject,
+    text: `${subject}, added by ${who}. ${facts}. They can pick a plan and pay in the app. If this is a kid already on your roster, open the athlete page and tap Same kid as. ${appUrl()}/admin/athletes/${a.id}`,
+    html: wrapHtml(subject,
+      `<p>${esc(fullName(a))} was added in the app by ${esc(who)}.</p><p>${esc(facts)}</p>
+       <p>They can pick a plan and pay right in the app. If this is a kid already on your roster, open the athlete page and tap <strong>Same kid as...</strong> so everything lands on one record.</p>
+       ${btn(`${appUrl()}/admin/athletes/${a.id}`, "Open athlete page")}`),
+  }, !!opts.dryRun);
+}
+
 /** Autopay problems: a failed monthly charge (coaches + parent) or autopay ending (coaches). */
 export async function alertForSubscription(subId: string, kind: "failed" | "ended", eventKey: string, opts: { dryRun?: boolean } = {}): Promise<AlertResult[]> {
   const { data: sub } = await admin.from("subscriptions").select("*").eq("id", subId).maybeSingle();

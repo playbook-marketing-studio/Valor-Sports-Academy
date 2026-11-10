@@ -5,7 +5,9 @@ import { loadSettings, DEFAULT_METRICS, countsAsEnrollment, classesLeft, enrolle
 import { supabase } from '@/api/supabaseClient';
 import EnrollButton from '@/components/EnrollButton';
 import AutopayCard from '@/components/AutopayCard';
-import { currentSub, isMonthlyItem, suggestedPlanKey, firstMonthNote } from '@/lib/autopay';
+import { currentSub, isMonthlyItem, suggestedPlanKey, firstMonthNote, monthlyFor } from '@/lib/autopay';
+import GetStarted from '@/components/GetStarted';
+import { SITE_ASSESSMENT_URL } from '@/lib/valor';
 import AthleteForm from '@/components/AthleteForm';
 import { Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -126,7 +128,11 @@ export default function Home() {
         <div className="space-y-3 rounded-xl border border-primary/60 bg-primary/5 p-4">
           <div>
             <h2 className="font-display text-2xl">Set up your monthly plan</h2>
-            <p className="mt-1 text-sm text-muted-foreground">One step left: start autopay so {needsPlan.map((a) => a.first_name).join(' and ')} keep{needsPlan.length === 1 ? 's' : ''} training. {firstMonthNote(settings.enrollment?.monthly)}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{needsPlan.every((a) => a.app_signup_at) ? `Pick a plan so ${needsPlan.map((a) => a.first_name).join(' and ')} can start training.` : `One step left: start autopay so ${needsPlan.map((a) => a.first_name).join(' and ')} keep${needsPlan.length === 1 ? 's' : ''} training.`} {firstMonthNote(needsPlan.every((a) => a.app_signup_at) ? monthlyFor(needsPlan[0], settings.enrollment?.monthly) : settings.enrollment?.monthly)}</p>
+            {/* signed up in the app, no assessment yet: buying first is fine, the free assessment is still there (Omar 11/9) */}
+            {needsPlan.some((a) => a.app_signup_at && !assessments.some((x) => x.athlete_id === a.id)) && (
+              <p className="mt-1 text-sm text-muted-foreground">Haven't done your free assessment? <a href={SITE_ASSESSMENT_URL} className="font-medium text-primary hover:underline">Book it here</a>. The coach can switch your plan after.</p>
+            )}
           </div>
           {needsPlan.map((a) => (
             <div key={a.id} className="space-y-1">
@@ -249,7 +255,9 @@ export default function Home() {
 
       <AthleteForm open={!!editing} onOpenChange={(o) => !o && setEditing(null)} mode="parent_edit" athlete={editing} onSaved={() => setReload((n) => n + 1)} />
 
-      {athletes.length === 0 && !loading && (
+      {/* signed up in the app with no athlete yet (Valor 11/9/2026): connect the kid on file, or add who's training */}
+      {athletes.length === 0 && !loading && !viewAs.isActive && user?.role !== 'admin' && <GetStarted onAdded={() => setReload((n) => n + 1)} />}
+      {athletes.length === 0 && !loading && viewAs.isActive && (
         <EmptyState
           photo="/images/photos/facility-wide.webp"
           title="Nothing here yet"
