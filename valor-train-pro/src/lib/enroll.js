@@ -2,11 +2,9 @@ import { callFn } from '@/api/supabaseClient';
 import { toast } from '@/components/ui/use-toast';
 import { VALOR_PHONE } from '@/lib/valor';
 
-/** A Stripe Checkout link for the athlete. A kid the family added in the app goes through fn family (first month prorated). */
+/** A Stripe Checkout link for the family's own athlete (fn family: a kid added in the app pays a prorated first month). */
 async function checkoutFor(athlete, planKey) {
-  return athlete.app_signup_at
-    ? callFn('family', { body: { action: 'checkout', athlete_id: athlete.id, plan_key: planKey } })
-    : callFn('staff', { body: { action: 'take_payment', athlete_id: athlete.id, plan_key: planKey } });
+  return callFn('family', { body: { action: 'checkout', athlete_id: athlete.id, plan_key: planKey } });
 }
 
 function explain(r) {

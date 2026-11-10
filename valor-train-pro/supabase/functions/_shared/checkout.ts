@@ -88,11 +88,19 @@ export async function startSubscription(req: Request, staffId: string | null, a:
   const subscription_data: Record<string, unknown> = { metadata: meta, description: `${item.name} · ${athlete}` };
   let customText: Record<string, unknown> | undefined;
   if (trialEnd && (firstMode === "none" || firstMode === "date")) {
-    // nothing charged today (the family already paid elsewhere until then): Checkout saves the card and the days until the
-    // first full payment are a Stripe trial. "none" lands on the 1st, "date" on the chosen day and renews on that day of the
-    // month. The trial's $0 invoice (billing_reason subscription_create) still fires invoice.paid, which unlocks the app.
-    // An optional card-check charge (settings first_fee_cents > 0) is still supported.
-    subscription_data.trial_end = Math.floor(trialEnd.getTime() / 1000);
+    // nothing charged today (the family already paid elsewhere until then): Checkout saves the card and billing starts on
+    // the 1st ("none") or the chosen day ("date", renewing on that day of the month). The $0 first invoice
+    // (billing_reason subscription_create) fires invoice.paid, which unlocks the app.
+    // 11/10/2026: billing_cycle_anchor + no proration instead of a Stripe trial, because Stripe's page called the trial
+    // "21 days free" to families who had already paid the month (Omar). A trial is still used when there's a
+    // card-check charge (Checkout can't mix proration "none" with one-time prices) or the date is over 4 weeks out.
+    const anchorOk = rules.first_fee_cents === 0 && trialEnd.getTime() - now.getTime() < 28 * 86400000;
+    if (anchorOk) {
+      subscription_data.billing_cycle_anchor = Math.floor(trialEnd.getTime() / 1000);
+      subscription_data.proration_behavior = "none";
+    } else {
+      subscription_data.trial_end = Math.floor(trialEnd.getTime() / 1000);
+    }
     if (rules.first_fee_cents > 0) {
       line_items.push({ quantity: 1, price_data: { currency: "usd", unit_amount: rules.first_fee_cents, product_data: { name: `Card on file (first full payment ${fmtDayPT(trialEnd)})`, description: athlete } } });
     } else {

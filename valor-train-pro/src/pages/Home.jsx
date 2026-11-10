@@ -77,7 +77,7 @@ export default function Home() {
         setUser(me);
 
         const [kids, { data: next }] = await Promise.all([
-          me.role === 'admin' ? [] : base44.entities.Athlete.list('first_name', 20).catch(() => []),
+          me.role === 'admin' ? [] : base44.entities.Athlete.list('first_name', 20).then((ks) => ks.filter((k) => !k.archived_at)).catch(() => []),
           supabase.from('workouts').select('id, athlete_id, title, date, day, week, program').gte('date', today).not('athlete_id', 'is', null).order('date').limit(40),
         ]);
         setUpcoming(next || []);

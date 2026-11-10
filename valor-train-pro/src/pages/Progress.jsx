@@ -56,7 +56,7 @@ export default function Progress() {
     ]) : await Promise.all([
       base44.entities.OneRepMax.list('-date', 500),
       base44.entities.Workout.filter({ program: 'In-Season I' }, 'date', 100),
-      base44.entities.Athlete.list('first_name', 20).then(async (ks) => { const on = await enrolledIds(ks.map((k) => k.id)); return ks.filter((k) => on.has(k.id)); }).catch(() => []),
+      base44.entities.Athlete.list('first_name', 20).then((ks) => ks.filter((k) => !k.archived_at)).then(async (ks) => { const on = await enrolledIds(ks.map((k) => k.id)); return ks.filter((k) => on.has(k.id)); }).catch(() => []),
       loadSettings(),
     ]);
     setAllMaxes(data);

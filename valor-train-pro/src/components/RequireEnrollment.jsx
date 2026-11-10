@@ -30,7 +30,7 @@ export default function RequireEnrollment() {
     if (!viewAs.isActive && user.role === 'admin') return;
     if (viewAs.isActive && !viewAs.athlete) return;
     (async () => {
-      const kids = viewAs.isActive ? [viewAs.athlete] : await base44.entities.Athlete.list('first_name', 20).catch(() => []);
+      const kids = viewAs.isActive ? [viewAs.athlete] : await base44.entities.Athlete.list('first_name', 20).then((ks) => ks.filter((k) => !k.archived_at)).catch(() => []);
       const ids = kids.map((k) => k.id);
       const [enrolled, settings, { data: as }, { data: past }] = await Promise.all([
         enrolledIds(ids), loadSettings(),
