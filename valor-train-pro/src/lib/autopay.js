@@ -24,6 +24,9 @@ const cardSavedToday = (monthly = {}) => Number(monthly.first_fee_cents) > 0
   ? `${money(Math.max(50, Number(monthly.first_fee_cents)))} today to put the card on file`
   : 'nothing today, the card is just saved';
 
+/** First-month rules for this athlete: a kid the family added in the app pays the rest of this month (prorated). */
+export const monthlyFor = (athlete, monthly = {}) => (athlete?.app_signup_at ? { ...monthly, first_month: 'prorate' } : monthly);
+
 /** The one-line terms shown before someone starts autopay. */
 export function autopayTerms(item, monthly = {}) {
   const now = new Date();

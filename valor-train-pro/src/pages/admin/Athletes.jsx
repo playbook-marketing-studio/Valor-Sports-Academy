@@ -33,8 +33,15 @@ export default function AdminAthletes() {
   const [form, setForm] = useState(null); // 'add' | 'walk_in'
 
   useEffect(() => {
-    supabase.from('athletes_admin').select('*').order('created_at', { ascending: false }).limit(2000)
-      .then(({ data }) => { setRows(data || []); setLoading(false); });
+    // app_signup_at isn't in the athletes_admin view; read it from athletes (staff see every row)
+    Promise.all([
+      supabase.from('athletes_admin').select('*').order('created_at', { ascending: false }).limit(2000),
+      supabase.from('athletes').select('id, app_signup_at').not('app_signup_at', 'is', null),
+    ]).then(([{ data }, { data: app }]) => {
+      const appIds = new Set((app || []).map((x) => x.id));
+      setRows((data || []).map((a) => ({ ...a, app_signup: appIds.has(a.id) })));
+      setLoading(false);
+    });
   }, []);
 
   const term = q.trim().toLowerCase();
@@ -86,6 +93,7 @@ export default function AdminAthletes() {
                     <div className="flex flex-wrap gap-2 text-xs">
                       <span className={cn('rounded-full px-2 py-0.5 font-medium', STAGE_STYLE[a.stage])}>{STAGE_LABEL[a.stage] || a.stage}</span>
                       <span className={cn('rounded-full px-2 py-0.5 font-medium', ls.cls)}>{ls.label}</span>
+                      {a.app_signup && <span className="rounded-full bg-info-surface px-2 py-0.5 font-medium text-info">Signed up in the app</span>}
                       {a.last_paid_plan && <span className="rounded-full border border-border px-2 py-0.5 font-medium">{a.last_paid_plan.split(' · ')[0]}</span>}
                     </div>
                   </CardContent>

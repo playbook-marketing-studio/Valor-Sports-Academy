@@ -676,6 +676,55 @@ function WeightsUsed({ athleteId }) {
   );
 }
 
+// ── signed up in the app: "Same kid as..." (fn family merge, 11/10/2026) ─────────
+function SameKidAs({ athlete, onMerged }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const [rows, setRows] = useState([]);
+  const [busy, setBusy] = useState('');
+  useEffect(() => {
+    if (!open) return;
+    supabase.from('athletes').select('id, first_name, last_name, age, sport, parent_name, parent_id').is('archived_at', null).is('app_signup_at', null).neq('id', athlete.id).order('first_name')
+      .then(({ data }) => setRows(data || []));
+  }, [open, athlete.id]);
+  const term = q.trim().toLowerCase();
+  const shown = rows.filter((r) => !term || [r.first_name, r.last_name, r.parent_name].join(' ').toLowerCase().includes(term)).slice(0, 30);
+  const merge = async (r) => {
+    if (!window.confirm(`Move ${athlete.first_name}'s app login, payments and autopay onto ${athleteName(r)}, and archive this one?`)) return;
+    setBusy(r.id);
+    try {
+      const res = await callFn('family', { body: { action: 'merge', from_id: athlete.id, into_id: r.id } });
+      toast({ title: `Merged into ${athleteName(r)}`, description: res.kept_other_login ? `${r.first_name} already had a different parent login, so that one stays. The app sign-up login no longer sees ${r.first_name}.` : 'The family sees one athlete now.' });
+      setOpen(false);
+      onMerged(r.id);
+    } catch (e) {
+      toast({ title: 'Could not merge', description: e.message });
+    } finally { setBusy(''); }
+  };
+  return (
+    <div className="mt-3 rounded-2xl border border-border bg-background/60 p-3">
+      <p className="text-sm"><span className="rounded-full bg-info-surface px-2 py-0.5 text-xs font-semibold text-info">Signed up in the app</span> {athlete.app_signup_role === 'athlete' ? 'The athlete' : 'A parent'} added this in the app on {new Date(athlete.app_signup_at).toLocaleDateString()}. Already on your roster under another record?</p>
+      <Button size="sm" variant="secondary" className="mt-2 h-10" onClick={() => setOpen(true)}>Same kid as...</Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Which roster record is {athlete.first_name}?</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">The app login, any payment or autopay, and their history move to the record you pick. This one gets archived.</p>
+          <Input placeholder="Search name or parent" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+          <div className="divide-y divide-border rounded-lg border border-border">
+            {shown.map((r) => (
+              <button key={r.id} disabled={!!busy} onClick={() => merge(r)} className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm hover:bg-muted/50">
+                <span><span className="font-semibold">{athleteName(r)}</span><span className="ml-2 text-xs text-muted-foreground">{[r.age && `age ${r.age}`, r.sport, r.parent_name].filter(Boolean).join(' · ')}</span></span>
+                {busy === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <span className="text-xs text-muted-foreground">{r.parent_id ? 'has a login' : 'no login yet'}</span>}
+              </button>
+            ))}
+            {shown.length === 0 && <p className="px-3 py-6 text-center text-sm text-muted-foreground">No match.</p>}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 export default function AthleteDetail() {
   const { id } = useParams();
   const [athlete, setAthlete] = useState(null);
@@ -693,7 +742,12 @@ export default function AthleteDetail() {
 
   const load = useCallback(async () => {
     const [{ data: a }, { data: b }, { data: as }, { count: asgCount }, { data: tpls }] = await Promise.all([
-      supabase.from('athletes_admin').select('*').eq('id', id).maybeSingle(),
+      supabase.from('athletes_admin').select('*').eq('id', id).maybeSingle()
+        .then(async (r) => { // app_signup_at isn't in the view
+          if (!r.data) return r;
+          const { data: x } = await supabase.from('athletes').select('app_signup_at, app_signup_role').eq('id', id).maybeSingle();
+          return { ...r, data: { ...r.data, ...(x || {}) } };
+        }),
       supabase.from('bookings').select('*').eq('athlete_id', id).order('slot_start', { ascending: false, nullsFirst: false }).limit(1).maybeSingle(),
       supabase.from('assessments').select('recommended_plan').eq('athlete_id', id).order('date', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('program_assignments').select('id', { count: 'exact', head: true }).eq('athlete_id', id),
@@ -753,6 +807,7 @@ export default function AthleteDetail() {
           </DropdownMenu>
         </div>
         {athlete.archived_at && <p className="mt-3 text-xs text-destructive">Archived {new Date(athlete.archived_at).toLocaleDateString()}</p>}
+        {athlete.app_signup_at && !athlete.archived_at && <SameKidAs athlete={athlete} onMerged={(intoId) => navigate(`/admin/athletes/${intoId}`)} />}
         </div>
       </div>
       <NextSteps athlete={athlete} booking={booking} hasAssignment={hasAssignment} navigate={navigate} onGoto={goto} onAssign={() => setAssignOpen(true)} />

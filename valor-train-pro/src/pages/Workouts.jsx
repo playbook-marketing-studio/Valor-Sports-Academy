@@ -39,7 +39,7 @@ export default function Workouts() {
       base44.entities.Workout.list('-date', 500),
       base44.entities.OneRepMax.list('-date', 500),
       base44.entities.WorkoutLog.list('-date', 500),
-      base44.entities.Athlete.list('first_name', 20).then(async (ks) => { const on = await enrolledIds(ks.map((k) => k.id)); return ks.filter((k) => on.has(k.id)); }).catch(() => []),
+      base44.entities.Athlete.list('first_name', 20).then((ks) => ks.filter((k) => !k.archived_at)).then(async (ks) => { const on = await enrolledIds(ks.map((k) => k.id)); return ks.filter((k) => on.has(k.id)); }).catch(() => []),
     ]);
     setAthletes(kids);
     // a plan = anything with a week number: coach-built workouts for an athlete, or the In-Season template
