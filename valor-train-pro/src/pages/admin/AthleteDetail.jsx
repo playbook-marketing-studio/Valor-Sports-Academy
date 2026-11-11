@@ -360,7 +360,7 @@ function Payment({ athlete, cfg, recommendedKey }) {
       <CardHeader className="pb-3"><CardTitle className="text-lg">3. Classes &amp; enrollment</CardTitle><p className="mt-1 text-xs text-muted-foreground">{(cfg.items || []).some(isMonthlyItem) ? 'A class pack paid once, or a monthly plan on autopay (charged on the 1st).' : 'One-time payment for a class or class pack.'} Workouts, nutrition and training plans are included while one is active.</p></CardHeader>
       <CardContent className="space-y-4">
         {cfg.placeholder && <p className="rounded-lg border border-warning-border bg-warning-surface px-3 py-2 text-xs text-warning">Prices and packs are placeholders: confirm with Corey.</p>}
-        {autopay && <AutopayCard sub={autopay} staff commitmentMonths={cfg.monthly?.commitment_months ?? 3} onChanged={load} />}
+        {autopay && <AutopayCard sub={autopay} staff commitmentMonths={cfg.monthly?.commitment_months ?? 3} onChanged={load} plans={(cfg.items || []).filter(isMonthlyItem)} name={athlete.first_name} />}
         {active.length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-success-border bg-success-surface px-3 py-2">
             <p className="flex items-center gap-2 text-sm font-semibold text-success"><CheckCircle2 className="h-5 w-5" /> Enrolled · {left == null ? 'unlimited classes' : `${left} class${left === 1 ? '' : 'es'} left`}{active[0].covers_until ? ` · good through ${new Date(active[0].covers_until).toLocaleDateString()}` : ''}</p>

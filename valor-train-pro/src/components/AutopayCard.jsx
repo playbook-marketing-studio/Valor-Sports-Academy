@@ -3,19 +3,23 @@ import { AlertTriangle, CreditCard, Loader2, Repeat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { AUTOPAY_STATUS, fmtDay, money, openBillingPortal, setAutopayCancel } from '@/lib/autopay';
+import AutopayChange from '@/components/AutopayChange';
 
 /**
  * One athlete's monthly autopay: plan, next charge, commitment, Update card, Cancel / Resume.
  * Parents can cancel only after the commitment (the server enforces it too); staff any time.
  * `readOnly` = staff "view as athlete".
+ * Coaches (`staff` + the monthly `plans`) can also change the plan or the charge date (11/11/2026).
  */
-export default function AutopayCard({ sub, staff = false, commitmentMonths = 3, readOnly = false, onChanged }) {
+export default function AutopayCard({ sub, staff = false, commitmentMonths = 3, readOnly = false, onChanged, plans = [], name }) {
   const [busy, setBusy] = useState('');
+  const [change, setChange] = useState(''); // '' | 'plan' | 'date'
   if (!sub) return null;
   const ending = sub.status === 'active' && sub.cancel_at_period_end;
   const st = AUTOPAY_STATUS[ending ? 'ending' : sub.status] || AUTOPAY_STATUS.active;
   const left = Math.max(0, commitmentMonths - (sub.paid_months || 0));
   const canCancel = staff || left === 0;
+  const canChange = staff && !readOnly && sub.status === 'active' && !ending && !!sub.stripe_subscription_id;
   const run = async (k, fn) => { setBusy(k); const ok = await fn(); setBusy(''); if (ok) onChanged?.(); };
 
   return (
@@ -48,8 +52,11 @@ export default function AutopayCard({ sub, staff = false, commitmentMonths = 3, 
               {busy === 'cancel' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Cancel autopay'}
             </Button>
           ) : null}
+          {canChange && plans.length > 1 && <Button size="sm" variant="outline" className="h-9" disabled={!!busy} onClick={() => setChange('plan')}>Change plan</Button>}
+          {canChange && <Button size="sm" variant="outline" className="h-9" disabled={!!busy} onClick={() => setChange('date')}>Change charge date</Button>}
         </div>
       )}
+      {change && <AutopayChange mode={change} sub={sub} plans={plans} name={name} onClose={() => setChange('')} onChanged={onChanged} />}
     </div>
   );
 }
