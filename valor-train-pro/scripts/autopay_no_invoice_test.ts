@@ -14,7 +14,7 @@ async function send(type: string, object: Record<string, unknown>) {
   const t = Math.floor(Date.now() / 1000);
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(WH), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const sig = hex(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(t + "." + payload)));
-  const r = await fetch("http://localhost:8000/", { method: "POST", headers: { "stripe-signature": "t=" + t + ",v1=" + sig, "content-type": "application/json" }, body: payload });
+  const r = await fetch(Deno.env.get("WEBHOOK_URL") || "http://localhost:8000/", { method: "POST", headers: { "stripe-signature": "t=" + t + ",v1=" + sig, "content-type": "application/json" }, body: payload });
   return { status: r.status, body: await r.text() };
 }
 const stripe = async (method: string, path: string) => (await fetch("https://api.stripe.com/v1/" + path, { method, headers: { Authorization: "Bearer " + SK } })).json();
@@ -27,10 +27,12 @@ const clean = async () => {
   const { data: p } = await admin.from("profiles").select("id").eq("email", EMAIL);
   for (const row of p || []) await admin.auth.admin.deleteUser(row.id);
 };
-const web = new Deno.Command("deno", { args: ["run", "--allow-net", "--allow-env", "--allow-read", "--no-check", FN + "/stripe-webhook/index.ts"], env: { ...Deno.env.toObject(), DENO_NO_PACKAGE_JSON: "1" }, stdout: "null", stderr: "piped" }).spawn();
+const LIVE = !!Deno.env.get("WEBHOOK_URL"); // test a deployed handler instead of a local one
+const web = LIVE ? null : new Deno.Command("deno", { args: ["run", "--allow-net", "--allow-env", "--allow-read", "--no-check", FN + "/stripe-webhook/index.ts"], env: { ...Deno.env.toObject(), DENO_NO_PACKAGE_JSON: "1" }, stdout: "null", stderr: "piped" }).spawn();
+if (LIVE) console.log("sending test events to the DEPLOYED handler");
 try {
   await clean();
-  for (let i = 0; i < 40; i++) { try { await fetch("http://localhost:8000/"); break; } catch { await new Promise((r) => setTimeout(r, 250)); } }
+  for (let i = 0; i < 40 && !LIVE; i++) { try { await fetch("http://localhost:8000/"); break; } catch { await new Promise((r) => setTimeout(r, 250)); } }
   const { data: u, error: ue } = await admin.auth.admin.createUser({ email: EMAIL, password: crypto.randomUUID() + "aA1!", email_confirm: true });
   if (ue) throw ue; uid = u.user!.id;
   const mk = async (name: string) => { const { data, error } = await admin.from("athletes").insert({ first_name: name, last_name: "Selftest", parent_id: uid, parent_email: EMAIL, parent_name: "Pat Test" }).select("*").single(); if (error) throw error; return data; };
@@ -88,5 +90,5 @@ try {
   await clean();
   const { data: left } = await admin.from("athletes").select("id").like("first_name", "ZZPayfix%"); const { data: lu } = await admin.from("profiles").select("id").eq("email", EMAIL);
   console.log("left behind: athletes", left?.length, "logins", lu?.length, fails.length ? "\nFAILED: " + fails.join(" | ") : "\nALL PASSED");
-  try { web.kill(); const out = await web.output(); const err = new TextDecoder().decode(out.stderr).split("\n").filter((l) => /error|failed/i.test(l)).slice(0, 5); if (err.length) console.log("handler log:", err.join(" / ")); } catch { /* gone */ }
+  if (web) try { web.kill(); const out = await web.output(); const err = new TextDecoder().decode(out.stderr).split("\n").filter((l) => /error|failed/i.test(l)).slice(0, 5); if (err.length) console.log("handler log:", err.join(" / ")); } catch { /* gone */ }
 }
