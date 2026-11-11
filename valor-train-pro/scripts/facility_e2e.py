@@ -6,7 +6,10 @@ def req(method, url, body=None, headers={}):
     if body is not None: data = json.dumps(body).encode(); h['content-type'] = 'application/json'
     r = urllib.request.Request(url, data=data, headers=h, method=method)
     try:
-        with urllib.request.urlopen(r) as x: return x.status, json.loads(x.read() or b'null')
+        with urllib.request.urlopen(r) as x:
+            raw = x.read()
+            try: return x.status, json.loads(raw or b'null')
+            except Exception: return x.status, raw.decode()[:200]
     except urllib.error.HTTPError as e:
         raw = e.read()
         try: return e.code, json.loads(raw or b'null')
@@ -139,9 +142,9 @@ try:
     check('first block of the series untouched, later ones moved to 7pm half', after[0]['space'] == 'full' and after[0]['starts_at'] == ser[0]['starts_at'] and all(a['space'] == 'half' for a in after[1:]) and after[1]['starts_at'] != ser[1]['starts_at'], after)
     st, r = fn(sj, {'action': 'delete_block', 'id': ser[2]['id'], 'scope': 'series'}); check('series delete removes this one and the one after', st == 200 and r['removed'] == 2 and r['renter_emailed'] is False, r)
     st, left = rest('GET', f'facility_blocks?series_id=eq.{ser[0]["series_id"]}&status=eq.approved&select=id'); check('2 of the series are left', len(left) == 2, left)
-    st, r = fn(sj, {'action': 'gcal_connect'}); check('Google connect reports it is not set up yet and names the redirect address', st == 200 and r.get('configured') is False and r['redirect_uri'].endswith('/functions/v1/facility/gcal-callback'), r)
+    st, r = fn(sj, {'action': 'gcal_connect'}); check('Google connect hands a coach a link to Google with the right return address', st == 200 and r.get('configured') is True and 'accounts.google.com' in r.get('url', '') and 'gcal-callback' in r.get('url', ''), r)
     st, r = fn(sj, {'action': 'save_renter', 'id': rid2, 'name': 'ZZ Test Other', 'archived': True}); check('archive a renter', st == 200 and r['renter']['archived_at'], r)
-    st, r = req('GET', f'{U}/functions/v1/facility/gcal-callback?code=x&state=bad', None, {'apikey': ANON}); check('Google callback is closed until the keys are set', st == 503, r)
+    st, r = req('GET', f'{U}/functions/v1/facility/gcal-callback?code=x&state=bad', None, {'apikey': ANON}); check('a made-up Google callback is turned away (lands back on the app, nothing stored)', st == 200 and '<html' in str(r).lower(), str(r)[:80])
 finally:
     cleanup()
     st, a = rest('GET', 'facility_blocks?select=id'); st, b = rest('GET', 'facility_renters?select=id'); st, c = rest('GET', 'profiles?email=like.vtp-fac-*&select=id'); st, m = rest('GET', 'message_alerts?key=like.fac:*&select=key')
