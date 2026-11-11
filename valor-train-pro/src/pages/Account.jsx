@@ -69,7 +69,7 @@ export default function Account() {
         const isParent = viewAs.isActive || a.parent_id === user?.id;
         const top = sub
           ? sub.status === 'past_due' ? `${a.first_name}'s last monthly payment didn't go through. Update the card below.` : `${a.first_name} is on monthly autopay.`
-          : packs.length ? `${a.first_name} has a class pack.` : program ? `${a.first_name} trains in ${program}. Set up the monthly plan to keep it going.` : `${a.first_name} doesn't have a plan yet.`;
+          : packs.length ? `${a.first_name} has a class pack.` : program ? `${a.first_name} trains in ${program}. Set up the monthly plan to keep it going.` : `${a.first_name} doesn't have a plan yet. Pick one to start.`;
         return (
           <Card key={a.id}>
             <CardHeader className="pb-3">
@@ -78,14 +78,14 @@ export default function Account() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current plan</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{sub || packs.length ? 'Current plan' : 'Plans'}</p>
                 {sub ? (
                   <AutopayCard sub={sub} commitmentMonths={commitment} readOnly={viewAs.isActive || !isParent} onChanged={() => setReload((n) => n + 1)} />
                 ) : (
                   <div className="space-y-3 rounded-lg border border-border px-3 py-3">
-                    <p className="text-sm">{packs.length ? `Class pack · ${left == null ? 'unlimited classes' : `${left} class${left === 1 ? '' : 'es'} left`}` : 'No plan yet.'}</p>
+                    {packs.length > 0 && <p className="text-sm">Class pack · {left == null ? 'unlimited classes' : `${left} class${left === 1 ? '' : 'es'} left`}</p>}
                     {viewAs.isActive ? <p className="text-xs text-muted-foreground">Start autopay shows here for the family (off in read-only view).</p>
-                      : isParent ? <EnrollButton athlete={a} cfg={cfg} recommendedKey={rec || suggestedPlanKey(a, cfg)} />
+                      : isParent ? <EnrollButton athlete={a} cfg={cfg} recommendedKey={rec || suggestedPlanKey(a, cfg)} coachPick={rec} />
                       : <p className="text-xs text-muted-foreground">Ask your parent to start the monthly plan from their login.</p>}
                   </div>
                 )}

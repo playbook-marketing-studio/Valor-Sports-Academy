@@ -137,7 +137,7 @@ export default function Home() {
           {needsPlan.map((a) => (
             <div key={a.id} className="space-y-1">
               {needsPlan.length > 1 && <p className="text-sm font-semibold">{a.first_name}</p>}
-              <EnrollButton athlete={a} cfg={settings.enrollment} recommendedKey={assessments.find((x) => x.athlete_id === a.id)?.recommended_plan || suggestedPlanKey(a, settings.enrollment)} />
+              <EnrollButton athlete={a} cfg={settings.enrollment} recommendedKey={assessments.find((x) => x.athlete_id === a.id)?.recommended_plan || suggestedPlanKey(a, settings.enrollment)} coachPick={assessments.find((x) => x.athlete_id === a.id)?.recommended_plan} />
             </div>
           ))}
         </div>
@@ -242,7 +242,7 @@ export default function Home() {
                     {enrolledNoPack ? <p><span className="font-semibold text-success">Enrolled.</span> {a.first_name} is in a class at Valor. Workouts, nutrition and their training plan are unlocked.</p>
                       : paid ? <p><span className="font-semibold text-success">Enrolled.</span> {left == null ? 'Unlimited classes' : `${left} class${left === 1 ? '' : 'es'} left`}{paid.covers_until ? `, good through ${new Date(paid.covers_until).toLocaleDateString()}` : ''}. Workouts, nutrition and their training plan are unlocked.</p>
                       : <p>{lapsed ? `${a.first_name}'s classes are used up or expired. Buy more` : `Enroll ${a.first_name}`} to unlock workouts, nutrition and their training plan.</p>}
-                    {!paid && (!enrolledNoPack || hasMonthly) && !autopay && !viewAs.isActive && <EnrollButton athlete={a} cfg={settings.enrollment} recommendedKey={as?.recommended_plan || suggestedPlanKey(a, settings.enrollment)} label={lapsed ? 'Buy more classes' : undefined} />}
+                    {!paid && (!enrolledNoPack || hasMonthly) && !autopay && !viewAs.isActive && <EnrollButton compact athlete={a} cfg={settings.enrollment} recommendedKey={as?.recommended_plan || suggestedPlanKey(a, settings.enrollment)} label={lapsed ? 'Buy more classes' : undefined} />}
                   </div>
                   {/* Payments sit on Home only until autopay is set up (Omar 11/11/2026). After that the plan, Update card and Cancel live under Account; Home only speaks up when a charge fails. */}
                   {autopay?.status === 'past_due' && (

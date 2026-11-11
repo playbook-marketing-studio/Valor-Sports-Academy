@@ -61,7 +61,7 @@ export default function RequireEnrollment() {
       ) : state.athletes.map((a) => (
         <Card key={a.id}><CardContent className="flex items-center justify-between gap-3 p-4">
           <div><p className="font-semibold">{a.first_name} {a.last_name || ''}</p><p className="text-xs text-muted-foreground">{state.lapsed.has(a.id) ? 'Classes used up or expired' : 'Not enrolled yet'}</p></div>
-          <EnrollButton athlete={a} cfg={state.enrollment} recommendedKey={state.rec[a.id]} label={state.lapsed.has(a.id) ? 'Buy more classes' : `Enroll ${a.first_name}`} />
+          <EnrollButton athlete={a} cfg={state.enrollment} recommendedKey={state.rec[a.id]} coachPick={state.rec[a.id]} label={state.lapsed.has(a.id) ? 'Buy more classes' : `Enroll ${a.first_name}`} />
         </CardContent></Card>
       ))}
     </div>
