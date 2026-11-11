@@ -14,6 +14,7 @@ import { EmptyState, ProgressRing, ProgressBar, StatTile, Chip } from '@/compone
 import { photoPosition } from '@/lib/photos';
 import { useUnreadCount } from '@/lib/messages';
 import { MessageCircle } from 'lucide-react';
+import { todayPT } from '@/lib/dates';
 
 export default function Home() {
   const viewAs = useViewAs();
@@ -48,7 +49,7 @@ export default function Home() {
   useEffect(() => {
     (async () => {
       try {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = todayPT();
 
         // View-as: an admin looking at this one athlete's Home exactly as their
         // login would. RLS lets an admin see every row, so scope explicitly to
@@ -145,7 +146,7 @@ export default function Home() {
             {athletes.map((a) => {
               const w = upcoming.find((x) => x.athlete_id === a.id);
               if (!w) return null;
-              const isToday = w.date === new Date().toISOString().slice(0, 10);
+              const isToday = w.date === todayPT();
               return (
                 <Link key={a.id} to={`${viewAs.basePath}/workout/${w.id}`} className="flex min-h-[64px] items-center justify-between gap-3 px-4 py-3 transition hover:bg-muted/50">
                   <span className="min-w-0">

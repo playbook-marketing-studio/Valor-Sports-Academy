@@ -9,6 +9,7 @@ import { saveCoachLog } from '@/lib/programs';
 import { athleteName } from '@/lib/valor';
 import { latestMaxes } from '@/lib/maxes';
 import { cn } from '@/lib/utils';
+import { todayPT, weekdayOf } from '@/lib/dates';
 
 /** The workbook's Monday/Wednesday/Day-N Log tabs: one program day + week, every athlete on it, weight used per exercise. */
 export default function ClassLog() {
@@ -31,7 +32,7 @@ export default function ClassLog() {
     if (!templates.length) return;
     (async () => {
       let tid = templateId;
-      const today = new Date(); const ymd = today.toISOString().slice(0, 10);
+      const ymd = todayPT();
       if (!tid) {
         const { data: ws } = await supabase.from('workouts').select('template_id').eq('date', ymd).not('template_id', 'is', null).limit(1);
         tid = ws?.[0]?.template_id || templates[0].id;
@@ -45,7 +46,7 @@ export default function ClassLog() {
         p.set('week', String(Math.min(t.weeks, Math.max(1, wk))));
       }
       if (!params.get('day')) {
-        const wd = ((today.getDay() + 6) % 7) + 1; // 1 = Monday
+        const wd = weekdayOf(ymd); // 1 = Monday
         const sorted = [...t.days].sort((a, b) => a.weekday - b.weekday);
         // today's class, else the most recent one this week (logging after class), else the week's first
         const pick = t.days.find((d) => d.weekday === wd) || [...sorted].reverse().find((d) => d.weekday < wd) || sorted[0];

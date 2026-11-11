@@ -1,5 +1,6 @@
 // Valor-specific constants and shared data helpers for the staff flow.
 import { supabase } from '@/api/supabaseClient';
+import { addDaysYmd, weekdayOf, ymdPT } from './dates';
 
 export const SITE_ASSESSMENT_URL = 'https://www.valorsportsacademywa.com/assessment#book';
 export const VALOR_PHONE = '509-987-4612';
@@ -60,16 +61,12 @@ export const displayFirstName = (name) => {
 export const telHref = (phone) => `tel:${String(phone || '').replace(/[^\d+]/g, '')}`;
 export const smsHref = (phone, body) => `sms:${String(phone || '').replace(/[^\d+]/g, '')}?&body=${encodeURIComponent(body)}`;
 
-/** Monday-Sunday calendar week containing `d` (default today), as 'YYYY-MM-DD' strings. */
+/** Monday-Sunday calendar week (Pacific time) containing `d` (default now), as 'YYYY-MM-DD' strings. */
 export function weekRange(d = new Date()) {
-  const start = new Date(d);
-  start.setDate(start.getDate() - ((start.getDay() + 6) % 7)); // back to Monday
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-  const fmt = (x) => x.toISOString().slice(0, 10);
-  const days = Array.from({ length: 7 }, (_, i) => { const x = new Date(start); x.setDate(start.getDate() + i); return fmt(x); });
-  return { start: fmt(start), end: fmt(end), days };
+  const day = ymdPT(d);
+  const start = addDaysYmd(day, 1 - weekdayOf(day)); // back to Monday
+  const days = Array.from({ length: 7 }, (_, i) => addDaysYmd(start, i));
+  return { start, end: days[6], days };
 }
 
 /**

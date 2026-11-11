@@ -2,6 +2,7 @@
 import { supabase } from '@/api/supabaseClient';
 
 import { buildWorkouts } from './programs-core.js';
+import { todayPT } from './dates';
 export { weekdayName, nextMonday, mondayOf, parsePrescription, parseTarget, exercisesFor, buildWorkouts } from './programs-core.js';
 
 /** Put athletes on a program. Returns { assigned, skipped } (skipped = already on it). */
@@ -70,7 +71,7 @@ export async function saveCoachLog(workout, userId, entries) {
  * that nobody has logged. Past and logged workouts stay as they are. Returns counts.
  */
 export async function resyncAssignments(template) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayPT();
   const { data: asgs } = await supabase.from('program_assignments').select('*').eq('template_id', template.id);
   let replaced = 0, kept = 0;
   for (const a of asgs || []) {

@@ -15,6 +15,7 @@ import ScanFoodDialog from '@/components/ScanFoodDialog';
 import { useViewAs } from '@/lib/ViewAsContext';
 import { ownerEntity } from '@/lib/viewAsScope';
 import { ArcGauge, ProgressRing, MiniBars } from '@/components/vtp';
+import { addDaysYmd, todayPT } from '@/lib/dates';
 
 const mealTypes = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
@@ -29,14 +30,14 @@ export default function Nutrition() {
 
   const [form, setForm] = useState({
     meal_name: '', meal_type: 'Snack', calories: 0, protein: 0, carbs: 0, fats: 0,
-    date: new Date().toISOString().slice(0, 10),
+    date: todayPT(),
   });
   const [goalForm, setGoalForm] = useState({
     calories_goal: 2500, protein_goal: 180, carbs_goal: 250, fats_goal: 70,
-    date: new Date().toISOString().slice(0, 10),
+    date: todayPT(),
   });
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayPT();
 
   const load = async () => {
     setLoading(true);
@@ -107,7 +108,7 @@ export default function Nutrition() {
   ];
 
   const last7Days = useMemo(() => {
-    const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return d.toISOString().slice(0, 10); });
+    const days = Array.from({ length: 7 }, (_, i) => { return addDaysYmd(todayPT(), -(6 - i)); });
     return days.map((d) => ({
       label: new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2),
       value: logs.filter((l) => l.date === d).reduce((n, l) => n + (l.calories || 0), 0),

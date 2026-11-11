@@ -9,8 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useViewAs } from '@/lib/ViewAsContext';
 import { athleteEntity } from '@/lib/viewAsScope';
+import { todayPT } from '@/lib/dates';
 
-const today = new Date().toISOString().slice(0, 10);
 const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
 export default function WorkoutSession() {
@@ -79,7 +79,7 @@ export default function WorkoutSession() {
         workout_id: workout.id,
         athlete_id: workout.athlete_id || null,
         workout_title: workout.title,
-        date: today,
+        date: todayPT(),
         week: workout.week,
         day: workout.day,
         logged_exercises: entries.filter((e) => e.weight > 0 || e.reps > 0),

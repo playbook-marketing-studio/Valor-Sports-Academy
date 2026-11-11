@@ -3,11 +3,10 @@ import { Calendar, CheckCircle2, Play } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-
-const today = new Date().toISOString().slice(0, 10);
+import { todayPT } from '@/lib/dates';
 
 export default function WorkoutDayCard({ workout, latest1rm, isCompleted, onLog }) {
-  const isToday = workout.date === today;
+  const isToday = workout.date === todayPT();
   const done = isCompleted(workout);
   const focus = workout.title.replace(/^Week \d+ - /, '');
 

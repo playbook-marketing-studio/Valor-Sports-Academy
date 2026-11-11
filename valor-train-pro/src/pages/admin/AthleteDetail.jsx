@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 import { photoPosition } from '@/lib/photos';
 import { askSms, askText, fmtContacted, sourceLabel, STATUS_LABEL } from '@/lib/leads';
 import { AssessmentTrends, MaxLiftTrends } from '@/components/vtp/progressViz';
+import { addDaysYmd, todayPT } from '@/lib/dates';
 
 const METHOD_LABEL = { card: 'Card', cash: 'Cash', venmo: 'Venmo', other: 'Other' };
 
@@ -266,8 +267,8 @@ function monthEnd(now = new Date()) {
   const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: 'numeric' }).formatToParts(now).filter((x) => x.type !== 'literal').map((x) => [x.type, Number(x.value)]));
   return new Date(Date.UTC(p.month === 12 ? p.year + 1 : p.year, p.month === 12 ? 0 : p.month, 4, 17)).toISOString();
 }
-const dateInputMin = () => { const d = new Date(Date.now() + 3 * 86400000); return d.toISOString().slice(0, 10); };
-const dateInputMax = () => { const d = new Date(Date.now() + 69 * 86400000); return d.toISOString().slice(0, 10); };
+const dateInputMin = () => addDaysYmd(todayPT(), 3);
+const dateInputMax = () => addDaysYmd(todayPT(), 69);
 function Payment({ athlete, cfg, recommendedKey }) {
   const { user } = useAuth();
   const [rows, setRows] = useState([]);
@@ -504,8 +505,8 @@ function TrainingTab({ athlete, recKey, cfg }) {
   useEffect(() => { load(); }, [load]);
   const initialTemplateId = pickInitialTemplateId(athlete, templates, recKey, cfg);
 
-  const today = new Date().toISOString().slice(0, 10);
-  const visible = showAll ? rows : rows.filter((w) => w.date >= new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10)).slice(0, 12);
+  const today = todayPT();
+  const visible = showAll ? rows : rows.filter((w) => w.date >= addDaysYmd(today, -14)).slice(0, 12);
   const weeks = [...new Set(visible.map((w) => `${w.program || 'Coach-built'}|${w.week || 1}`))];
   const nextWeek = rows.length ? Math.max(...rows.map((w) => w.week || 1)) : 1;
   const remove = async (w) => { if (!window.confirm(`Delete "${w.title}"?`)) return; await supabase.from('workouts').delete().eq('id', w.id); load(); };
@@ -590,7 +591,7 @@ function TrainingTab({ athlete, recKey, cfg }) {
 function ProgressTab({ athlete, metrics }) {
   const [tests, setTests] = useState([]);
   const [maxes, setMaxes] = useState([]);
-  const [f, setF] = useState({ exercise_name: '', weight: '', date: new Date().toISOString().slice(0, 10) });
+  const [f, setF] = useState({ exercise_name: '', weight: '', date: todayPT() });
   const load = useCallback(async () => {
     const [{ data: t }, { data: m }] = await Promise.all([
       supabase.from('assessments').select('*').eq('athlete_id', athlete.id).order('date', { ascending: true }),

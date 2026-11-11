@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/use-toast';
 import { mondayOf, rescheduleAssignment, weekdayName } from '@/lib/programs';
+import { todayPT } from '@/lib/dates';
 
 const addDays = (ymd, n) => { const d = new Date(ymd + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const fmt = (ymd) => new Date(ymd + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -23,7 +24,7 @@ export default function ScheduleDialog({ open, onOpenChange, athlete, assignment
   if (!assignment || !template) return null;
 
   const monday = start ? mondayOf(start) : assignment.start_date;
-  const thisMonday = mondayOf(new Date().toISOString().slice(0, 10));
+  const thisMonday = mondayOf(todayPT());
   const weekNow = Math.floor((new Date(thisMonday) - new Date(monday)) / (7 * 86400000)) + 1;
   const setWeekNow = (n) => setStart(addDays(thisMonday, -(n - 1) * 7));
   // Before the effect fills `days`, fall back to the saved schedule so the first render never breaks.
