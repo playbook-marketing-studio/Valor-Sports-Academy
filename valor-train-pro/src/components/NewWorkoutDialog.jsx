@@ -6,13 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { todayPT } from '@/lib/dates';
 
 const categories = ['Strength', 'Hypertrophy', 'Conditioning', 'Mobility', 'Power', 'Cardio'];
 
 export default function NewWorkoutDialog({ onCreated }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
-    title: '', description: '', date: new Date().toISOString().slice(0, 10), category: 'Strength',
+    title: '', description: '', date: todayPT(), category: 'Strength',
   });
   const [exercises, setExercises] = useState([{ name: '', sets: 3, reps: 10, weight: 0, notes: '' }]);
   const [saving, setSaving] = useState(false);
@@ -33,7 +34,7 @@ export default function NewWorkoutDialog({ onCreated }) {
         exercises: exercises.filter((e) => e.name.trim()),
       });
       setOpen(false);
-      setForm({ title: '', description: '', date: new Date().toISOString().slice(0, 10), category: 'Strength' });
+      setForm({ title: '', description: '', date: todayPT(), category: 'Strength' });
       setExercises([{ name: '', sets: 3, reps: 10, weight: 0, notes: '' }]);
       onCreated?.();
     } finally {

@@ -16,6 +16,7 @@ import { useViewAs } from '@/lib/ViewAsContext';
 import { athleteEntity } from '@/lib/viewAsScope';
 import { MiniBars } from '@/components/vtp';
 import { AssessmentTrends, MaxLiftTrends } from '@/components/vtp/progressViz';
+import { todayPT } from '@/lib/dates';
 
 const WEEKDAY_LABEL = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -32,12 +33,12 @@ export default function Progress() {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    exercise_name: '', weight: 0, date: new Date().toISOString().slice(0, 10), notes: '',
+    exercise_name: '', weight: 0, date: todayPT(), notes: '',
   });
   const coreLifts = ['Bench Press', 'Squat', 'Hang Clean', 'Power Clean', 'Deadlift'];
   const [coreForm, setCoreForm] = useState({
     'Bench Press': 0, 'Squat': 0, 'Hang Clean': 0, 'Power Clean': 0, 'Deadlift': 0,
-    date: new Date().toISOString().slice(0, 10),
+    date: todayPT(),
   });
   const [coreSaving, setCoreSaving] = useState(false);
   const [planWorkouts, setPlanWorkouts] = useState([]);
@@ -90,7 +91,7 @@ export default function Progress() {
   const weeklyBarData = useMemo(() => {
     const { days } = weekRange();
     const mine = weekWorkouts.filter((w) => w.athlete_id === who);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayPT();
     return days.map((d, i) => ({
       label: WEEKDAY_LABEL[i],
       value: mine.filter((w) => w.date === d && weekLoggedIds.has(w.id)).length,
@@ -141,7 +142,7 @@ export default function Progress() {
     try {
       await base44.entities.OneRepMax.create({ ...form, athlete_id: who });
       setOpen(false);
-      setForm({ exercise_name: '', weight: 0, date: new Date().toISOString().slice(0, 10), notes: '' });
+      setForm({ exercise_name: '', weight: 0, date: todayPT(), notes: '' });
       await load();
     } finally {
       setSaving(false);
@@ -161,7 +162,7 @@ export default function Progress() {
     setCoreSaving(true);
     try {
       await base44.entities.OneRepMax.bulkCreate(entries);
-      setCoreForm({ 'Bench Press': 0, 'Squat': 0, 'Hang Clean': 0, 'Power Clean': 0, 'Deadlift': 0, date: new Date().toISOString().slice(0, 10) });
+      setCoreForm({ 'Bench Press': 0, 'Squat': 0, 'Hang Clean': 0, 'Power Clean': 0, 'Deadlift': 0, date: todayPT() });
       await load();
     } finally {
       setCoreSaving(false);

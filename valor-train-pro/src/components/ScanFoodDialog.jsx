@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { todayPT } from '@/lib/dates';
 
 const mealTypes = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 // grams per unit
@@ -79,7 +80,7 @@ export default function ScanFoodDialog({ onLogged }) {
         protein: scaled.protein,
         carbs: scaled.carbs,
         fats: scaled.fats,
-        date: new Date().toISOString().slice(0, 10),
+        date: todayPT(),
       });
       setOpen(false);
       reset();

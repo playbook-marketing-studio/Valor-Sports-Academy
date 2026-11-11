@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/use-toast';
+import { todayPT } from '@/lib/dates';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const CATEGORIES = ['Strength', 'Power', 'Speed', 'Conditioning', 'Mobility', 'Hypertrophy'];
@@ -14,7 +15,7 @@ const dayOf = (ymd) => DAYS[(new Date(ymd + 'T12:00:00Z').getUTCDay() + 6) % 7];
 
 /** Coach builds or edits one workout for one athlete. Shows up on the parent's Workouts page. */
 export default function WorkoutEditor({ open, onOpenChange, athlete, workout = null, defaultWeek = 1, onSaved }) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayPT();
   const [f, setF] = useState({ title: '', date: today, week: defaultWeek, category: 'Strength', description: '' });
   const [ex, setEx] = useState([emptyEx()]);
   const [busy, setBusy] = useState(false);

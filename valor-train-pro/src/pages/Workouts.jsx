@@ -10,8 +10,8 @@ import NewWorkoutDialog from '@/components/NewWorkoutDialog';
 import { latestMaxes } from '@/lib/maxes';
 import { useViewAs } from '@/lib/ViewAsContext';
 import { athleteEntity } from '@/lib/viewAsScope';
+import { todayPT } from '@/lib/dates';
 
-const today = new Date().toISOString().slice(0, 10);
 
 export default function Workouts() {
   const [planWorkouts, setPlanWorkouts] = useState([]);
@@ -53,6 +53,7 @@ export default function Workouts() {
       const first = kids.find((k) => plan.some((w) => w.athlete_id === k.id));
       if (first) setWho(first.id);
     }
+    const today = todayPT();
     const weeks = [...new Set(plan.map((w) => w.week))].sort();
     const current = weeks.find((w) => {
       const ws = plan.filter((p) => p.week === w);
