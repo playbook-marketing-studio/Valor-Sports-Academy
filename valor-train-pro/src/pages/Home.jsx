@@ -4,10 +4,9 @@ import { base44 } from '@/api/base44Client';
 import { loadSettings, DEFAULT_METRICS, countsAsEnrollment, classesLeft, enrolledIds, itemName, weekRange, metricDelta } from '@/lib/valor';
 import { supabase } from '@/api/supabaseClient';
 import EnrollButton from '@/components/EnrollButton';
-import AutopayCard from '@/components/AutopayCard';
 import { currentSub, isMonthlyItem, suggestedPlanKey, firstMonthNote } from '@/lib/autopay';
 import AthleteForm from '@/components/AthleteForm';
-import { Pencil } from 'lucide-react';
+import { AlertTriangle, Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useViewAs } from '@/lib/ViewAsContext';
 import { EmptyState, ProgressRing, ProgressBar, StatTile, Chip } from '@/components/vtp';
@@ -238,7 +237,13 @@ export default function Home() {
                       : <p>{lapsed ? `${a.first_name}'s classes are used up or expired. Buy more` : `Enroll ${a.first_name}`} to unlock workouts, nutrition and their training plan.</p>}
                     {!paid && (!enrolledNoPack || hasMonthly) && !autopay && !viewAs.isActive && <EnrollButton athlete={a} cfg={settings.enrollment} recommendedKey={as?.recommended_plan || suggestedPlanKey(a, settings.enrollment)} label={lapsed ? 'Buy more classes' : undefined} />}
                   </div>
-                  {autopay && <AutopayCard sub={autopay} commitmentMonths={settings.enrollment?.monthly?.commitment_months ?? 3} readOnly={viewAs.isActive} onChanged={() => setReload((n) => n + 1)} />}
+                  {/* Payments sit on Home only until autopay is set up (Omar 11/11/2026). After that the plan, Update card and Cancel live under Account; Home only speaks up when a charge fails. */}
+                  {autopay?.status === 'past_due' && (
+                    <Link to={`${viewAs.basePath}/account`} className="flex items-start gap-2 rounded-lg border border-danger-border bg-danger-surface px-3 py-2 text-sm text-danger">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <span>The last monthly payment didn't go through. <span className="font-semibold underline">Update the card in Account</span>.</span>
+                    </Link>
+                  )}
                   <Link to={`${viewAs.basePath}/account`} className="inline-block text-sm font-medium text-primary hover:underline">Account &amp; billing</Link>
                 </CardContent>
               </Card>
