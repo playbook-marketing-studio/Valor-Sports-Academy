@@ -8,7 +8,9 @@
 //   charge.refunded                                       → payments row refunded (locks content)
 // A row that actually moves to paid or refunded emails the coaches (_shared/alerts.ts); mail errors never fail the webhook.
 // Monthly autopay (10/20/2026, _shared/billing.ts):
-//   checkout.session.completed (mode subscription) → subscriptions row gets its Stripe ids, status active
+//   checkout.session.completed (mode subscription) → subscriptions row gets its Stripe ids
+//       tagged no_first_invoice (card saved, $0 today, Stripe makes no invoice until the first charge): the autopay
+//       turns on right here with a $0 "card saved" payments row, the same result a trial's $0 invoice gives (11/11/2026)
 //   invoice.paid            → a payments row (kind subscription) with that month's classes, valid to the next
 //                             charge + 3 days; last month's leftover classes close; paid_months counts full months
 //   invoice.payment_failed  → past_due + emails coaches and the parent (update card)
@@ -103,6 +105,38 @@ async function onInvoicePaid(inv: any, quiet: boolean) {
   try { console.log("alert paid", JSON.stringify(await alertForPayment(pay.id, "paid"))); } catch (e) { console.error("payment alert failed", e); }
 }
 
+/**
+ * Card saved with nothing due today and no Stripe invoice (checkout tagged no_first_invoice, see _shared/checkout.ts).
+ * Does what the $0 first invoice does for a trial: a $0 payments row with the rest of this month's classes, and the
+ * autopay marked active with its first charge date. Safe to run twice (keyed on the checkout session).
+ */
+async function onCardSaved(session: any, quiet: boolean) {
+  const sub = await findSub(idOf(session.subscription), session.metadata);
+  if (!sub) { console.log("card saved: no subscription row", session.id); return; }
+  const key = `checkout:${session.id}`; // stands in for the invoice Stripe doesn't make
+  const { data: dupe } = await admin.from("payments").select("id").eq("stripe_invoice_id", key).maybeSingle();
+  if (dupe) return; // re-delivery
+  if (!["pending", "active"].includes(sub.status)) return; // expired or canceled rows stay that way
+  const firstCharge = ts(Number(session.metadata?.first_charge_at));
+  if (!firstCharge) { console.error("card saved: no first_charge_at on", session.id); return; }
+  const { data: a } = await admin.from("athletes").select("first_name, last_name").eq("id", sub.athlete_id).maybeSingle();
+  const now = new Date();
+  const { data: pay, error } = await admin.from("payments").insert({
+    athlete_id: sub.athlete_id, parent_id: sub.parent_id, plan_key: sub.plan_key, subscription_id: sub.id,
+    description: `${sub.plan_name} · ${[a?.first_name, a?.last_name].filter(Boolean).join(" ")} · through ${fmtDayPT(new Date(firstCharge.getTime() - 86400000))}`,
+    amount_cents: 0, kind: "subscription", method: "card", status: "paid", paid_at: now.toISOString(),
+    stripe_invoice_id: key, stripe_subscription_id: idOf(session.subscription), stripe_customer_id: idOf(session.customer),
+    classes_total: (sub.first_month_classes ?? sub.classes_per_month) ?? null, covers_until: coverUntil(firstCharge),
+  }).select("id").single();
+  if (error) { if (error.code === "23505") return; throw error; }
+  await admin.from("subscriptions").update({
+    status: "active", stripe_subscription_id: sub.stripe_subscription_id || idOf(session.subscription), stripe_customer_id: sub.stripe_customer_id || idOf(session.customer),
+    current_period_end: firstCharge.toISOString(), last_paid_at: now.toISOString(), updated_at: now.toISOString(),
+  }).eq("id", sub.id);
+  if (quiet) return;
+  try { console.log("alert card saved", JSON.stringify(await alertForPayment(pay.id, "paid"))); } catch (e) { console.error("payment alert failed", e); }
+}
+
 async function onInvoiceFailed(inv: any, quiet: boolean) {
   const sub = await findSub(invoiceSubId(inv), invoiceMeta(inv));
   if (!sub) return;
@@ -160,7 +194,9 @@ Deno.serve(async (req) => {
             stripe_checkout_session_id: obj.id, stripe_subscription_id: idOf(obj.subscription), stripe_customer_id: idOf(obj.customer),
             updated_at: new Date().toISOString(),
           }).eq("id", rowId).in("status", ["pending", "active"]);
-          // status turns active when the first invoice.paid lands (it carries the classes)
+          // status turns active when the first invoice.paid lands (it carries the classes) ...
+          // ... except a card saved with $0 today and no invoice at all: that turns on here
+          if (obj.metadata?.no_first_invoice === "1" && obj.status !== "expired") await onCardSaved(obj, quiet);
           break;
         }
         const paymentId = obj.metadata?.payment_id || obj.client_reference_id;

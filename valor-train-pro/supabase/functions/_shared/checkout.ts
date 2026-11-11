@@ -55,6 +55,10 @@ export async function takePayment(req: Request, staffId: string | null, athleteI
 export async function startSubscription(req: Request, staffId: string | null, a: Record<string, any>, item: Record<string, any>, cfg: any, firstCharge = "") {
   const { data: live } = await admin.from("subscriptions").select("id, status").eq("athlete_id", a.id).in("status", ["active", "past_due"]).limit(1);
   if (live?.length) return json({ already_subscribed: true, subscription_id: live[0].id });
+  // a checkout that already finished at Stripe (the row has its Stripe subscription) but isn't marked active yet:
+  // never start a second autopay for the same kid (11/11/2026)
+  const { data: done } = await admin.from("subscriptions").select("id").eq("athlete_id", a.id).eq("status", "pending").not("stripe_subscription_id", "is", null).limit(1);
+  if (done?.length) return json({ already_subscribed: true, subscription_id: done[0].id });
   const rules = monthlySettings(cfg);
   const now = new Date();
   const anchor = nextAnchor(now);
@@ -89,8 +93,11 @@ export async function startSubscription(req: Request, staffId: string | null, a:
   let customText: Record<string, unknown> | undefined;
   if (trialEnd && (firstMode === "none" || firstMode === "date")) {
     // nothing charged today (the family already paid elsewhere until then): Checkout saves the card and billing starts on
-    // the 1st ("none") or the chosen day ("date", renewing on that day of the month). The $0 first invoice
-    // (billing_reason subscription_create) fires invoice.paid, which unlocks the app.
+    // the 1st ("none") or the chosen day ("date", renewing on that day of the month).
+    // With a trial, Stripe makes a $0 first invoice and invoice.paid unlocks the app. With billing_cycle_anchor +
+    // no proration Stripe makes NO invoice until the first real charge, so the session is tagged no_first_invoice and
+    // stripe-webhook turns the autopay on from checkout.session.completed instead (11/11/2026; before this fix the
+    // row stayed pending, the family still saw "Set up your monthly plan" and could have started a second autopay).
     // 11/10/2026: billing_cycle_anchor + no proration instead of a Stripe trial, because Stripe's page called the trial
     // "21 days free" to families who had already paid the month (Omar). A trial is still used when there's a
     // card-check charge (Checkout can't mix proration "none" with one-time prices) or the date is over 4 weeks out.
@@ -98,6 +105,8 @@ export async function startSubscription(req: Request, staffId: string | null, a:
     if (anchorOk) {
       subscription_data.billing_cycle_anchor = Math.floor(trialEnd.getTime() / 1000);
       subscription_data.proration_behavior = "none";
+      meta.no_first_invoice = "1";
+      meta.first_charge_at = String(Math.floor(trialEnd.getTime() / 1000));
     } else {
       subscription_data.trial_end = Math.floor(trialEnd.getTime() / 1000);
     }
