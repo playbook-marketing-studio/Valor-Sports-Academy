@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Outlet, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { ViewAsProvider } from '@/lib/ViewAsContext';
@@ -31,10 +31,16 @@ import ViewAsAthlete, { ViewAsPickerPage, ViewAsMessages } from '@/pages/admin/V
 import Messages from '@/pages/Messages';
 import Account from '@/pages/Account';
 import AdminMessages, { AdminMessageThread } from '@/pages/admin/Messages';
+import Facility from '@/pages/Facility';
+import AdminFacility from '@/pages/admin/Facility';
 import { useAuth as useAuthForHome } from '@/lib/AuthContext';
 
-// Staff land on Today; parents on their athlete home.
-const HomeRoute = () => { const { user } = useAuthForHome(); return user?.role === 'admin' ? <Today /> : <Home />; };
+// Staff land on Today; parents on their athlete home; a renter-only login on the facility calendar.
+const HomeRoute = () => { const { user } = useAuthForHome(); return user?.role === 'admin' ? <Today /> : user?.role === 'renter' ? <Navigate to="/facility" replace /> : <Home />; };
+// Renters get the facility calendar; coaches have their own version of it.
+const FacilityRoute = () => { const { user } = useAuthForHome(); return user?.role === 'admin' ? <Navigate to="/admin/facility" replace /> : <Facility />; };
+// The family screens (messages, account, workouts) are not for a renter-only login.
+const FamilyOnly = () => { const { user } = useAuthForHome(); return user?.role === 'renter' ? <Navigate to="/facility" replace /> : <Outlet />; };
 import RequireEnrollment from '@/components/RequireEnrollment';
 import Welcome from '@/pages/public/Welcome';
 import Paid from '@/pages/public/Paid';
@@ -82,16 +88,20 @@ const AuthenticatedApp = () => {
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<HomeRoute />} />
-          {/* messages are not behind enrollment: any family can hear from (and write to) the coaches */}
-          <Route path="/messages" element={<Messages />} />
-          <Route path="/account" element={<Account />} />
-          <Route path="/connect" element={<Connect />} />
-          {/* included with enrollment: unpaid families get the enroll-and-pay screen */}
-          <Route element={<RequireEnrollment />}>
-            <Route path="/workouts" element={<Workouts />} />
-            <Route path="/nutrition" element={<Nutrition />} />
-            <Route path="/progress" element={<ProgressPage />} />
-            <Route path="/workout/:workoutId" element={<WorkoutSession />} />
+          {/* facility rentals: what's open and "request a time", for logins that belong to a renter */}
+          <Route path="/facility" element={<FacilityRoute />} />
+          <Route element={<FamilyOnly />}>
+            {/* messages are not behind enrollment: any family can hear from (and write to) the coaches */}
+            <Route path="/messages" element={<Messages />} />
+            <Route path="/account" element={<Account />} />
+            <Route path="/connect" element={<Connect />} />
+            {/* included with enrollment: unpaid families get the enroll-and-pay screen */}
+            <Route element={<RequireEnrollment />}>
+              <Route path="/workouts" element={<Workouts />} />
+              <Route path="/nutrition" element={<Nutrition />} />
+              <Route path="/progress" element={<ProgressPage />} />
+              <Route path="/workout/:workoutId" element={<WorkoutSession />} />
+            </Route>
           </Route>
           <Route element={<RequireRole roles={['admin']} />}>
             <Route path="/admin/bookings" element={<AdminBookings />} />
@@ -103,6 +113,7 @@ const AuthenticatedApp = () => {
             <Route path="/admin/log" element={<ClassLog />} />
             <Route path="/admin/messages" element={<AdminMessages />} />
             <Route path="/admin/messages/:athleteId" element={<AdminMessageThread />} />
+            <Route path="/admin/facility" element={<AdminFacility />} />
           </Route>
         </Route>
         {/* Own shell, not AppLayout: read-only, no admin sidebar/mobile menu —

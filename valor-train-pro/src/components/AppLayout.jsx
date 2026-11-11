@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   Dumbbell, Apple, TrendingUp, LogOut, ClipboardList, Users, Tag, BookOpen,
   NotebookPen, CalendarCheck, Eye, Plus, MoreHorizontal, HelpCircle, Home as HomeIcon, MessageCircle,
-  Wallet,
+  Wallet, CalendarClock,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { cn } from '@/lib/utils';
@@ -13,6 +13,7 @@ import BottomTabBar from '@/components/BottomTabBar';
 import Onboarding, { hasSeenOnboarding, markOnboardingSeen } from '@/components/Onboarding';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useUnreadCount } from '@/lib/messages';
+import { useIsRenter, usePendingRentals } from '@/lib/facility';
 
 const parentTabs = [
   { to: '/', label: 'Home', icon: HomeIcon, end: true },
@@ -38,10 +39,14 @@ const adminNavFull = [
   { to: '/admin/athletes', label: 'Athletes', icon: Users },
   { to: '/admin/programs', label: 'Programs', icon: BookOpen },
   { to: '/admin/messages', label: 'Messages', icon: MessageCircle },
+  { to: '/admin/facility', label: 'Facility', icon: CalendarClock },
   { to: '/admin/log', label: 'Class log', icon: NotebookPen },
   { to: '/admin/enrollment', label: 'Enrollment', icon: Tag },
   { to: '/admin/view-as-athlete', label: 'View as athlete', icon: Eye },
 ];
+
+// A renter-only login (facility rentals, 11/11/2026) has one place to be.
+const facilityTab = { to: '/facility', label: 'Facility', icon: CalendarClock };
 
 export default function AppLayout() {
   const navigate = useNavigate();
@@ -49,11 +54,15 @@ export default function AppLayout() {
   const isAdmin = user?.role === 'admin';
   const unread = useUnreadCount();
   const msgPath = isAdmin ? '/admin/messages' : '/messages';
-  const withBadge = (items) => items.map((i) => (i.to === msgPath ? { ...i, badge: unread } : i));
+  const rentalsWaiting = usePendingRentals(); // staff: rental requests to answer
+  const isRenterOnly = user?.role === 'renter';
+  const alsoRents = useIsRenter() && !isRenterOnly && !isAdmin; // a Valor parent whose team also rents the floor
+  const withBadge = (items) => items.map((i) => (i.to === msgPath ? { ...i, badge: unread } : i.to === '/admin/facility' ? { ...i, badge: rentalsWaiting } : i));
   // Account is always there for families (Omar 10/21): sidebar item on desktop, header button on phones
-  const navItems = withBadge(isAdmin ? adminNavFull : [...parentTabs, { to: '/account', label: 'Account', icon: Wallet }]);
+  const navItems = withBadge(isAdmin ? adminNavFull : isRenterOnly ? [facilityTab] : [...parentTabs, { to: '/account', label: 'Account', icon: Wallet }, ...(alsoRents ? [facilityTab] : [])]);
   const [moreOpen, setMoreOpen] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(() => !!user && !hasSeenOnboarding(user.id, user.role));
+  // the walkthrough is about athletes and classes; a renter-only login skips it
+  const [showOnboarding, setShowOnboarding] = useState(() => !!user && user.role !== 'renter' && !hasSeenOnboarding(user.id, user.role));
 
   const handleLogout = async () => { await logout(); };
   const closeOnboarding = () => {
@@ -92,13 +101,15 @@ export default function AppLayout() {
             )}
           </NavLink>
         ))}
-        <button
-          onClick={() => setShowOnboarding(true)}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-all hover:bg-sidebar-accent hover:text-sidebar-foreground"
-        >
-          <HelpCircle className="h-4 w-4" />
-          How the app works
-        </button>
+        {!isRenterOnly && (
+          <button
+            onClick={() => setShowOnboarding(true)}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-all hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          >
+            <HelpCircle className="h-4 w-4" />
+            How the app works
+          </button>
+        )}
       </nav>
 
       <div className="p-3">
@@ -130,7 +141,12 @@ export default function AppLayout() {
       <header className="vtp-stripes z-40 flex shrink-0 items-center justify-between border-b border-border bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
         <Brand size="sm" />
         <div className="flex items-center gap-1">
-          {!isAdmin && (
+          {alsoRents && (
+            <NavLink to="/facility" aria-label="Facility calendar" className={({ isActive }) => cn('flex h-11 w-11 items-center justify-center rounded-lg hover:bg-accent', isActive ? 'text-primary' : 'text-foreground')}>
+              <CalendarClock className="h-5 w-5" />
+            </NavLink>
+          )}
+          {!isAdmin && !isRenterOnly && (
             <NavLink to="/account" aria-label="Account and billing" className={({ isActive }) => cn('flex h-11 w-11 items-center justify-center rounded-lg hover:bg-accent', isActive ? 'text-primary' : 'text-foreground')}>
               <Wallet className="h-5 w-5" />
             </NavLink>
@@ -158,10 +174,10 @@ export default function AppLayout() {
       {/* Phone navigation: floating bottom tab bar instead of a hamburger drawer. */}
       {isAdmin ? (
         <BottomTabBar
-          items={[...adminTabs, ...adminTabsRight, { to: '#more', label: 'More', icon: MoreHorizontal, badge: unread, onClick: (e) => { e.preventDefault(); setMoreOpen(true); } }]}
+          items={[...adminTabs, ...adminTabsRight, { to: '#more', label: 'More', icon: MoreHorizontal, badge: unread + rentalsWaiting, onClick: (e) => { e.preventDefault(); setMoreOpen(true); } }]}
           centerAction={{ label: 'Walk-in', icon: Plus, onClick: () => navigate('/admin/bookings?walkin=1') }}
         />
-      ) : (
+      ) : isRenterOnly ? null : (
         <BottomTabBar items={withBadge(parentTabs)} />
       )}
 
@@ -175,6 +191,7 @@ export default function AppLayout() {
             <div className="space-y-1">
               {[
                 { to: '/admin/messages', label: 'Messages', icon: MessageCircle, badge: unread },
+                { to: '/admin/facility', label: 'Facility', icon: CalendarClock, badge: rentalsWaiting },
                 { to: '/admin/log', label: 'Class log', icon: NotebookPen },
                 { to: '/admin/enrollment', label: 'Enrollment', icon: Tag },
                 { to: '/admin/view-as-athlete', label: 'View as athlete', icon: Eye },
