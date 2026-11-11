@@ -16,7 +16,9 @@ const TOKEN_URL = Deno.env.get("GOOGLE_TOKEN_URL") || "https://oauth2.googleapis
 const MARK = "valorBlock"; // private extended property on the events this app writes
 
 export const gcalConfigured = () => !!(Deno.env.get("GOOGLE_CLIENT_ID") && Deno.env.get("GOOGLE_CLIENT_SECRET") && Deno.env.get("FACILITY_ENC_KEY"));
-export const redirectUri = () => `${Deno.env.get("SUPABASE_URL")!.replace(/\/$/, "")}/functions/v1/facility/gcal-callback`;
+// FACILITY_GOOGLE_REDIRECT_URI (optional) moves Google's callback onto a domain we own (a rewrite to this function),
+// the same move Tide makes for Google's app verification. Whatever it is must be registered on the OAuth client.
+export const redirectUri = () => Deno.env.get("FACILITY_GOOGLE_REDIRECT_URI") || `${Deno.env.get("SUPABASE_URL")!.replace(/\/$/, "")}/functions/v1/facility/gcal-callback`;
 
 const b64 = (b: Uint8Array) => btoa(String.fromCharCode(...b));
 const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));

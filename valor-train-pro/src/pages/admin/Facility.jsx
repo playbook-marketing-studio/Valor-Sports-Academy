@@ -345,7 +345,7 @@ function GoogleCard({ google, onChanged }) {
     try {
       const r = await facilityApi('gcal_connect');
       if (r.url) { window.location.href = r.url; return; }
-      toast({ title: 'Not set up yet', description: "Omar has to add Valor's Google keys first. Nothing for you to do yet." });
+      toast({ title: 'Not ready yet', description: 'Playbook is finishing the setup. Nothing for you to do yet.' });
     } catch (e) { toast({ title: "Couldn't start the connect", description: e.message }); }
     setBusy('');
   };
@@ -382,7 +382,7 @@ function GoogleCard({ google, onChanged }) {
         </>
       ) : (
         <>
-          <p className="mt-2 text-sm text-muted-foreground">{google.configured ? "Not connected yet. Sign in to Valor's Google account on this device, then tap Connect and choose Allow." : "Not set up yet. Omar adds Valor's Google keys, then a coach connects it here with one tap."}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{google.configured ? "Not connected yet. Sign in to Valor's Google account on this device, then tap Connect and choose Allow." : "Not connected yet. Playbook is finishing the setup, then a Connect button shows up here."}</p>
           {google.configured && <Button size="sm" className="mt-2.5" disabled={!!busy} onClick={connect}>{busy === 'connect' ? 'One moment…' : 'Connect Google Calendar'}</Button>}
         </>
       )}
