@@ -433,8 +433,8 @@ async function inviteMember(req: Request, body: Record<string, any>) {
   const full_name = String(body.full_name || "").trim().slice(0, 80) || null;
   const { data: renter } = await admin.from("facility_renters").select("*").eq("id", String(body.renter_id || "")).is("archived_at", null).maybeSingle();
   if (!renter) return bad("renter not found", 404);
-  const { data: staff } = await admin.from("staff_allowlist").select("email").ilike("email", email).limit(1);
-  if (staff?.length) return bad("That email is a coach login. Coaches already see the whole calendar.", 409);
+  const { data: staff } = await admin.from("staff_allowlist").select("email");
+  if ((staff || []).some((x) => String(x.email).toLowerCase() === email)) return bad("That email is a coach login. Coaches already see the whole calendar.", 409);
   const { data: prof } = await admin.from("profiles").select("id, role, full_name").eq("email", email).maybeSingle();
   if (prof?.role === "admin") return bad("That email is a coach login. Coaches already see the whole calendar.", 409);
   const origin = appUrl(req);
