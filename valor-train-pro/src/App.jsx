@@ -33,6 +33,8 @@ import Account from '@/pages/Account';
 import AdminMessages, { AdminMessageThread } from '@/pages/admin/Messages';
 import Facility from '@/pages/Facility';
 import AdminFacility from '@/pages/admin/Facility';
+import AdminInvoicing from '@/pages/admin/Invoicing';
+import InvoiceEdit from '@/pages/admin/InvoiceEdit';
 import { useAuth as useAuthForHome } from '@/lib/AuthContext';
 
 // Staff land on Today; parents on their athlete home; a renter-only login on the facility calendar.
@@ -114,6 +116,9 @@ const AuthenticatedApp = () => {
             <Route path="/admin/messages" element={<AdminMessages />} />
             <Route path="/admin/messages/:athleteId" element={<AdminMessageThread />} />
             <Route path="/admin/facility" element={<AdminFacility />} />
+            <Route path="/admin/invoicing" element={<AdminInvoicing />} />
+            <Route path="/admin/invoicing/new" element={<InvoiceEdit />} />
+            <Route path="/admin/invoicing/:id/edit" element={<InvoiceEdit />} />
           </Route>
         </Route>
         {/* Own shell, not AppLayout: read-only, no admin sidebar/mobile menu —

@@ -3,8 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   Dumbbell, Apple, TrendingUp, LogOut, ClipboardList, Users, Tag, BookOpen,
   NotebookPen, CalendarCheck, Eye, Plus, MoreHorizontal, HelpCircle, Home as HomeIcon, MessageCircle,
-  Wallet, CalendarClock,
-} from 'lucide-react';
+  Wallet, CalendarClock, Receipt } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { cn } from '@/lib/utils';
 import Brand from '@/components/Brand';
@@ -40,6 +39,7 @@ const adminNavFull = [
   { to: '/admin/programs', label: 'Programs', icon: BookOpen },
   { to: '/admin/messages', label: 'Messages', icon: MessageCircle },
   { to: '/admin/facility', label: 'Facility', icon: CalendarClock },
+  { to: '/admin/invoicing', label: 'Invoicing', icon: Receipt },
   { to: '/admin/log', label: 'Class log', icon: NotebookPen },
   { to: '/admin/enrollment', label: 'Enrollment', icon: Tag },
   { to: '/admin/view-as-athlete', label: 'View as athlete', icon: Eye },
@@ -192,6 +192,7 @@ export default function AppLayout() {
               {[
                 { to: '/admin/messages', label: 'Messages', icon: MessageCircle, badge: unread },
                 { to: '/admin/facility', label: 'Facility', icon: CalendarClock, badge: rentalsWaiting },
+                { to: '/admin/invoicing', label: 'Invoicing', icon: Receipt },
                 { to: '/admin/log', label: 'Class log', icon: NotebookPen },
                 { to: '/admin/enrollment', label: 'Enrollment', icon: Tag },
                 { to: '/admin/view-as-athlete', label: 'View as athlete', icon: Eye },
