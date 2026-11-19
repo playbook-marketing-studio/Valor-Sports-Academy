@@ -149,7 +149,7 @@ async function list(staffEmail: string) {
   const [cfg, ppl, { data: invoices }, { data: payments }] = await Promise.all([
     config(), people(),
     admin.from("invoices").select("*, contact:billing_contacts(id, name, email, phone, renter_id, is_example), lines:invoice_lines(*)").order("created_at", { ascending: false }),
-    admin.from("payments").select("id, description, amount_cents, kind, method, status, paid_at, created_at, note, athlete:athletes(first_name, last_name, parent_name, is_example)").order("created_at", { ascending: false }).limit(2000),
+    admin.from("payments").select("id, description, amount_cents, kind, method, status, paid_at, created_at, note, athlete:athletes(first_name, last_name, parent_name, parent_email, is_example)").order("created_at", { ascending: false }).limit(2000),
   ]);
   const { data: repeats } = await admin.from("invoice_repeats").select("*, contact:billing_contacts(id, name, email, renter_id, is_example)").neq("status", "stopped").order("next_date");
   const today = todayPT();
@@ -162,6 +162,7 @@ async function list(staffEmail: string) {
       id: `i:${i.id}`, invoice_id: i.id, source: "invoice", who: i.contact?.name || "", what: i.lines.map((l: any) => l.description).join(", ") || "Invoice",
       amount_cents: i.total_cents, status: i.status === "open" ? (i.overdue ? "overdue" : "waiting") : i.status === "void" ? "voided" : i.refunded_cents ? "refunded" : i.status,
       method: i.paid_outside || (i.status === "paid" ? "card" : null), date: i.paid_at || i.sent_at || i.created_at, is_example: !!i.contact?.is_example,
+      email: i.contact?.email || null, number: i.stripe_number || null,
     });
   }
   for (const p of payments || []) {
@@ -171,7 +172,7 @@ async function list(staffEmail: string) {
     money.push({
       id: `p:${p.id}`, source: p.kind === "subscription" ? "autopay" : "payment", who: kid + (a.parent_name ? ` (${a.parent_name})` : ""),
       what: String(p.description || "").split(" · ").filter((x: string) => x !== kid).join(" · "),
-      amount_cents: p.amount_cents, status: p.status, method: p.method, date: p.paid_at || p.created_at, is_example: !!a.is_example, note: p.note, payment_id: p.id,
+      amount_cents: p.amount_cents, status: p.status, method: p.method, date: p.paid_at || p.created_at, is_example: !!a.is_example, note: p.note, payment_id: p.id, email: a.parent_email || null,
     });
   }
   money.sort((a, b) => String(b.date).localeCompare(String(a.date)));

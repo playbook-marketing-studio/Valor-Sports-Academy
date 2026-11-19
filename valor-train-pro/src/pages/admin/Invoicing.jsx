@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, Copy, ExternalLink, FileText, Loader2, Mail, Pause, Play, Plus, Receipt, Repeat, Search, Square } from 'lucide-react';
+import { AlertTriangle, Copy, Download, ExternalLink, FileText, Loader2, Mail, Pause, Play, Plus, Receipt, Repeat, Search, Share2, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -124,6 +124,17 @@ function AllMoney({ money: all, paidOnly, onOpen, onOpenPay }) {
   const shown = rows.filter((r) => (month === 'all' || monthKey(r.date) === month) && (!term || `${r.who} ${r.what}`.toLowerCase().includes(term)));
   const paidTotal = shown.filter((r) => r.status === 'paid').reduce((s, r) => s + r.amount_cents, 0);
   const waitingTotal = shown.filter((r) => r.status === 'waiting' || r.status === 'overdue').reduce((s, r) => s + r.amount_cents, 0);
+  const exportCsv = () => {
+    const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const ymd = (ts) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date(ts));
+    const rows2 = [['Date', 'Who', 'Email', 'What', 'Type', 'Paid by', 'Status', 'Amount', 'Stripe invoice #'],
+      ...shown.map((r) => [ymd(r.date), r.who, r.email, r.what, SOURCE[r.source], PAID_HOW[r.method] || r.method || '', STATUS[r.status]?.label || r.status, (r.amount_cents / 100).toFixed(2), r.number || ''])];
+    const blob = new Blob([rows2.map((x) => x.map(q).join(',')).join('\r\n')], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `valor-${paidOnly ? 'paid' : 'money'}-${month === 'all' ? 'all-months' : month}.csv`;
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
   return (
     <div className="space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row">
@@ -140,7 +151,10 @@ function AllMoney({ money: all, paidOnly, onOpen, onOpenPay }) {
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a name" className="pl-9" />
         </div>
       </div>
-      <p className="text-sm text-muted-foreground"><b className="text-foreground">{money(paidTotal)}</b> paid{waitingTotal ? <> · <b className="text-foreground">{money(waitingTotal)}</b> waiting</> : null} · {shown.length} item{shown.length === 1 ? '' : 's'}</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground"><b className="text-foreground">{money(paidTotal)}</b> paid{waitingTotal ? <> · <b className="text-foreground">{money(waitingTotal)}</b> waiting</> : null} · {shown.length} item{shown.length === 1 ? '' : 's'}</p>
+        <Button size="sm" variant="outline" disabled={!shown.length} onClick={exportCsv}><Download className="h-4 w-4" />Export</Button>
+      </div>
       {!shown.length ? <p className="py-8 text-center text-sm text-muted-foreground">{paidOnly ? 'Nothing paid' : 'Nothing'} for {month === 'all' ? 'this search' : monthLabel(month)}.</p> : (
         <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
           {shown.map((r) => (
@@ -240,7 +254,7 @@ function InvoiceDialog({ inv, canRefund, live, onClose, onChanged }) {
               <Button variant="ghost" className="text-danger" onClick={() => setConfirm('void')}>Void</Button>
             </>}
             {inv.status === 'paid' && <>
-              <ReceiptLinks query={{ invoice_id: inv.id }} />
+              <ReceiptLinks query={{ invoice_id: inv.id }} who={inv.contact?.name} email={inv.contact?.email} amount={inv.total_cents} date={inv.paid_at} />
               {canRefund && !inv.paid_outside && !inv.refunded_cents && <Button variant="ghost" className="text-danger" onClick={() => setConfirm('refund')}>Refund</Button>}
             </>}
           </div>
@@ -251,18 +265,37 @@ function InvoiceDialog({ inv, canRefund, live, onClose, onChanged }) {
 }
 
 /** Stripe's receipt + invoice PDF for one paid item, looked up when it's opened (for filing). */
-function ReceiptLinks({ query }) {
+function ReceiptLinks({ query, who, email, amount, date }) {
   const [r, setR] = useState(null);
   const k = JSON.stringify(query);
   useEffect(() => { setR(null); invoicesApi('receipt', query).then(setR).catch((e) => setR({ error: e.message })); }, [k]);
   if (!r) return <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Getting the receipt from Stripe</p>;
   if (r.error) return <p className="text-sm text-destructive">{r.error}</p>;
+  // what we hand to someone else: the receipt if there is one, else the invoice PDF
+  const link = r.receipt_url || r.pdf_url || r.invoice_url;
+  const title = `Valor Sports Academy ${r.receipt_url ? 'receipt' : 'invoice'}${amount != null ? ` · ${money(amount)}` : ''}${date ? ` · ${fmtTs(date)}` : ''}`;
+  const lines = [
+    `Here's your ${r.receipt_url ? 'receipt' : 'invoice'} from Valor Sports Academy${amount != null ? ` for ${money(amount)}` : ''}${date ? `, paid ${fmtTs(date)}` : ''}.`,
+    '', ...(r.receipt_url ? [`Receipt: ${r.receipt_url}`] : []), ...(r.pdf_url ? [`Invoice PDF: ${r.pdf_url}`] : []),
+  ];
+  const share = async () => {
+    if (navigator.share) { try { await navigator.share({ title, text: lines.join('\n'), url: link }); return; } catch (e) { if (e?.name === 'AbortError') return; } }
+    try { await navigator.clipboard.writeText(lines.join('\n')); toast({ title: 'Copied', description: 'Paste it in a text or email.' }); } catch { toast({ title: link }); }
+  };
+  const mailto = `mailto:${email ? encodeURIComponent(email) : ''}?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(lines.join('\n'))}`;
   return (
-    <div className="flex w-full flex-wrap gap-2">
-      {r.receipt_url && <Button variant="outline" asChild><a href={r.receipt_url} target="_blank" rel="noreferrer"><Receipt className="h-4 w-4" />Receipt</a></Button>}
-      {r.pdf_url && <Button variant="outline" asChild><a href={r.pdf_url} target="_blank" rel="noreferrer"><FileText className="h-4 w-4" />Invoice PDF</a></Button>}
-      {r.invoice_url && <Button variant="ghost" asChild><a href={r.invoice_url} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" />Stripe page</a></Button>}
-      {r.note && <p className="w-full text-xs text-muted-foreground">{r.note}</p>}
+    <div className="w-full space-y-2">
+      <div className="flex flex-wrap gap-2">
+        {r.receipt_url && <Button variant="outline" asChild><a href={r.receipt_url} target="_blank" rel="noreferrer"><Receipt className="h-4 w-4" />Receipt</a></Button>}
+        {r.pdf_url && <Button variant="outline" asChild><a href={r.pdf_url} target="_blank" rel="noreferrer" download><Download className="h-4 w-4" />Download PDF</a></Button>}
+        {r.invoice_url && <Button variant="ghost" asChild><a href={r.invoice_url} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" />Stripe page</a></Button>}
+      </div>
+      {link && <div className="flex flex-wrap gap-2">
+        <Button variant="outline" onClick={share}><Share2 className="h-4 w-4" />Share</Button>
+        <Button variant="outline" asChild><a href={mailto}><Mail className="h-4 w-4" />Email it{email ? ` to ${who ? who.split(' (')[0].split(' ')[0] : 'them'}` : ''}</a></Button>
+      </div>}
+      {link && <p className="text-xs text-muted-foreground">Share and Email open your phone's share sheet or your email app, with the links filled in. The receipt page has its own Download and Print buttons.</p>}
+      {r.note && <p className="text-xs text-muted-foreground">{r.note}</p>}
     </div>
   );
 }
@@ -279,7 +312,7 @@ function ReceiptDialog({ row, onClose }) {
           <p><span className="text-muted-foreground">Paid:</span> {fmtTs(row.date)} · {PAID_HOW[row.method] || row.method || 'Card'}</p>
           {row.note && <p><span className="text-muted-foreground">Note:</span> {row.note}</p>}
         </div>
-        <ReceiptLinks query={{ payment_id: row.payment_id }} />
+        <ReceiptLinks query={{ payment_id: row.payment_id }} who={row.who} email={row.email} amount={row.amount_cents} date={row.date} />
       </DialogContent>
     </Dialog>
   );
