@@ -38,7 +38,7 @@ export default function WaiverLink() {
   }
   return (
     <PublicLayout title={`Sign ${a.first_name}'s waiver`} subtitle="Read it through, then sign at the bottom. Takes a couple minutes.">
-      <SignWaiverForm waiver={state.waiver} athlete={a} askEmail
+      <SignWaiverForm waiver={state.waiver} athlete={a} askEmail bare
         onSign={async (p) => {
           const r = await callFn('waiver', { body: { action: 'sign', t: token, ...p } });
           setState((s) => ({ ...s, done: { ...r, email: p.signer_email } }));

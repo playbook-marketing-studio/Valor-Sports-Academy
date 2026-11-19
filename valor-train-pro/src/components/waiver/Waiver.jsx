@@ -45,7 +45,7 @@ export function WaiverText({ waiver, className }) {
  * Read + sign. `athlete` = { first_name, last_name, age }. `askEmail` on the no-login link (we email the copy there).
  * onSign(payload) returns a promise; errors show under the button.
  */
-export function SignWaiverForm({ waiver, athlete, askEmail = false, defaultName = '', onSign }) {
+export function SignWaiverForm({ waiver, athlete, askEmail = false, defaultName = '', onSign, bare = false }) {
   const minor = athlete.age != null && athlete.age < 18;
   const [name, setName] = useState(defaultName);
   const [role, setRole] = useState(minor ? 'parent' : '');
@@ -76,7 +76,7 @@ export function SignWaiverForm({ waiver, athlete, askEmail = false, defaultName 
   return (
     <form onSubmit={submit} className="space-y-5">
       {/* the full text inline, no inner scroll box: one scroll on a phone */}
-      <div className="rounded-xl border border-border bg-background p-4" aria-label="Waiver text">
+      <div className={bare ? '' : 'rounded-xl border border-border bg-background p-4'} aria-label="Waiver text">
         <WaiverText waiver={waiver} />
       </div>
       <div className="space-y-2">

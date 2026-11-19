@@ -9,7 +9,7 @@ export default function PublicLayout({ title, subtitle, children }) {
         <div className="mb-8"><Brand /></div>
         <h1 className="font-display text-3xl lg:text-4xl">{title}</h1>
         {subtitle && <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>}
-        <div className="mt-6 rounded-[22px] border border-border bg-card p-6 shadow-[0_24px_70px_-30px_rgba(20,18,13,.55)]">{children}</div>
+        <div className="mt-6 rounded-[22px] border border-border bg-card p-4 sm:p-6 shadow-[0_24px_70px_-30px_rgba(20,18,13,.55)]">{children}</div>
       </div>
     </div>
   );
