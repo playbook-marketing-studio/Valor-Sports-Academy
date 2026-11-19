@@ -41,3 +41,15 @@ export const TONE = {
 export const statusOf = (inv) => (inv.status === 'open' && inv.overdue ? 'overdue' : inv.status === 'paid' && inv.refunded_cents ? 'refunded' : inv.status);
 export const PAID_HOW = { cash: 'Cash', venmo: 'Venmo', check: 'Check', other: 'Other', card: 'Card' };
 export const SOURCE = { invoice: 'Invoice', autopay: 'Autopay', payment: 'Class or pack' };
+
+// Repeating invoices (11/19)
+export const EVERY = { week: 'Every week', '2weeks': 'Every 2 weeks', month: 'Every month' };
+export const EVERY_SHORT = { week: 'weekly', '2weeks': 'every 2 weeks', month: 'monthly' };
+export const MODE = { send: 'Sends automatically', draft: 'Makes a draft to check', booked: 'Drafts their booked days' };
+/** Same rule as the server: weekly +7, every 2 weeks +14, monthly the same day next month (31st -> last day). */
+export function nextRepeat(ymd, every) {
+  if (every !== 'month') return addDays(ymd, every === 'week' ? 7 : 14);
+  const [y, m, d] = ymd.split('-').map(Number);
+  const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(y, m, Math.min(d, last))).toISOString().slice(0, 10);
+}

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, Copy, ExternalLink, FileText, Loader2, Mail, Plus, Receipt, Search } from 'lucide-react';
+import { AlertTriangle, Copy, ExternalLink, FileText, Loader2, Mail, Pause, Play, Plus, Receipt, Repeat, Search, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { EmptyState, PageHeader, SegmentedTabs } from '@/components/vtp';
 import { toast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
-import { fmtTs, fmtYmd, invoicesApi, money, monthKey, monthLabel, PAID_HOW, SOURCE, STATUS, statusOf, TONE } from '@/lib/invoices';
+import { EVERY, EVERY_SHORT, fmtTs, fmtYmd, invoicesApi, MODE, money, monthKey, monthLabel, PAID_HOW, SOURCE, STATUS, statusOf, TONE } from '@/lib/invoices';
 
 export function StatusPill({ status, className }) {
   const s = STATUS[status] || STATUS.draft;
@@ -24,6 +24,7 @@ export default function AdminInvoicing() {
   const tab = params.get('tab') || 'waiting';
   const setTab = (t) => setParams((p) => { p.set('tab', t); return p; }, { replace: true });
   const [open, setOpen] = useState(null); // invoice id
+  const [openPay, setOpenPay] = useState(null); // a money row that isn't an invoice (autopay, drop-in): its receipt
 
   const load = () => invoicesApi('list').then(setD).catch((e) => setD({ error: e.message }));
   useEffect(() => { load(); }, []);
@@ -60,12 +61,14 @@ export default function AdminInvoicing() {
         { value: 'waiting', label: `Waiting${waiting.length ? ` ${waiting.length}` : ''}` },
         { value: 'paid', label: 'Paid' },
         { value: 'money', label: 'All money' },
+        ...(d.repeats?.length || tab === 'repeats' ? [{ value: 'repeats', label: `Repeats${d.repeats?.length ? ` ${d.repeats.length}` : ''}` }] : []),
       ]} />
 
-      {tab === 'money' || tab === 'paid' ? <AllMoney key={tab} money={d.money} paidOnly={tab === 'paid'} onOpen={setOpen} /> : (
+      {tab === 'repeats' ? <Repeats list={d.repeats || []} onChanged={load} /> : tab === 'money' || tab === 'paid' ? <AllMoney key={tab} money={d.money} paidOnly={tab === 'paid'} onOpen={setOpen} onOpenPay={setOpenPay} /> : (
         <InvoiceList list={tab === 'drafts' ? drafts : waiting} tab={tab} onOpen={setOpen} />
       )}
 
+      <ReceiptDialog row={openPay} onClose={() => setOpenPay(null)} />
       <InvoiceDialog inv={current} canRefund={d.can_refund} live={d.setting.live} onClose={() => setOpen(null)} onChanged={load} />
     </div>
   );
@@ -94,7 +97,7 @@ function InvoiceList({ list, tab, onOpen }) {
         return (
           <button key={i.id} type="button" onClick={() => onOpen(i.id)} className="flex w-full items-center gap-3 rounded-xl border border-border bg-card p-3 text-left hover:border-primary/50">
             <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold">{i.contact?.name}{i.contact?.is_example && <span className="ml-2 text-xs font-normal text-muted-foreground">test</span>}</p>
+              <p className="truncate font-semibold">{i.contact?.name}{i.contact?.is_example && <span className="ml-2 text-xs font-normal text-muted-foreground">test</span>}{(i.repeat_id || i.repeat_plan?.every) && <Repeat className="ml-1.5 inline h-3.5 w-3.5 text-muted-foreground" aria-label="Repeats" />}</p>
               <p className="truncate text-xs text-muted-foreground">{i.lines.map((l) => l.description).join(', ')}</p>
               <p className={cn('text-xs', st === 'overdue' ? 'font-semibold text-danger' : 'text-muted-foreground')}>
                 {i.status === 'paid' ? `Paid ${fmtTs(i.paid_at)}${i.paid_outside ? ` · ${PAID_HOW[i.paid_outside]}` : ''}` : i.status === 'void' ? `Voided ${fmtTs(i.voided_at)}` : st === 'overdue' ? `Was due ${fmtYmd(i.due_date)}` : `Due ${fmtYmd(i.due_date)}`}
@@ -112,7 +115,7 @@ function InvoiceList({ list, tab, onOpen }) {
 }
 
 // Paid tab = the same list, only money that came in (invoices, autopay, drop-ins, cash/Venmo), refunds shown struck through.
-function AllMoney({ money: all, paidOnly, onOpen }) {
+function AllMoney({ money: all, paidOnly, onOpen, onOpenPay }) {
   const rows = paidOnly ? all.filter((r) => r.status === 'paid' || r.status === 'refunded') : all;
   const [month, setMonth] = useState(monthKey(new Date()));
   const [q, setQ] = useState('');
@@ -141,8 +144,8 @@ function AllMoney({ money: all, paidOnly, onOpen }) {
       {!shown.length ? <p className="py-8 text-center text-sm text-muted-foreground">{paidOnly ? 'Nothing paid' : 'Nothing'} for {month === 'all' ? 'this search' : monthLabel(month)}.</p> : (
         <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
           {shown.map((r) => (
-            <button key={r.id} type="button" disabled={!r.invoice_id} onClick={() => r.invoice_id && onOpen(r.invoice_id)}
-              className={cn('flex w-full items-center gap-3 px-3 py-2.5 text-left', r.invoice_id ? 'hover:bg-accent' : 'cursor-default')}>
+            <button key={r.id} type="button" onClick={() => (r.invoice_id ? onOpen(r.invoice_id) : onOpenPay(r))}
+              className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-accent">
               <div className="w-12 shrink-0 text-xs text-muted-foreground">{fmtTs(r.date)}</div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{r.who}{r.is_example && <span className="ml-2 text-xs font-normal text-muted-foreground">test</span>}</p>
@@ -156,7 +159,7 @@ function AllMoney({ money: all, paidOnly, onOpen }) {
           ))}
         </div>
       )}
-      <p className="text-xs text-muted-foreground">Autopay months, drop-ins and packs, and cash or Venmo a coach recorded are here too. Those can't be changed from this page.</p>
+      <p className="text-xs text-muted-foreground">Autopay months, drop-ins and packs, and cash or Venmo a coach recorded are here too. Tap any one for Stripe's receipt and invoice PDF.</p>
     </div>
   );
 }
@@ -237,13 +240,93 @@ function InvoiceDialog({ inv, canRefund, live, onClose, onChanged }) {
               <Button variant="ghost" className="text-danger" onClick={() => setConfirm('void')}>Void</Button>
             </>}
             {inv.status === 'paid' && <>
-              {inv.hosted_url && <Button variant="outline" asChild><a href={inv.hosted_url} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" />Receipt</a></Button>}
-              {inv.pdf_url && <Button variant="outline" asChild><a href={inv.pdf_url} target="_blank" rel="noreferrer"><FileText className="h-4 w-4" />PDF</a></Button>}
+              <ReceiptLinks query={{ invoice_id: inv.id }} />
               {canRefund && !inv.paid_outside && !inv.refunded_cents && <Button variant="ghost" className="text-danger" onClick={() => setConfirm('refund')}>Refund</Button>}
             </>}
           </div>
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Stripe's receipt + invoice PDF for one paid item, looked up when it's opened (for filing). */
+function ReceiptLinks({ query }) {
+  const [r, setR] = useState(null);
+  const k = JSON.stringify(query);
+  useEffect(() => { setR(null); invoicesApi('receipt', query).then(setR).catch((e) => setR({ error: e.message })); }, [k]);
+  if (!r) return <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Getting the receipt from Stripe</p>;
+  if (r.error) return <p className="text-sm text-destructive">{r.error}</p>;
+  return (
+    <div className="flex w-full flex-wrap gap-2">
+      {r.receipt_url && <Button variant="outline" asChild><a href={r.receipt_url} target="_blank" rel="noreferrer"><Receipt className="h-4 w-4" />Receipt</a></Button>}
+      {r.pdf_url && <Button variant="outline" asChild><a href={r.pdf_url} target="_blank" rel="noreferrer"><FileText className="h-4 w-4" />Invoice PDF</a></Button>}
+      {r.invoice_url && <Button variant="ghost" asChild><a href={r.invoice_url} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" />Stripe page</a></Button>}
+      {r.note && <p className="w-full text-xs text-muted-foreground">{r.note}</p>}
+    </div>
+  );
+}
+
+function ReceiptDialog({ row, onClose }) {
+  if (!row) return null;
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader><DialogTitle>{row.who || 'Payment'}</DialogTitle></DialogHeader>
+        <div className="space-y-1 text-sm">
+          <p className="font-display text-2xl">{money(row.amount_cents)}</p>
+          <p className="text-muted-foreground">{SOURCE[row.source]}{row.what ? ` · ${row.what}` : ''}</p>
+          <p><span className="text-muted-foreground">Paid:</span> {fmtTs(row.date)} · {PAID_HOW[row.method] || row.method || 'Card'}</p>
+          {row.note && <p><span className="text-muted-foreground">Note:</span> {row.note}</p>}
+        </div>
+        <ReceiptLinks query={{ payment_id: row.payment_id }} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Repeats({ list, onChanged }) {
+  const [busy, setBusy] = useState('');
+  const [stopping, setStopping] = useState(null);
+  const act = async (r, action, extra, msg) => {
+    setBusy(r.id + action);
+    try { const x = await invoicesApi(action, { id: r.id, ...extra }); toast({ title: msg(x) }); setStopping(null); await onChanged(); }
+    catch (e) { toast({ title: 'That didn\'t work', description: e.message }); }
+    finally { setBusy(''); }
+  };
+  if (!list.length) return <EmptyState icon={Repeat} title="No repeating invoices" message="When you make an invoice, pick Every week or Every month on the due date step." actionLabel="New invoice" to="/admin/invoicing/new" />;
+  return (
+    <div className="space-y-2">
+      {list.map((r) => (
+        <div key={r.id} className="rounded-xl border border-border bg-card p-3">
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-semibold">{r.contact?.name}{r.contact?.is_example && <span className="ml-2 text-xs font-normal text-muted-foreground">test</span>}</p>
+              <p className="text-xs text-muted-foreground">{EVERY[r.every]} · {MODE[r.mode]}{r.end_date ? ` · until ${fmtYmd(r.end_date)}` : ''}</p>
+              <p className="text-xs">{r.status === 'paused' ? <span className="font-semibold text-warning">Paused</span> : <>Next: <b>{fmtYmd(r.next_date)}</b></>}{r.made ? ` · ${r.made} made so far` : ''}</p>
+              {r.last_note && <p className="mt-1 text-xs text-muted-foreground">Last time: {r.last_note}</p>}
+            </div>
+            <span className="font-display text-lg">{r.mode === 'booked' ? 'Booked days' : money(r.total_cents)}</span>
+          </div>
+          {stopping === r.id ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-danger-border bg-danger-surface p-2 text-sm">
+              <span className="font-semibold text-danger">Stop this repeat? Invoices already sent stay as they are.</span>
+              <Button size="sm" variant="destructive" disabled={!!busy} onClick={() => act(r, 'repeat_set', { status: 'stopped' }, () => 'Repeat stopped')}>Yes, stop it</Button>
+              <Button size="sm" variant="ghost" onClick={() => setStopping(null)}>Keep it</Button>
+            </div>
+          ) : (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {r.status === 'active' && <Button size="sm" variant="outline" disabled={!!busy} onClick={() => act(r, 'repeat_now', {}, (x) => x.sent ? 'Sent the next one' : x.invoice_id ? 'Made a draft, it\'s under Drafts' : (x.note || 'Nothing to make'))}>
+                {busy === r.id + 'repeat_now' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Make the next one now</Button>}
+              {r.status === 'active'
+                ? <Button size="sm" variant="outline" disabled={!!busy} onClick={() => act(r, 'repeat_set', { status: 'paused' }, () => 'Paused')}><Pause className="h-4 w-4" />Pause</Button>
+                : <Button size="sm" variant="outline" disabled={!!busy} onClick={() => act(r, 'repeat_set', { status: 'active' }, (x) => `Resumed, next one ${fmtYmd(x.next_date)}`)}><Play className="h-4 w-4" />Resume</Button>}
+              <Button size="sm" variant="ghost" className="text-danger" onClick={() => setStopping(r.id)}><Square className="h-4 w-4" />Stop</Button>
+            </div>
+          )}
+        </div>
+      ))}
+      <p className="text-xs text-muted-foreground">Each repeat is a new invoice with its own pay link, so it shows under Waiting and Paid like any other.</p>
+    </div>
   );
 }

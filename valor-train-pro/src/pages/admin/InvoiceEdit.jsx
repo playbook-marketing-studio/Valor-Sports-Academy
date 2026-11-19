@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
-import { addDays, fmtYmd, invoicesApi, money, todayYmd } from '@/lib/invoices';
+import { addDays, EVERY, EVERY_SHORT, fmtYmd, invoicesApi, money, nextRepeat, todayYmd } from '@/lib/invoices';
 
 const STEPS = ['Who', 'What', 'When', 'Review'];
 const blankLine = () => ({ key: crypto.randomUUID(), description: '', quantity: '1', price: '', block_id: null });
@@ -27,7 +27,8 @@ export default function InvoiceEdit() {
   const [lines, setLines] = useState([blankLine()]);
   const [due, setDue] = useState('');
   const [memo, setMemo] = useState('');
-  const [bank, setBank] = useState(true);   // bank transfer (ACH) on this invoice, when Omar has it switched on
+  const [bank, setBank] = useState(true);
+  const [repeat, setRepeat] = useState({ every: '', mode: 'send', end_date: '' }); // every '' = just once   // bank transfer (ACH) on this invoice, when Omar has it switched on
   const [busy, setBusy] = useState('');
   const [draftId, setDraftId] = useState(id || null);
 
@@ -43,6 +44,7 @@ export default function InvoiceEdit() {
         setDue(inv.due_date < todayYmd() ? addDays(todayYmd(), r.setting.due_days || 7) : inv.due_date);
         setMemo(inv.memo || '');
         setBank((inv.pay_methods || []).includes('us_bank_account'));
+        if (inv.repeat_plan?.every) setRepeat({ every: inv.repeat_plan.every, mode: inv.repeat_plan.mode || 'send', end_date: inv.repeat_plan.end_date || '' });
         setStep(params.get('step') === 'review' ? 3 : 1);
       }
     }).catch((e) => setD({ error: e.message }));
@@ -59,6 +61,7 @@ export default function InvoiceEdit() {
     ...(who.contact_id ? { contact_id: who.contact_id } : { person: who.person }),
     lines: lines.map((l) => ({ description: l.description, quantity: Number(l.quantity), unit_cents: toCents(l.price), block_id: l.block_id })),
     due_date: due, memo, pay_methods: d.setting.bank_enabled && bank ? ['card', 'us_bank_account'] : ['card'],
+    repeat: repeat.every ? { every: repeat.every, mode: repeat.mode === 'booked' && !who.renter ? 'send' : repeat.mode, end_date: repeat.end_date || null } : null,
   });
   const saveDraft = async (quiet) => {
     const r = await invoicesApi('save', payload());
@@ -75,12 +78,14 @@ export default function InvoiceEdit() {
     try {
       const saved = await saveDraft(true);
       const r = await invoicesApi('send', { id: saved });
-      toast({ title: 'Invoice sent', description: `Stripe emailed ${r.to} a link to pay.` });
+      toast({ title: 'Invoice sent', description: `Stripe emailed ${r.to} a link to pay.${r.repeat ? ` The next one is ${fmtYmd(r.repeat.next_date)}.` : ''}` });
       navigate('/admin/invoicing?tab=waiting');
     } catch (e) { toast({ title: 'Not sent', description: e.message }); } finally { setBusy(''); }
   };
   const next = () => setStep((s) => Math.min(3, s + 1));
-  const nextOk = step === 0 ? !!who : step === 1 ? linesOk : step === 2 ? due >= todayYmd() : true;
+  const repeatNext = repeat.every ? nextRepeat(todayYmd(), repeat.every) : null;
+  const repeatOk = !repeat.every || !repeat.end_date || repeat.end_date > todayYmd();
+  const nextOk = step === 0 ? !!who : step === 1 ? linesOk : step === 2 ? due >= todayYmd() && repeatOk : true;
 
   return (
     <div className="mx-auto max-w-xl space-y-5 pb-44 lg:pb-28">
@@ -135,6 +140,28 @@ export default function InvoiceEdit() {
             )}
             <p className="mt-2 text-xs text-muted-foreground">Paid with cash or Venmo instead? Send it anyway, then mark it paid on the Invoicing page.</p>
           </div>
+          <div className="rounded-xl border border-border bg-card p-3 text-sm">
+            <p className="font-semibold">Repeat</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {[['', 'Just once'], ...Object.entries(EVERY)].map(([v, t]) => <Button key={v || 'once'} size="sm" variant={repeat.every === v ? 'default' : 'outline'} onClick={() => setRepeat((r) => ({ ...r, every: v }))}>{t}</Button>)}
+            </div>
+            {repeat.every && <>
+              <p className="mt-3 text-xs font-semibold text-muted-foreground">Each time</p>
+              <div className="mt-1 space-y-1">
+                {[['send', 'Send it automatically', 'Same lines and amount every time. Good for a set monthly fee.'],
+                  ['draft', 'Make a draft for me to check', 'It shows up under Drafts. You look it over and tap Send.'],
+                  ...(who?.renter ? [['booked', 'Make a draft from their booked days', 'Bills the turf days they booked since the last one. You check it and tap Send.']] : []),
+                ].map(([v, t, sub]) => (
+                  <label key={v} className={cn('flex cursor-pointer items-start gap-2 rounded-lg border p-2', repeat.mode === v ? 'border-primary bg-primary/5' : 'border-border')}>
+                    <input type="radio" className="mt-1 accent-[hsl(var(--primary))]" name="repeat-mode" checked={repeat.mode === v} onChange={() => setRepeat((r) => ({ ...r, mode: v }))} />
+                    <span>{t}<span className="block text-xs text-muted-foreground">{sub}</span></span>
+                  </label>
+                ))}
+              </div>
+              <div className="mt-3"><Label className="text-xs">Stop after (optional)</Label><Input type="date" min={addDays(todayYmd(), 1)} value={repeat.end_date} onChange={(e) => setRepeat((r) => ({ ...r, end_date: e.target.value }))} /></div>
+              <p className="mt-2 text-xs text-muted-foreground">This one goes out now. The next one is {fmtYmd(repeatNext)}, and each one is due {Math.max(0, Math.round((Date.parse(due) - Date.parse(todayYmd())) / 86400000))} days after it's made. You can pause or stop it any time on the Invoicing page.</p>
+            </>}
+          </div>
         </div>
       )}
 
@@ -156,6 +183,7 @@ export default function InvoiceEdit() {
             {memo && <p className="px-3 py-2 text-sm text-muted-foreground">Note: {memo}</p>}
           </div>
           <p className="text-sm text-muted-foreground">They get an email with a Pay button. They can pay {d.setting.bank_enabled && bank ? 'by card or bank transfer' : 'by card'} on Stripe's page, no login needed. You'll see it under Waiting until it's paid.</p>
+          {repeat.every && <p className="rounded-xl border border-border bg-card p-3 text-sm"><b>Repeats {EVERY_SHORT[repeat.every]}.</b> {repeat.mode === 'send' ? `The next one sends itself on ${fmtYmd(repeatNext)}` : `A draft is made on ${fmtYmd(repeatNext)} for you to check`}{repeat.end_date ? `, until ${fmtYmd(repeat.end_date)}` : ''}. Saved as a draft, it doesn't repeat until you send it.</p>}
           {!canSend && <p className="rounded-xl border border-warning-border bg-warning-surface p-3 text-sm text-warning">This is the test version, so it can only be sent to a test contact. Save it as a draft for now.</p>}
         </div>
       )}

@@ -12,6 +12,13 @@
 //   void {id}      → open invoices only
 //   mark_paid {id, method, note?}  → paid outside Stripe (cash, Venmo, check). Stripe charges no invoicing fee on these
 //   refund {id}    → paid by card through Stripe; only the logins in settings.invoicing.refund_emails (Corey, Michael)
+//   receipt {invoice_id | payment_id}  → Stripe's receipt + invoice PDF links for any paid item (filing). Read only.
+//   repeat_set {id, status}  → pause / resume / stop a repeating invoice
+//   repeat_now {id}          → make the next one now (it replaces the upcoming one)
+//   repeat_run  (header x-run-key = REPEAT_RUN_KEY, no login) → the daily timer: makes every repeat that's due
+// Repeats (11/19): save takes repeat {every: week|2weeks|month, mode: send|draft|booked, end_date?}. It's kept on the
+// draft and becomes an invoice_repeats row when the draft is sent. Each repeat is a fresh one-time invoice made by
+// this function, so Stripe subscriptions and the autopay webhook are never involved.
 // Safety: until settings.invoicing.live is true, send/resend only work for a test contact (is_example). The
 // preview shares the live database, so nobody real can get an invoice early.
 // Stripe objects carry metadata.kind=custom. The stripe-webhook only handles subscription invoices, so these never
@@ -71,6 +78,30 @@ function blockLabel(b: { space: string; starts_at: string; ends_at: string }) {
   return `${b.space === "half" ? "Half turf" : "Full turf"}, ${ptFmt(s, { weekday: "short" })} ${ptFmt(s, { month: "short", day: "numeric" })}, ${span}`;
 }
 
+// ── repeat dates (Pacific calendar dates, YYYY-MM-DD) ──
+const EVERY = ["week", "2weeks", "month"], MODES = ["send", "draft", "booked"];
+function addDaysYmd(ymd: string, n: number) {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
+const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
+/** The next repeat date. Monthly keeps the same day of the month (the 31st lands on the last day of short months). */
+function addPeriod(ymd: string, every: string, anchor?: number | null) {
+  if (every !== "month") return addDaysYmd(ymd, every === "week" ? 7 : 14);
+  const [y, m, d] = ymd.split("-").map(Number);
+  const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(y, m, Math.min(anchor || d, last))).toISOString().slice(0, 10);
+}
+function cleanPlan(p: any, contact: Record<string, any>) {
+  if (!p || !p.every) return { plan: null };
+  if (!EVERY.includes(p.every)) return { error: "Pick how often it repeats" };
+  const mode = MODES.includes(p.mode) ? p.mode : "send";
+  if (mode === "booked" && !contact.renter_id) return { error: "Only a renter has booked days to bill" };
+  const end = p.end_date && ymdRe.test(p.end_date) ? p.end_date : null;
+  if (end && end <= todayPT()) return { error: "Pick a stop date after today" };
+  return { plan: { every: p.every, mode, end_date: end } };
+}
+
 // ── read ──
 async function syncOpen() {
   const { data: open } = await admin.from("invoices").select("*").eq("status", "open").not("stripe_invoice_id", "is", null);
@@ -120,6 +151,7 @@ async function list(staffEmail: string) {
     admin.from("invoices").select("*, contact:billing_contacts(id, name, email, phone, renter_id, is_example), lines:invoice_lines(*)").order("created_at", { ascending: false }),
     admin.from("payments").select("id, description, amount_cents, kind, method, status, paid_at, created_at, note, athlete:athletes(first_name, last_name, parent_name, is_example)").order("created_at", { ascending: false }).limit(2000),
   ]);
+  const { data: repeats } = await admin.from("invoice_repeats").select("*, contact:billing_contacts(id, name, email, renter_id, is_example)").neq("status", "stopped").order("next_date");
   const today = todayPT();
   const inv = (invoices || []).map((i) => ({ ...i, lines: (i.lines || []).sort((a: any, b: any) => a.position - b.position), overdue: i.status === "open" && i.due_date < today }));
   // ALL money: invoices that were sent or paid + every payments row that isn't an abandoned checkout
@@ -139,11 +171,12 @@ async function list(staffEmail: string) {
     money.push({
       id: `p:${p.id}`, source: p.kind === "subscription" ? "autopay" : "payment", who: kid + (a.parent_name ? ` (${a.parent_name})` : ""),
       what: String(p.description || "").split(" · ").filter((x: string) => x !== kid).join(" · "),
-      amount_cents: p.amount_cents, status: p.status, method: p.method, date: p.paid_at || p.created_at, is_example: !!a.is_example, note: p.note,
+      amount_cents: p.amount_cents, status: p.status, method: p.method, date: p.paid_at || p.created_at, is_example: !!a.is_example, note: p.note, payment_id: p.id,
     });
   }
   money.sort((a, b) => String(b.date).localeCompare(String(a.date)));
-  return json({ setting: { live: cfg.live, due_days: cfg.due_days, bank_enabled: cfg.bank_enabled }, can_refund: cfg.refund_emails.includes(staffEmail.toLowerCase()), invoices: inv, people: ppl, money });
+  return json({ setting: { live: cfg.live, due_days: cfg.due_days, bank_enabled: cfg.bank_enabled }, can_refund: cfg.refund_emails.includes(staffEmail.toLowerCase()), invoices: inv, people: ppl, money,
+    repeats: (repeats || []).map((r) => ({ ...r, total_cents: (r.lines || []).reduce((t: number, l: any) => t + Math.round(Number(l.quantity) * Number(l.unit_cents)), 0), made: inv.filter((i) => i.repeat_id === r.id).length })) });
 }
 
 // ── write ──
@@ -208,7 +241,10 @@ async function save(body: Record<string, any>, staffId: string) {
   const due = String(body.due_date || "");
   if (!ymdRe.test(due) || due < todayPT()) return bad("Pick a due date today or later");
   const pay = (Array.isArray(body.pay_methods) ? body.pay_methods : ["card"]).filter((m: string) => m === "card" || (m === "us_bank_account" && cfg.bank_enabled));
-  const fields = { contact_id: contact.id, due_date: due, memo: String(body.memo || "").trim().slice(0, 500) || null, pay_methods: pay.length ? pay : ["card"], total_cents: total };
+  const rp = cleanPlan(body.repeat, contact);
+  if (rp.error) return bad(rp.error);
+  const fields: Record<string, unknown> = { contact_id: contact.id, due_date: due, memo: String(body.memo || "").trim().slice(0, 500) || null, pay_methods: pay.length ? pay : ["card"], total_cents: total };
+  if (!body.from_repeat) fields.repeat_plan = rp.plan;
   let id = body.id as string | undefined;
   if (id) {
     const { data: cur } = await admin.from("invoices").select("status").eq("id", id).maybeSingle();
@@ -247,6 +283,10 @@ async function bookedDays(body: Record<string, any>) {
   if (!c?.renter_id) return json({ days: [] });
   const from = ymdRe.test(body.from) ? body.from : todayPT().slice(0, 8) + "01";
   const to = ymdRe.test(body.to) ? body.to : todayPT();
+  return json({ days: await bookedFor(c.renter_id, from, to) });
+}
+async function bookedFor(renterId: string, from: string, to: string) {
+  const c = { renter_id: renterId };
   const [fy, fm, fd] = from.split("-").map(Number), [ty, tm, td] = to.split("-").map(Number);
   const { data: blocks } = await admin.from("facility_blocks").select("id, space, starts_at, ends_at, title")
     .eq("renter_id", c.renter_id).eq("status", "approved").eq("kind", "rental")
@@ -258,12 +298,10 @@ async function bookedDays(body: Record<string, any>) {
     for (const t of taken || []) billed.add((t as any).block_id);
   }
   const rates = await facilityRates();
-  return json({
-    days: (blocks || []).map((b) => {
-      const hours = Math.round(((new Date(b.ends_at).getTime() - new Date(b.starts_at).getTime()) / 3600000) * 100) / 100;
-      const rate = b.space === "half" ? rates.half : rates.full;
-      return { block_id: b.id, label: blockLabel(b), hours, rate_cents: rate, amount_cents: Math.round(hours * rate), billed: billed.has(b.id) };
-    }),
+  return (blocks || []).map((b) => {
+    const hours = Math.round(((new Date(b.ends_at).getTime() - new Date(b.starts_at).getTime()) / 3600000) * 100) / 100;
+    const rate = b.space === "half" ? rates.half : rates.full;
+    return { block_id: b.id, label: blockLabel(b), hours, rate_cents: rate, amount_cents: Math.round(hours * rate), billed: billed.has(b.id) };
   });
 }
 
@@ -322,7 +360,8 @@ async function send(body: Record<string, any>, staffId: string) {
       pdf_url: sent.invoice_pdf, total_cents: sent.total ?? inv.total_cents, sent_at: now, sent_by: staffId, synced_at: now,
     }).eq("id", inv.id);
     await log(inv.id, "sent", staffId, { to: c.email, stripe_invoice_id: sent.id, total: sent.total });
-    return json({ ok: true, to: c.email, url: sent.hosted_invoice_url, number: sent.number });
+    const repeat = inv.repeat_plan && !inv.repeat_id ? await startRepeat(inv, staffId) : null;
+    return json({ ok: true, to: c.email, url: sent.hosted_invoice_url, number: sent.number, repeat });
   } catch (e) {
     // nothing half-made stays in Stripe: a draft Stripe invoice is deleted, the app keeps its draft
     if (stripeInv?.id) {
@@ -387,9 +426,131 @@ async function refund(body: Record<string, any>, staff: { id: string; email?: st
   return json({ ok: true, amount_cents: r.amount });
 }
 
+// ── receipts (filing) ──
+async function receipt(body: Record<string, any>) {
+  const out: Record<string, unknown> = { pdf_url: null, invoice_url: null, receipt_url: null, number: null, note: null };
+  let invId: string | null = null, piId: string | null = null, chargeId: string | null = null;
+  if (body.invoice_id) {
+    const { data: i } = await admin.from("invoices").select("stripe_invoice_id, pdf_url, hosted_url, stripe_number, paid_outside").eq("id", body.invoice_id).maybeSingle();
+    if (!i) return bad("Invoice not found", 404);
+    Object.assign(out, { pdf_url: i.pdf_url, invoice_url: i.hosted_url, number: i.stripe_number });
+    if (i.paid_outside) out.note = `Paid by ${i.paid_outside} outside Stripe, so there's no card receipt. The invoice PDF shows it paid.`;
+    invId = i.stripe_invoice_id;
+  } else if (body.payment_id) {
+    const { data: p } = await admin.from("payments").select("method, stripe_invoice_id, stripe_payment_intent_id").eq("id", body.payment_id).maybeSingle();
+    if (!p) return bad("Payment not found", 404);
+    if (p.method !== "card") return json({ ...out, note: "A coach recorded this one (cash, Venmo or check), so Stripe has no receipt." });
+    invId = p.stripe_invoice_id; piId = p.stripe_payment_intent_id;
+  } else return bad("Which payment?");
+  if (invId) {
+    const s = await stripe("GET", `/v1/invoices/${invId}`);
+    Object.assign(out, { pdf_url: s.invoice_pdf || out.pdf_url, invoice_url: s.hosted_invoice_url || out.invoice_url, number: s.number || out.number });
+    chargeId = typeof s.charge === "string" ? s.charge : s.charge?.id || null;
+    if (!piId) piId = typeof s.payment_intent === "string" ? s.payment_intent : s.payment_intent?.id || null;
+    if (!chargeId && !piId && !out.note && s.amount_paid === 0) out.note = "Nothing was charged for this one ($0), so there's no card receipt. The invoice PDF is the record.";
+  }
+  if (!chargeId && piId) { const pi = await stripe("GET", `/v1/payment_intents/${piId}`); chargeId = typeof pi.latest_charge === "string" ? pi.latest_charge : pi.latest_charge?.id || null; }
+  if (chargeId) { const ch = await stripe("GET", `/v1/charges/${chargeId}`); out.receipt_url = ch.receipt_url || null; out.receipt_number = ch.receipt_number || null; }
+  if (!out.receipt_url && !out.pdf_url && !out.note) out.note = "Stripe has nothing to show for this one yet.";
+  return json(out);
+}
+
+// ── repeats ──
+async function startRepeat(inv: Record<string, any>, staffId: string) {
+  const p = inv.repeat_plan, today = todayPT();
+  const anchor = p.every === "month" ? Number(today.slice(8, 10)) : null;
+  const next = addPeriod(today, p.every, anchor);
+  if (p.end_date && next > p.end_date) return null;
+  const { data: r, error } = await admin.from("invoice_repeats").insert({
+    contact_id: inv.contact_id, every: p.every, mode: p.mode, memo: inv.memo, pay_methods: inv.pay_methods,
+    lines: inv.lines.map((l: any) => ({ description: l.description, quantity: Number(l.quantity), unit_cents: l.unit_cents })),
+    due_days: Math.max(0, Math.min(60, daysBetween(today, inv.due_date))), anchor_day: anchor, next_date: next, end_date: p.end_date,
+    period_start: today, source_invoice_id: inv.id, created_by: staffId,
+  }).select("id, next_date").single();
+  if (error) { console.error("repeat insert", error.message); return null; }
+  await admin.from("invoices").update({ repeat_id: r.id }).eq("id", inv.id);
+  await log(inv.id, "repeat_started", staffId, { repeat_id: r.id, every: p.every, mode: p.mode, next_date: r.next_date });
+  return r;
+}
+
+/** Make one repeat. manual = a coach tapped "Make the next one now" (it replaces the upcoming one). */
+async function runRepeat(r: Record<string, any>, staffId: string, manual: boolean) {
+  const today = todayPT();
+  // claim it first so two runs can't both make it
+  let next = addPeriod(r.next_date, r.every, r.anchor_day);
+  if (!manual) while (next <= today) next = addPeriod(next, r.every, r.anchor_day);
+  const billTo = manual ? today : addDaysYmd(r.next_date <= today ? r.next_date : today, -1);
+  const done = r.end_date && next > r.end_date;
+  const { data: claimed } = await admin.from("invoice_repeats").update({
+    next_date: next, status: done ? "stopped" : r.status, period_start: r.mode === "booked" ? addDaysYmd(billTo, 1) : r.period_start, updated_at: new Date().toISOString(),
+  }).eq("id", r.id).eq("next_date", r.next_date).eq("status", r.status).select("id");
+  if (!claimed?.length) return { id: r.id, skipped: "already made" };
+
+  let lines = r.lines as any[], note: string | null = null, invoiceId: string | null = null, sent = false;
+  const { data: c } = await admin.from("billing_contacts").select("id, renter_id").eq("id", r.contact_id).maybeSingle();
+  if (r.mode === "booked") {
+    const from = r.period_start || addDaysYmd(billTo, -31);
+    const days = c?.renter_id && from <= billTo ? (await bookedFor(c.renter_id, from, billTo)).filter((d) => !d.billed) : [];
+    lines = days.map((d) => ({ description: d.label, quantity: d.hours, unit_cents: d.rate_cents, block_id: d.block_id }));
+    if (!lines.length) note = `No booked days to bill from ${from} to ${billTo}`;
+  }
+  if (lines.length) {
+    const res = await save({ contact_id: r.contact_id, lines, due_date: addDaysYmd(today, r.due_days), memo: r.memo, pay_methods: r.pay_methods, from_repeat: true }, staffId);
+    const d = await res.json();
+    if (!res.ok) note = `Couldn't make it: ${d.error}`;
+    else {
+      invoiceId = d.id;
+      await admin.from("invoices").update({ repeat_id: r.id }).eq("id", invoiceId);
+      await log(invoiceId!, "made_by_repeat", staffId, { repeat_id: r.id, manual });
+      if (r.mode === "send") {
+        const sr = await send({ id: invoiceId }, staffId);
+        const sd = await sr.json();
+        if (sr.ok) sent = true; else note = `Made as a draft, not sent: ${sd.error}`;
+      }
+    }
+  }
+  await admin.from("invoice_repeats").update({ runs: r.runs + (invoiceId ? 1 : 0), last_run_on: today, last_invoice_id: invoiceId || r.last_invoice_id, last_note: note }).eq("id", r.id);
+  return { id: r.id, invoice_id: invoiceId, sent, note, next_date: done ? null : next };
+}
+
+async function repeatSet(body: Record<string, any>, staffId: string) {
+  const { data: r } = await admin.from("invoice_repeats").select("*").eq("id", body.id).maybeSingle();
+  if (!r) return bad("Repeat not found", 404);
+  if (r.status === "stopped") return bad("This repeat was stopped. Send a new invoice to start another.", 409);
+  const status = ["active", "paused", "stopped"].includes(body.status) ? body.status : null;
+  if (!status) return bad("Pause, resume or stop?");
+  const patch: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
+  if (status === "active") { let n = r.next_date; const t = todayPT(); while (n < t) n = addPeriod(n, r.every, r.anchor_day); patch.next_date = n; }
+  await admin.from("invoice_repeats").update(patch).eq("id", r.id);
+  if (r.source_invoice_id) await log(r.source_invoice_id, `repeat_${status === "active" ? "resumed" : status}`, staffId, { repeat_id: r.id });
+  return json({ ok: true, status, next_date: patch.next_date || r.next_date });
+}
+
+async function repeatNow(body: Record<string, any>, staffId: string) {
+  const { data: r } = await admin.from("invoice_repeats").select("*").eq("id", body.id).maybeSingle();
+  if (!r) return bad("Repeat not found", 404);
+  if (r.status !== "active") return bad("Resume it first", 409);
+  return json(await runRepeat(r, staffId, true));
+}
+
+async function repeatRunAll() {
+  const today = todayPT();
+  const { data: due } = await admin.from("invoice_repeats").select("*").eq("status", "active").lte("next_date", today).order("next_date").limit(200);
+  const results = [];
+  for (const r of due || []) {
+    try { results.push(await runRepeat(r, r.created_by, false)); }
+    catch (e) { console.error("repeat run", r.id, (e as Error).message); await admin.from("invoice_repeats").update({ last_note: `Failed: ${(e as Error).message}` }).eq("id", r.id); results.push({ id: r.id, error: (e as Error).message }); }
+  }
+  return json({ today, ran: results.length, results });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return bad("POST only", 405);
+  const runKey = Deno.env.get("REPEAT_RUN_KEY");
+  if (runKey && req.headers.get("x-run-key") === runKey) {
+    try { return await repeatRunAll(); } catch (e) { console.error("repeat_run failed", e); return bad((e as Error).message, 500); }
+  }
   const staff = await requireAdmin(req);
   if (!staff) return bad("Coaches only", 403);
   let body: Record<string, any> = {};
@@ -406,6 +567,9 @@ Deno.serve(async (req) => {
       case "void": return await onOpen(body, staff.id, "void");
       case "mark_paid": return await onOpen(body, staff.id, "mark_paid");
       case "refund": return await refund(body, staff);
+      case "receipt": return await receipt(body);
+      case "repeat_set": return await repeatSet(body, staff.id);
+      case "repeat_now": return await repeatNow(body, staff.id);
       default: return bad("unknown action");
     }
   } catch (e) {

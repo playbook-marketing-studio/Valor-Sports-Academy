@@ -21,6 +21,8 @@ const fake = Deno.serve({ port: 8797, onListen: () => {} }, async (req) => {
     if (fail.items) return J({ error: { message: "This key can't add invoice items" } }, 403);
     const inv = invs[f.invoice]; inv.total += f.amount ? Number(f.amount) : Number(f.quantity) * Number(f.unit_amount_decimal); return J({ id: `ii_${++n}` });
   }
+  if (parts[2] === "charges") return J({ id: parts[3], receipt_url: `https://pay.stripe.test/receipts/${parts[3]}`, receipt_number: "1234-5678" });
+  if (parts[2] === "payment_intents") return J({ id: parts[3], latest_charge: `ch_${parts[3]}` });
   if (u.pathname === "/v1/refunds") return J({ id: `re_${++n}`, amount: Object.values(invs).find((i: any) => i.payment_intent === f.payment_intent)?.amount_paid ?? 0 });
   const inv = invs[parts[3]];
   if (!inv) return J({ error: { message: "No such invoice" } }, 404);
@@ -32,11 +34,11 @@ const fake = Deno.serve({ port: 8797, onListen: () => {} }, async (req) => {
   if (verb === "pay") { inv.status = "paid"; inv.paid_out_of_band = true; inv.amount_paid = inv.total; inv.status_transitions.paid_at = Math.floor(Date.now() / 1000); }
   return J(inv);
 });
-const cardPay = (id: string) => { const i = invs[id]; i.status = "paid"; i.amount_paid = i.total; i.payment_intent = `pi_${id}`; i.status_transitions.paid_at = Math.floor(Date.now() / 1000); };
+const cardPay = (id: string) => { const i = invs[id]; i.status = "paid"; i.amount_paid = i.total; i.payment_intent = `pi_${id}`; i.charge = `ch_${id}`; i.status_transitions.paid_at = Math.floor(Date.now() / 1000); };
 
 // ── the function, run locally against the stand-in ──
 const PORT = 8000; // Deno.serve default
-const web = new Deno.Command("deno", { args: ["run", "--allow-net", "--allow-env", "--allow-read", "--no-check", FN + "/invoices/index.ts"], env: { ...Deno.env.toObject(), DENO_NO_PACKAGE_JSON: "1", STRIPE_SECRET_KEY: "sk_fake", STRIPE_API_BASE: "http://localhost:8797", PORT: String(PORT) }, stdout: "null", stderr: "piped" }).spawn();
+const web = new Deno.Command("deno", { args: ["run", "--allow-net", "--allow-env", "--allow-read", "--no-check", FN + "/invoices/index.ts"], env: { ...Deno.env.toObject(), DENO_NO_PACKAGE_JSON: "1", STRIPE_SECRET_KEY: "sk_fake", STRIPE_API_BASE: "http://localhost:8797", REPEAT_RUN_KEY: "test-run-key", PORT: String(PORT) }, stdout: "null", stderr: "piped" }).spawn();
 const STAFF = "vtp-inv-staff@valortrainpro.test", PARENT = "vtp-inv-parent@valortrainpro.test";
 const TEST_CONTACT = "omar+renter@playbookmarketing.studio";
 const RENTER = "4fdc69cf-6725-47f4-83e9-162e45a5166b";
@@ -46,6 +48,7 @@ const blocks: string[] = [];
 const clean = async () => {
   const { data: zz } = await admin.from("billing_contacts").select("id").like("email", "zzinv-%");
   const ids = [tc.id, ...(zz || []).map((x) => x.id)];
+  await admin.from("invoice_repeats").delete().in("contact_id", ids).gte("created_at", START);
   const { data: rows } = await admin.from("invoices").select("id").in("contact_id", ids).gte("created_at", START);
   if (rows?.length) await admin.from("invoices").delete().in("id", rows.map((r) => r.id));
   if (zz?.length) await admin.from("billing_contacts").delete().in("id", zz.map((x) => x.id));
@@ -207,6 +210,93 @@ try {
   check("  deleting the draft frees the day", !r.d.days.find((x: any) => x.block_id === b1)?.billed, r.d);
   r = await call({ action: "booked_days", contact_id: zz.id });
   check("  a contact who isn't a renter has no booked days", Array.isArray(r.d.days) && r.d.days.length === 0, r.d);
+
+  // receipts for filing
+  r = await call({ action: "receipt", invoice_id: d4 });
+  check("receipt: a card-paid invoice has the Stripe receipt + invoice PDF", r.s === 200 && /receipts\/ch_/.test(r.d.receipt_url) && /pdf\.stripe\.test/.test(r.d.pdf_url), r);
+  r = await call({ action: "receipt", invoice_id: d2 });
+  check("  paid by Venmo: no card receipt, says so, PDF still there", r.s === 200 && !r.d.receipt_url && /venmo/i.test(r.d.note) && r.d.pdf_url, r);
+  const { data: cashPay } = await admin.from("payments").select("id").neq("method", "card").limit(1);
+  if (cashPay?.length) { r = await call({ action: "receipt", payment_id: cashPay[0].id }); check("  a coach-recorded payment: no Stripe receipt, says so", r.s === 200 && !r.d.receipt_url && /recorded/.test(r.d.note), r); }
+  r = await call({ action: "list" });
+  check("  all money rows carry payment_id so they open", r.d.money.filter((m: any) => m.source !== "invoice").every((m: any) => m.payment_id), null);
+
+  // repeats
+  const add = (ymd: string, n: number) => { const [y, m, d] = ymd.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10); };
+  const nextMonth = (() => { const [y, m, d] = today.split("-").map(Number); const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate(); return new Date(Date.UTC(y, m, Math.min(d, last))).toISOString().slice(0, 10); })();
+  const run = async (key = "test-run-key") => { const res = await fetch(`http://localhost:${PORT}/`, { method: "POST", headers: { "x-run-key": key, "content-type": "application/json" }, body: "{}" }); return { s: res.status, d: await res.json().catch(() => ({})) }; };
+  const rep = async (id: string) => (await admin.from("invoice_repeats").select("*").eq("id", id).single()).data;
+  const monthly = [{ description: "Monthly team rental", quantity: 1, unit_cents: 40000 }];
+  r = await call({ action: "save", contact_id: zz.id, lines: monthly, due_date: due, repeat: { every: "month", mode: "booked" } });
+  check("repeat: booked days only for a renter", r.s === 400 && /renter/.test(r.d.error), r);
+  r = await call({ action: "save", contact_id: tc.id, lines: monthly, due_date: due, repeat: { every: "month", mode: "send" } });
+  const rm = r.d.id; x = await row(rm);
+  check("repeat plan is kept on the draft", x.repeat_plan?.every === "month" && x.repeat_plan?.mode === "send" && !x.repeat_id, x);
+  r = await call({ action: "send", id: rm });
+  check("  sending it starts the repeat, next one same day next month", r.s === 200 && r.d.repeat?.next_date === nextMonth, r.d);
+  const R1 = r.d.repeat.id; let rr = await rep(R1);
+  check("  repeat keeps the lines, due in 7 days, linked to the first invoice", rr.lines[0].unit_cents === 40000 && rr.due_days === 7 && rr.status === "active" && (await row(rm)).repeat_id === R1, rr);
+  r = await call({ action: "list" });
+  check("  list shows the repeat with its total", r.d.repeats?.some((x: any) => x.id === R1 && x.total_cents === 40000 && x.made === 1), r.d.repeats);
+  r = await run("wrong-key");
+  check("the timer needs the right key", r.s === 403, r);
+  await admin.from("invoice_repeats").update({ next_date: today }).eq("id", R1);
+  r = await run();
+  rr = await rep(R1);
+  const { data: made1 } = await admin.from("invoices").select("*").eq("repeat_id", R1).neq("id", rm);
+  check("timer: a due repeat sends a fresh invoice", r.s === 200 && made1?.length === 1 && made1[0].status === "open" && made1[0].total_cents === 40000 && made1[0].due_date === add(today, 7), { r: r.d, made1 });
+  check("  and moves to next month", rr.next_date === nextMonth && rr.runs === 1 && !rr.last_note, rr);
+  r = await run();
+  check("  running again the same day makes nothing", !(r.d.results || []).some((x: any) => x.id === R1), r.d);
+  r = await call({ action: "repeat_set", id: R1, status: "paused" });
+  check("pause", r.s === 200 && (await rep(R1)).status === "paused", r);
+  r = await call({ action: "repeat_now", id: R1 });
+  check("  a paused repeat can't make one", r.s === 409, r);
+  await admin.from("invoice_repeats").update({ next_date: add(today, -3) }).eq("id", R1);
+  r = await call({ action: "repeat_set", id: R1, status: "active" });
+  check("resume: a missed date moves to the next one ahead, nothing back-billed", r.s === 200 && r.d.next_date >= today, r);
+  const before2 = (await rep(R1)).next_date;
+  r = await call({ action: "repeat_now", id: R1 });
+  rr = await rep(R1);
+  check("make the next one now: sends it and skips that date", r.s === 200 && r.d.sent && rr.next_date > before2, { r: r.d, rr });
+  r = await call({ action: "repeat_set", id: R1, status: "stopped" });
+  r = await call({ action: "list" });
+  check("stop: gone from the list", !r.d.repeats.some((x: any) => x.id === R1), null);
+  r = await call({ action: "repeat_set", id: R1, status: "active" });
+  check("  a stopped repeat can't restart", r.s === 409, r);
+
+  r = await call({ action: "save", contact_id: tc.id, lines: monthly, due_date: due, repeat: { every: "week", mode: "send", end_date: add(today, 3) } });
+  r = await call({ action: "send", id: r.d.id });
+  check("a stop date before the next one: sent once, no repeat", r.s === 200 && r.d.repeat === null, r.d);
+
+  r = await call({ action: "save", contact_id: tc.id, lines: monthly, due_date: due, repeat: { every: "week", mode: "draft" } });
+  r = await call({ action: "send", id: r.d.id });
+  const R2 = r.d.repeat.id;
+  check("weekly draft repeat: next one in 7 days", r.d.repeat.next_date === add(today, 7), r.d);
+  await admin.from("invoice_repeats").update({ next_date: today }).eq("id", R2);
+  await run();
+  const { data: made2 } = await admin.from("invoices").select("status, sent_at").eq("repeat_id", R2).eq("status", "draft");
+  check("  timer makes a draft, nothing sent", made2?.length === 1 && !made2[0].sent_at && (await rep(R2)).next_date === add(today, 7), made2);
+
+  r = await call({ action: "save", contact_id: tc.id, lines: [{ description: "Turf, first week", quantity: 1, unit_cents: 1000 }], due_date: due, repeat: { every: "week", mode: "booked" } });
+  r = await call({ action: "send", id: r.d.id });
+  const R3 = r.d.repeat.id;
+  await admin.from("invoice_repeats").update({ next_date: today, period_start: "2026-11-01" }).eq("id", R3);
+  await run();
+  const { data: made3 } = await admin.from("invoices").select("id, status, lines:invoice_lines(block_id, quantity, unit_cents)").eq("repeat_id", R3).eq("status", "draft");
+  const bl = (made3?.[0]?.lines || []).map((l: any) => l.block_id);
+  check("booked repeat: a draft of the turf days booked since the last one", made3?.length === 1 && bl.includes(b1) && bl.includes(b2) && made3[0].lines.every((l: any) => l.unit_cents === 12500), made3);
+  await admin.from("invoice_repeats").update({ next_date: today }).eq("id", R3);
+  await run();
+  rr = await rep(R3);
+  const { count: c3 } = await admin.from("invoices").select("id", { count: "exact", head: true }).eq("repeat_id", R3).eq("status", "draft");
+  check("  nothing new booked: no empty invoice, says why", c3 === 1 && /No booked days/.test(rr.last_note), rr);
+
+  const { data: zr } = await admin.from("invoice_repeats").insert({ contact_id: zz.id, every: "month", mode: "send", lines: monthly, next_date: today, created_by: staff.id }).select("id").single();
+  await run();
+  const zrow = await rep(zr!.id);
+  const { data: zmade } = await admin.from("invoices").select("status, stripe_invoice_id").eq("repeat_id", zr!.id);
+  check("safety: while not live, a repeat to a real person is only a draft, never sent", zmade?.length === 1 && zmade[0].status === "draft" && !zmade[0].stripe_invoice_id && /not sent/.test(zrow.last_note), { zmade, zrow });
 
   // people: renter / parent picks become contacts
   r = await call({ action: "delete_draft", id: d1 });
