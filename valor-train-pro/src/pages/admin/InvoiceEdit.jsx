@@ -81,7 +81,7 @@ export default function InvoiceEdit() {
   const nextOk = step === 0 ? !!who : step === 1 ? linesOk : step === 2 ? due >= todayYmd() : true;
 
   return (
-    <div className="mx-auto max-w-xl space-y-5 pb-28">
+    <div className="mx-auto max-w-xl space-y-5 pb-44 lg:pb-28">
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon" aria-label="Back" onClick={() => (step ? setStep(step - 1) : navigate('/admin/invoicing'))}><ArrowLeft className="h-5 w-5" /></Button>
         <div>
@@ -102,11 +102,11 @@ export default function InvoiceEdit() {
                 {lines.length > 1 && <Button variant="ghost" size="sm" className="h-7 text-danger" onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))}><Trash2 className="h-4 w-4" />Remove</Button>}</div>
               <Input value={l.description} placeholder="What it's for (Full turf rental, Nov 24)" onChange={(e) => setLines((ls) => ls.map((x) => x.key === l.key ? { ...x, description: e.target.value } : x))} />
               <div className="grid grid-cols-3 gap-2">
-                <div><Label className="text-xs">How many</Label><Input inputMode="decimal" value={l.quantity} onChange={(e) => setLines((ls) => ls.map((x) => x.key === l.key ? { ...x, quantity: e.target.value } : x))} /></div>
+                <div><Label className="text-xs">Qty or hours</Label><Input inputMode="decimal" value={l.quantity} onChange={(e) => setLines((ls) => ls.map((x) => x.key === l.key ? { ...x, quantity: e.target.value } : x))} /></div>
                 <div><Label className="text-xs">Price each</Label><Input inputMode="decimal" value={l.price} placeholder="$0" onChange={(e) => setLines((ls) => ls.map((x) => x.key === l.key ? { ...x, price: e.target.value } : x))} /></div>
                 <div><Label className="text-xs">Line total</Label><p className="flex h-10 items-center font-semibold">{money(lineCents(l))}</p></div>
               </div>
-              {l.block_id && <p className="text-xs text-muted-foreground">From the Facility calendar</p>}
+              {l.block_id && <p className="text-xs text-muted-foreground">From the Facility calendar: {Number(l.quantity)} hours at {money(toCents(l.price))} an hour</p>}
             </div>
           ))}
           <Button variant="outline" className="w-full" onClick={() => setLines((ls) => [...ls, blankLine()])}><Plus className="h-4 w-4" />Add a line</Button>
@@ -151,7 +151,7 @@ export default function InvoiceEdit() {
         </div>
       )}
 
-      {step > 0 && <div className="fixed inset-x-0 bottom-20 z-30 border-t border-border bg-background/95 p-3 backdrop-blur lg:bottom-0 lg:left-64">
+      {step > 0 && <div className="fixed inset-x-0 bottom-[6.5rem] z-30 border-t border-border bg-background/95 p-3 backdrop-blur lg:bottom-0 lg:left-64">
         <div className="mx-auto flex max-w-xl gap-2">
           {step === 3 ? <>
             <Button className="flex-1" size="lg" disabled={!!busy || !canSend || !linesOk} onClick={onSend}>{busy === 'send' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Send invoice · {money(total)}</Button>
