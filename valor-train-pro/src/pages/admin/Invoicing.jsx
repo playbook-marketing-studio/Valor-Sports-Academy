@@ -34,7 +34,6 @@ export default function AdminInvoicing() {
   const inv = d.invoices;
   const drafts = inv.filter((i) => i.status === 'draft');
   const waiting = inv.filter((i) => i.status === 'open');
-  const paid = inv.filter((i) => i.status === 'paid' || i.status === 'void' || i.status === 'uncollectible');
   const overdue = waiting.filter((i) => i.overdue);
   const thisMonth = monthKey(new Date());
   const paidThisMonth = d.money.filter((m) => m.status === 'paid' && monthKey(m.date) === thisMonth && !m.is_example).reduce((s, m) => s + m.amount_cents, 0);
@@ -63,8 +62,8 @@ export default function AdminInvoicing() {
         { value: 'money', label: 'All money' },
       ]} />
 
-      {tab === 'money' ? <AllMoney money={d.money} onOpen={setOpen} /> : (
-        <InvoiceList list={tab === 'drafts' ? drafts : tab === 'waiting' ? waiting : paid} tab={tab} onOpen={setOpen} />
+      {tab === 'money' || tab === 'paid' ? <AllMoney key={tab} money={d.money} paidOnly={tab === 'paid'} onOpen={setOpen} /> : (
+        <InvoiceList list={tab === 'drafts' ? drafts : waiting} tab={tab} onOpen={setOpen} />
       )}
 
       <InvoiceDialog inv={current} canRefund={d.can_refund} live={d.setting.live} onClose={() => setOpen(null)} onChanged={load} />
@@ -112,7 +111,9 @@ function InvoiceList({ list, tab, onOpen }) {
   );
 }
 
-function AllMoney({ money: rows, onOpen }) {
+// Paid tab = the same list, only money that came in (invoices, autopay, drop-ins, cash/Venmo), refunds shown struck through.
+function AllMoney({ money: all, paidOnly, onOpen }) {
+  const rows = paidOnly ? all.filter((r) => r.status === 'paid' || r.status === 'refunded') : all;
   const [month, setMonth] = useState(monthKey(new Date()));
   const [q, setQ] = useState('');
   const months = useMemo(() => [...new Set(rows.map((r) => monthKey(r.date)))].sort().reverse(), [rows]);
@@ -137,7 +138,7 @@ function AllMoney({ money: rows, onOpen }) {
         </div>
       </div>
       <p className="text-sm text-muted-foreground"><b className="text-foreground">{money(paidTotal)}</b> paid{waitingTotal ? <> · <b className="text-foreground">{money(waitingTotal)}</b> waiting</> : null} · {shown.length} item{shown.length === 1 ? '' : 's'}</p>
-      {!shown.length ? <p className="py-8 text-center text-sm text-muted-foreground">Nothing for {month === 'all' ? 'this search' : monthLabel(month)}.</p> : (
+      {!shown.length ? <p className="py-8 text-center text-sm text-muted-foreground">{paidOnly ? 'Nothing paid' : 'Nothing'} for {month === 'all' ? 'this search' : monthLabel(month)}.</p> : (
         <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
           {shown.map((r) => (
             <button key={r.id} type="button" disabled={!r.invoice_id} onClick={() => r.invoice_id && onOpen(r.invoice_id)}
