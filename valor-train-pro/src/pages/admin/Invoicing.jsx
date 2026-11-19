@@ -107,6 +107,7 @@ function InvoiceList({ list, tab, onOpen }) {
               <span className="font-display text-lg">{money(i.total_cents)}</span>
               <StatusPill status={st} />
             </div>
+            <ViewChip label={i.status === 'draft' ? 'Open' : i.status === 'paid' ? 'Receipt' : 'View'} />
           </button>
         );
       })}
@@ -169,6 +170,7 @@ function AllMoney({ money: all, paidOnly, onOpen, onOpenPay }) {
                 <span className={cn('text-sm font-semibold', (r.status === 'voided' || r.status === 'refunded') && 'text-muted-foreground line-through')}>{money(r.amount_cents)}</span>
                 {r.status !== 'paid' && <StatusPill status={r.status} />}
               </div>
+              <ViewChip label={r.status === 'paid' ? 'Receipt' : 'View'} />
             </button>
           ))}
         </div>
@@ -361,5 +363,14 @@ function Repeats({ list, onChanged }) {
       ))}
       <p className="text-xs text-muted-foreground">Each repeat is a new invoice with its own pay link, so it shows under Waiting and Paid like any other.</p>
     </div>
+  );
+}
+
+/** Looks like a button so it's obvious the row opens; the whole row is the tap target. */
+function ViewChip({ label }) {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1 text-xs font-semibold text-foreground shadow-sm">
+      {label === 'Receipt' ? <Receipt className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}{label}
+    </span>
   );
 }
