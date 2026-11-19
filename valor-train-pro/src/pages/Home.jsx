@@ -16,9 +16,12 @@ import { photoPosition } from '@/lib/photos';
 import { useUnreadCount } from '@/lib/messages';
 import { MessageCircle } from 'lucide-react';
 import { todayPT } from '@/lib/dates';
+import { useQueryClient } from '@tanstack/react-query';
+import { WaiverBanner } from '@/components/RequireWaiver';
 
 export default function Home() {
   const viewAs = useViewAs();
+  const qc = useQueryClient();
   const [user, setUser] = useState(null);
   const [upcoming, setUpcoming] = useState([]);
   const [athletes, setAthletes] = useState([]);
@@ -122,6 +125,7 @@ export default function Home() {
       </div>
 
       {!viewAs.isActive && <NewMessagesCard />}
+      {!viewAs.isActive && <WaiverBanner />}
 
       {/* The move off UpperHand (10/21/2026): the login email says "tap Start autopay", so it's the first thing they see */}
       {!viewAs.isActive && hasMonthly && needsPlan.length > 0 && (
@@ -262,7 +266,7 @@ export default function Home() {
       <AthleteForm open={!!editing} onOpenChange={(o) => !o && setEditing(null)} mode="parent_edit" athlete={editing} onSaved={() => setReload((n) => n + 1)} />
 
       {/* signed up in the app with no athlete yet (Valor 11/9/2026): connect the kid on file, or add who's training */}
-      {athletes.length === 0 && !loading && !viewAs.isActive && user?.role !== 'admin' && <GetStarted onAdded={() => setReload((n) => n + 1)} />}
+      {athletes.length === 0 && !loading && !viewAs.isActive && user?.role !== 'admin' && <GetStarted onAdded={() => { setReload((n) => n + 1); qc.invalidateQueries({ queryKey: ['waiver-mine'] }); }} />}
       {athletes.length === 0 && !loading && viewAs.isActive && (
         <EmptyState
           photo="/images/photos/facility-wide.webp"

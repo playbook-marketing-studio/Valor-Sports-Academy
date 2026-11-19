@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader, EmptyState } from '@/components/vtp';
 import EnrollButton from '@/components/EnrollButton';
 import AutopayCard from '@/components/AutopayCard';
+import { AthleteWaiverRow } from '@/components/waiver/WaiverDialogs';
 import { athleteName, classesLeft, countsAsEnrollment, loadSettings, VALOR_PHONE } from '@/lib/valor';
 import { currentSub, fmtDay, money, suggestedPlanKey } from '@/lib/autopay';
 
@@ -90,6 +91,7 @@ export default function Account() {
                   </div>
                 )}
               </div>
+              {!viewAs.isActive && <AthleteWaiverRow athleteId={a.id} />}
               <div className="space-y-2">
                 <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><Receipt className="h-3.5 w-3.5" /> Payment history</p>
                 {pays.length === 0 ? <p className="text-sm text-muted-foreground">No payments yet.</p> : (

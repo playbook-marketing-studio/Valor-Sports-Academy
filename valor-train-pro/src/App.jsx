@@ -50,6 +50,10 @@ import Connect from '@/pages/Connect';
 import ExternalRedirect from '@/components/ExternalRedirect';
 import { SITE_ASSESSMENT_URL } from '@/lib/valor';
 import RequireRole from '@/components/RequireRole';
+import RequireWaiver from '@/components/RequireWaiver';
+import WaiverLink from '@/pages/public/WaiverLink';
+import WaiverTeamLink from '@/pages/public/WaiverTeamLink';
+import AdminWaivers from '@/pages/admin/Waivers';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -87,9 +91,16 @@ const AuthenticatedApp = () => {
       <Route path="/welcome" element={<Welcome />} />
       {/* Stripe sends the parent's phone here after paying from the coach's QR code. */}
       <Route path="/paid" element={<Paid />} />
+      {/* Private per-athlete waiver link (email / front-desk QR). Works without a login. */}
+      <Route path="/waiver/:token" element={<WaiverLink />} />
+      {/* One link per outside team (Maniacs, Jr Bombers): the parent types the athlete's name. No login. */}
+      <Route path="/waiver/team/:token" element={<WaiverTeamLink />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<HomeRoute />} />
+          {/* settings.waiver.required = 'screen': unsigned families sign before Home (Account + Messages stay open) */}
+          <Route element={<RequireWaiver />}>
+            <Route path="/" element={<HomeRoute />} />
+          </Route>
           {/* facility rentals: what's open and "request a time", for logins that belong to a renter */}
           <Route path="/facility" element={<FacilityRoute />} />
           <Route element={<FamilyOnly />}>
@@ -98,11 +109,13 @@ const AuthenticatedApp = () => {
             <Route path="/account" element={<Account />} />
             <Route path="/connect" element={<Connect />} />
             {/* included with enrollment: unpaid families get the enroll-and-pay screen */}
-            <Route element={<RequireEnrollment />}>
-              <Route path="/workouts" element={<Workouts />} />
-              <Route path="/nutrition" element={<Nutrition />} />
-              <Route path="/progress" element={<ProgressPage />} />
-              <Route path="/workout/:workoutId" element={<WorkoutSession />} />
+            <Route element={<RequireWaiver />}>
+              <Route element={<RequireEnrollment />}>
+                <Route path="/workouts" element={<Workouts />} />
+                <Route path="/nutrition" element={<Nutrition />} />
+                <Route path="/progress" element={<ProgressPage />} />
+                <Route path="/workout/:workoutId" element={<WorkoutSession />} />
+              </Route>
             </Route>
           </Route>
           <Route element={<RequireRole roles={['admin']} />}>
@@ -119,6 +132,7 @@ const AuthenticatedApp = () => {
             <Route path="/admin/invoicing" element={<AdminInvoicing />} />
             <Route path="/admin/invoicing/new" element={<InvoiceEdit />} />
             <Route path="/admin/invoicing/:id/edit" element={<InvoiceEdit />} />
+            <Route path="/admin/waivers" element={<AdminWaivers />} />
           </Route>
         </Route>
         {/* Own shell, not AppLayout: read-only, no admin sidebar/mobile menu —

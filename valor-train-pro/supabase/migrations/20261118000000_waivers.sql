@@ -1,0 +1,191 @@
+-- Digital waiver (11/18/2026). Valor: an investor flagged that the waiver isn't in place.
+-- One signed record per athlete per waiver version. A parent/guardian signs for a minor; an adult athlete signs for themself.
+-- Signing goes through the edge fn `waiver` (service role): in the app, or from a private per-athlete link (email / front-desk QR)
+-- that works without a login. Families and staff can read signed copies; nobody writes them from the browser.
+
+-- ── the waiver text, exactly as signed ──────────────────────────────────────
+create table if not exists public.waiver_texts (
+  version text primary key,                       -- e.g. '2026-10-27'
+  title text not null,
+  body text not null,                             -- '## ' / '### ' headings, blank-line paragraphs, [[...]] = words still being confirmed
+  body_sha256 text,                               -- set by the trigger below
+  status text not null default 'draft' check (status in ('draft', 'live', 'retired')),
+  review_note text,
+  created_at timestamptz not null default now(),
+  published_at timestamptz
+);
+create or replace function public.waiver_texts_hash()
+returns trigger language plpgsql set search_path = public as $$
+begin
+  new.body_sha256 := encode(sha256(convert_to(new.body, 'UTF8')), 'hex');
+  return new;
+end $$;
+drop trigger if exists waiver_texts_hash on public.waiver_texts;
+create trigger waiver_texts_hash before insert or update of body on public.waiver_texts
+  for each row execute function public.waiver_texts_hash();
+alter table public.waiver_texts enable row level security;
+drop policy if exists waiver_texts_read on public.waiver_texts;
+create policy waiver_texts_read on public.waiver_texts for select to authenticated using (true);
+
+-- ── signatures (the legal record: kept even if the athlete row goes away) ───
+create table if not exists public.waiver_signatures (
+  id uuid primary key default gen_random_uuid(),
+  athlete_id uuid references public.athletes(id) on delete set null,
+  version text not null references public.waiver_texts(version),
+  body_sha256 text not null,                      -- hash of the exact text shown when they signed
+  athlete_name text not null,
+  signer_name text not null,                      -- typed full name = the signature
+  signer_role text not null check (signer_role in ('parent', 'guardian', 'athlete')),
+  signer_email text,
+  signer_user_id uuid references public.profiles(id) on delete set null,
+  method text not null check (method in ('app', 'link')),
+  agreed boolean not null check (agreed),
+  ip text,
+  user_agent text,
+  signed_at timestamptz not null default now(),
+  emailed_at timestamptz                          -- copy emailed to the signer
+);
+create index if not exists waiver_signatures_athlete_idx on public.waiver_signatures(athlete_id, signed_at desc);
+alter table public.waiver_signatures enable row level security;
+drop policy if exists waiver_signatures_read on public.waiver_signatures;
+create policy waiver_signatures_read on public.waiver_signatures for select to authenticated
+  using (public.is_admin() or (athlete_id is not null and public.is_my_athlete(athlete_id)));
+
+-- ── "please sign" emails sent (staff resend, first notice, reminders) ───────
+create table if not exists public.waiver_requests (
+  id uuid primary key default gen_random_uuid(),
+  athlete_id uuid references public.athletes(id) on delete cascade,
+  email text not null,
+  kind text not null check (kind in ('notice', 'reminder', 'resend')),
+  sent_by uuid references public.profiles(id) on delete set null,
+  sent_at timestamptz not null default now()
+);
+create index if not exists waiver_requests_athlete_idx on public.waiver_requests(athlete_id, sent_at desc);
+alter table public.waiver_requests enable row level security;
+drop policy if exists waiver_requests_read on public.waiver_requests;
+create policy waiver_requests_read on public.waiver_requests for select to authenticated using (public.is_admin());
+
+-- ── setting: which version families sign, and how hard the app asks ─────────
+-- required: 'prompt' = the sign screen each time they open the app, with "Not now" (Omar 11/19: never lock families out)
+--           'block'  = same screen with no "Not now" (kept, off by default; Account and payments still open)
+--           'off'    = nothing in the app (links and emails still work)
+-- signup_required_from: athletes added in the app (app_signup_at) on or after this time must sign before using the app.
+-- version null = waiver not switched on yet: the app asks nobody until a version is set (go-live switch).
+insert into public.settings (key, value)
+values ('waiver', '{"version": null, "required": "prompt", "signup_required_from": null}'::jsonb)
+on conflict (key) do nothing;
+
+insert into public.waiver_texts (version, title, body, status, review_note)
+values ('2026-10-27', 'Express Assumption of Risk, Release, Covenant Not to Sue and Indemnity', $wv$EXPRESS ASSUMPTION OF RISK, RELEASE,COVENANT NOT TO SUE AND INDEMNITY
+
+As a condition of participating in any activities at The Valor Sports Academy (“Valor”), I agree on behalf of myself and/or on behalf of my minor child (Participant) as follows:
+
+## 1. RULES. The violation of the following rules could result in suspension, exclusion from meets, and/or termination of Participant from Valor's activities. Valor has full and final discretion to determine what consequences will be for any breach of these rules.
+
+### a. COVID and OTHER ILLNESSES; Stay Home If Sick
+
+I acknowledge the contagious nature of Coronavirus/COVID-19 (“COVID”) and other contagious viruses, illnesses, diseases, or conditions, and that the CDC and many other public health authorities still recommend practicing social distancing and wearing face coverings to lessen the risk of transmission.
+
+I further acknowledge and agree that Valor Sports Academy has put in place reasonable, preventative measures to reduce the spread of COVID and other viruses and other contagious viruses, illnesses, diseases, or conditions.
+
+I further acknowledge and agree that Valor Sports Academy cannot guarantee that neither I (parent/guardian) nor the Participant, will not become exposed to or infected with COVID or any other virus and/or other contagious viruses, illnesses, diseases, or conditions while using the Valor Sports Academy's facilities or equipment. I understand and agree that the risk of exposure to COVID and other viruses and other contagious viruses, illnesses, diseases, or conditions is inherent and unavoidable with regard tothe activity of visiting and working out in a gym or similar facility.
+
+I understand and agree that this risk may result from the actions, omissions, or negligence of myself and/or others, including, but not limited to, The Valor Sports Academy staff, members, clients, guests, and others using or visiting the Valor Sports Academy facilities.
+
+I voluntarily seek services provided by the Valor Sports Academy and acknowledge that by doing so I am increasing my risk of exposure to COVID and other viruses and illnesses. I acknowledge that I must comply with procedures to reduce the spread of COVID and other viruses and illnesses at the Valor Sports Academy.
+
+These activities include walking in and out of the Valor Sports Academy, as well as walking around the facility when not working out/ in class.
+
+I promise that I will not attend classes or meets while sick or ill, and understand and agree that Valor may terminate my participation in any class or meet if it reasonably determines that I am ill in order to reduce the risk of spreading of illness.
+
+### b. MISSED CLASSES – NO MAKEUP POLICY
+
+Because of our strict Participant to teacher ratio, missed classes will not result in make-up classes, prorated tuition or refunds. There will be no refunds for classes missed including any that occur on scheduled holidays. We offer 1 open gym for each missed class in that given month (must be used in that month). Each month is different and may result in your athlete getting 4 or 5 classes, depending on how the days fall. If a holiday results in a cancelled class and that class has already received 4 classes that month, no refunds/makeups will be given.
+
+LESSON MAKEUPS: Classes or camps cancelled less than 24 hours in advance will result in 50% CHARGE OF THE TOTAL. NO-SHOWS will result in the full amount charged. If you are scheduled in a class or camp and the other participants do not show up, you must pay the FULL price.
+
+### c. CLASS DROP PROCEDURE:
+
+PARENTS MUST NOTIFY VALOR IN WRITING BEFORE THE 30TH OF THE MONTH IN ADVANCE TO DROP A PARTICIPANT FROM CLASS. Only a written notice via valorsportsacademywa@gmail.com, text (509)987-4612, regular postal mail, or hand delivered to our front desk is effective.
+
+Please note: You are responsible for payment for your Participant's classes WHETHER OR NOT YOUR PARTICIPANT ATTENDS CLASS until the time you notify the staff VIA WRITTEN NOTICE. Please do not rely on your Participant to verbally let us know that he/she will no longer be attending classes. If a Participant stops coming to class without notification then that Participant's account will be charged for the additional 30 days. This charge will be for holding the Participant's place in that class instead of offering that place to one of the many on a waiting list.
+
+### d. DRESS CODE; APPEARANCE; GUM; HAIR
+
+Clothing: Participants may wear their school's respective apparel or any Valor Sports Academy merchandise
+
+Gum: NO chewing gum while classes or training is underway. This is not just for appearance, GUM IS AN INJURY RISK.
+
+Footwear: All Participants should have activity-appropriate footwear during class. No open toed shoes or Crocs.
+
+### e. PARTICIPANT PROPERTY:
+
+No watches or jewelry shall be worn during classes or meets. PLEASE LEAVE JEWELRY, WATCHES AND OTHER VALUABLES AT HOME because there is no secure place to store them during classes or meets. VALOR SHALL NOT BE RESPONSIBLE FOR LOST OR STOLEN WATCHES, JEWELRY, VALUABLES, OR OTHER PROPERTY. Valor will not be responsible for ANY items that may be lost or stolen. Be sure your Personal items should be left in cubby holes. Participant's personal items should be marked with their name or intials to avoid confusion.
+
+### f. ARRIVAL AND PICKUP
+
+Participant shall arrive 5-10 minutes before their scheduled class time. Please do not arrive earlier. Given the limited space in the Valor Sports Academy facility and the need for Valor coaches and teachers to watch Participants in class to lessen injury risk, Valor cannot be responsible for watching or caring for children not in class. IF YOUR CHILD IS NOT IN CLASS, THEY ARE NOT ALLOWED ON ANY EQUIPMENT.
+
+### g. PAYMENT.
+
+I represent and warrant that (i) any credit card or bank account draft (ACH Draft) information I supply is true and complete, (ii) charges incurred by me will be honored by my credit card company or financial institution, and (iii) I will pay the charges incurred by me at the posted prices, including any applicable taxes, fees, and penalties.
+
+I hereby authorize (if online payment is made or autopay information is provided) Valor Sports Academy to charge my ACH draft, or credit card account. I understand that a written notice is required to terminate billing before the 30TH of the month and I am responsible for payment whether or not my Participant attends classes until I notify this facility in writing to drop my Participant from class(es).
+
+For event or camp cancellation less than 24 hours before the start of the lesson will result in a 50% fee. No-show without cancellation will result in a full private lesson charge. These fees are due the same day as the intended lesson. Unsuccessful payments will result in a $10 charge.
+
+Should I dispute a charge through my financial institution this will constitute a breach of contract possibly resulting in, but not limited to, penalties, additional fees, collection, legal action, and/or termination of any and/or all current and future services.
+
+Parents of Participants are responsible for escorting the Participants between the car and inside the building. During peak times when classes are ending and starting, the parking lot is crowded. Please take into consideration that our Participants include young children. Please drive slowly and carefully. Do not allow your Participant to run to and from your car.
+
+Please pick up your Participant on time. Please inform us if you know you will be late picking up your Participant. Instruct your Participant to wait inside the building.
+
+### h. GENERAL RULES AND EXPECTATIONS.
+
+These rules are not all inclusive. Valor reserves the right to modify, add to, or otherwise change the rules in Valor's judgment.
+
+1.Valor's goal is to provide a focused, positive, challenging, and competitive learning experience for its Participants. Valor's founder and many of its staff and volunteers were themselves participants at similar schools as they grew up and believe it was a positive experience in their lives (even if it was difficult at times). They wish to pass that positive experience on to others. They understand that being challenged physically and mentally is sometimes difficult and will usually work with Participants and their parents to grow and overcome difficulties that arise from these challenges.
+
+However, Valor expects its participants to act in a fair, reasonable and respectful way as to the Valor Staff, Participants, parents/guardians of Participants, competitors on other teams at meets, parents of competitors, spectators and meet officials. Valor retains complete and sole discretion to determine whether these expectations are being violated and the consequences for such violations. The consequences may range from verbal counseling, time outs, suspensions, exclusion from classes or meets, or expulsion from Valor. Valor will consider all factors in making its decision, including but not limited to the impact on the Participant, the Participant’s prior history, the impact on other Participants, the impact on the learning environment at Valor, the impact on competitors at meets, and the impact on the reputation of Valor.
+
+## 2. Express Assumption of Risks.
+
+I understand and agree that the activities at Valor are inherently dangerous. Those activities involve but are not limited to, lifting, running, jumping, sport-specific movements and skills. These activities present significant risk of serious disfigurement, injury and death, including but not limited to life-changing permanent injuries such as partial or total paralysis, paraplegia, quadriplegia, neck and/or back/spinal fractures and/or impairment, brain injuries, vegetative state, and brain death. These risks include the risk of inadequate or negligent supervision of Participants in their activities. Valor intentionally keeps its Staff/Participant ratios reasonable in order to minimize these risks, but it is impossible for Staff to watch all Participants at all times, and it is impossible for Staff to always be in sufficient physical proximity to prevent all injuries to all Participants. Some Participants and their parents lower these risks by scheduling any class or event in which there is one instructor for each student. Even with our classes and events, however, it is impossible for staff to eliminate all risks. Even with classes and events, however, staff may be momentarily distracted by other events in the gym, ormay simply be unable to see a fall or other dangerous event starting to occur. Even with our classes and events, staff may simply not be in a physical position where they can prevent an injury given how quickly some injuries occur.
+
+Severe injuries are relatively rare but cannot always be avoided even in the exercise of reasonable or even extreme care. Further, I acknowledge that statistics are periodically reported showing that athletic training may have more injuries than many other sports including “contact sports” such as football, soccer, hockey and basketball.
+
+I fully understand that these risks may be caused by my own actions or inactions, the actions or inactions of others participating in the event, the conditions in which the activity or event takes place, or the negligence of the “releasees” named above; and that there may be other risks either not known to me or not readily foreseeable at this time; and I fully accept and assume all such risks and all responsibility for injury, harm, losses, cost, and damages I may incur as a result of my participation in the activities. I represent that I understand the nature of these activities and that I am qualified, in good health, and in proper physical condition to participate in such activities. I ACKNOWLEDGE THAT IF I BELIEVE EVENT CONDITIONS ARE UNSAFE, I WILL IMMEDIATELY DISCONTINUE PARTICIPATION IN THE ACTIVITY.
+
+I HEREBY EXPRESSLY ASSUME ALL RISKS ASSOCIATED WITH THE ACADEMY AND ITS ACTIVITIES as set forth in this section.
+
+## 3. Release and Covenant Not To Sue; Indemnification.
+
+Release and Covenant Not to Sue: I hereby release, discharge, and waive any right to recover damages on any theory of liability against Valor. I further promise, agree and covenant not to sue the Valor Sports Academy, its owners, insurers, administrators, directors, agents, officers, coaches, teachers, assistants, volunteers, employees, other participants, any sponsors, advertisers, and the owners and lessors of premises on which the activities take place, (all collectively referred to as “RELEASEES” herein) from all liability, claims, demands, losses, or damages, I may suffer, INCLUDING BUT NOT LIMITED TO INJURIES OR DAMAGES SUFFERED CAUSED IN WHOLE OR IN PART BY THE NEGLIGENCE OF THE “RELEASEES” and including negligent rescue operations.
+
+Indemnification: The persons signing this agreement agree that to the fullest extent permitted by law, they promise and agree to indemnify, hold harmless and defend, not excluding Valor's right to participate, Valor from and against all liability, claims, actions, damages, losses, and expenses, including, without limitation, reasonable attorneys' fees, expert fees and costs, at trial, arbitration and/or appeal, that relate to or arise from this [[Agreement or from any activity of Participant in, with or for Valor, INCLUDING BUT NOT LIMITED]] TO ANY CLAIMS THAT VALOR WAS NEGLIGENT. THIS PROVISION HAS BEEN SPECIFICALLY AND MUTUALLY NEGOTIATED BY THE PARTIES.
+
+## 4. ENTIRE AGREEMENT; SEVERABILITY; MODIFICATION; WAIVER [[GOVERNING LAW; VENUE; ATTORNEYS’ FEES AND COSTS]]
+
+This Agreement contains the entire agreement of the parties and supersedes and replaces any and all prior or contemporaneous agreements or understandings, written or oral, express or implied, between the parties concerning the subject matter of this agreement. Should any term or provision of this Agreement, or any part thereof, be held unenforceable for any reason, such unenforceable term or provision, or part thereof, shall not affect the remainder of this contract, it being agreed the provisions hereof are severable. This Agreement shall not be subject to modification except by written agreement signed by both parties. Failure of either party to enforce any of the provisions of this Agreement shall not be construed as a waiver by that party of any such provisions or of the right of such party to thereafter strictly enforce each and every provision of this Agreement. This Agreement shall be governed by the laws of the State of Washington, including but not limited to tort, choice of law, and contract formation, interpretation and enforcement. The sole venue for any suit arising out of or related to this Agreement or the Participant’s activities with Valor shall be solely in the Superior Court for Benton County, State of Washington. If litigation is instituted arising directly or indirectly out of this Agreement, the losing party shall pay to the prevailing party the prevailing party's reasonable attorney's fees and costs, including but not limited to court costs, litigation costs, expert fees, document production and reproduction costs, and any other reasonably necessary litigation expense as determined by the court, at trial or any appeal therefrom.
+
+## 5. SIGNATORIES:
+
+The persons signing below represent and warrant that they have read and understood this Participation Agreement, including the EXPRESS ASSUMPTION OF RISK AND THE RELEASE AND COVENANT NOT TO SUE AND INDEMNIFICATION PROVISIONS HEREOF provisions. Parents and/or Guardians signing on behalf of minor children or wards represent and warrant that they have full legal authority to execute this Agreement on behalf of their child or ward. The persons signing below understand that they have given up substantial rights by signing it and have signed it freely and without any inducement or assurance of any nature and intend it to be a complete and unconditional release of all liability to the greatest extent allowed by law and agree that if any portion of this agreement is held to be invalid the balance, notwithstanding, shall continue in full force and effect.
+
+## CANCELLATION/RESCHEDULING POLICY
+
+Appointments can be canceled or rescheduled with no penalty up to 48 hours before the scheduled Appointment time. Canceling or rescheduling an appointment after that time may result in a cancellation fee being charged for the original Appointment booking.
+
+## GROUP APPOINTMENT POLICY
+
+This facility allows a single student to book a Group Appointment timeslot and invite other students to attend, up to the maximum allowed number of enrollments. However, any fees for this Appointment booking will be the sole responsibility of the student who booked the Appointment. This facility's staff will not be responsible for "splitting" the Appointment fee among multiple accounts. Any "split fee" arrangements will need to be handled externally by the families involved.
+
+## WHAT TO WEAR
+
+Boys or Girls may wear their resective school's apparel or Valor Sports Academy apparel. NO chewing gum or dangling jewelry. All students should have activity-appropriate footwear during his/her scheduled Appointment time. Personal items should be left in cubby holes. Jewelry should not be worn during this time. PLEASE LEAVE JEWELRY ARTICLES AT HOME. This facility's staff will not be responsible for ANY items that may be lost or stolen. Be sure your student's personal items are marked with their name.
+
+## ARRIVAL AND PICKUP
+
+Be sure your student arrives 5 minutes before (no earlier please) his/her scheduled Appointment time. Please pick up your student on time. Please inform us if you know you will be late picking up your student. Instruct your student to wait inside the building and you should escort them from the building to your car. During peak times the parking lot is crowded. Please take into consideration that our students may include young children. Please drive slowly and carefully. Do not take a chance on your student running to and from your car.
+$wv$, 'draft', $wv$Copied word for word from Michael's email "Waiver" (10/27/2026 7:28pm). Two lines in sections 3 and 4 came through mixed together in the paste. The highlighted words are our best guess at the original; waiting on Michael to confirm or send the original file. As pasted: "...arise from this AgT LIMITED TO ANY CLAIMS THAT VALOR WAS NEGLIGENT..." and "4. ENTIRE AGREEMENT; SEVERABILITY; MODIFICATION; WAIVER GOVERNING LAW; VENUEreement or from any activity of Participant in, with or for Valor, INCLUDING BUT NO; ATTORNEYS' FEES AND COSTS". Typos left as written: tothe, ormay, intials, resective.$wv$)
+on conflict (version) do nothing;
