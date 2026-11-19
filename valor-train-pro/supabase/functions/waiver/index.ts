@@ -24,6 +24,11 @@
 //   Nothing verifies who signed (anyone with the link can fill it out): stored as method 'team', no athlete_id,
 //   shown to staff as not verified. Limits: 15 signatures per IP per team per hour, 300 per team per day,
 //   staff can turn a team's link off. Same text hash, typed names, role, checkbox, time, IP, device, emailed copy.
+// STAFF-ONLY LOCK (Omar 11/19/2026: "staff only, make it clear it's still not working"): while the waiver text for
+// settings.waiver.version is not status 'live' (the 10/27 text is a draft until Michael confirms two spots), families
+// get no waiver at all (no sign screen, Home card or Account row; links and team links say "not ready yet"), and
+// every sign / email action is refused with 423. Staff still see the Waivers page, make team links, preview the text.
+// Publishing the confirmed text as status 'live' opens it, nothing else to change.
 // Deploy: supabase functions deploy waiver --no-verify-jwt --project-ref gpotwyuttkkygvxzktep --use-api
 // ════════════════════════════════════════════════════════════════════════
 import { admin, appOrigin, bad, cors, json, userFromRequest } from "../_shared/common.ts";
@@ -265,12 +270,15 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { return bad("invalid json"); }
   try {
     const s = await setting();
+    const open = !!s.version && (await waiverText(s.version))?.status === "live";
+    const NOT_OPEN = "The waiver isn't open for signing yet. Valor is still finishing it.";
 
     // ── team link: no login ──
     if (body.tt !== undefined && (body.action === "team_link" || body.action === "team_sign")) {
       const team = await teamByToken(String(body.tt));
       if (!team) return bad("That link isn't right. Ask the coach for the team's link.", 404);
       if (!team.active) return bad(`That team link was turned off. Text us at ${VALOR.phone}.`, 410);
+      if (!open) return body.action === "team_sign" ? bad(NOT_OPEN, 423) : json({ team: { name: team.name }, waiver: null, not_open: true });
       if (body.action === "team_sign") return await recordTeam(req, team, body, s);
       return json({ team: { name: team.name }, waiver: await waiverText(s.version) });
     }
@@ -282,6 +290,7 @@ Deno.serve(async (req) => {
       if ("expired" in tok) return bad(`That link expired. Text us at ${VALOR.phone} and we'll send a new one.`, 410);
       const { data: a } = await admin.from("athletes").select("id, first_name, last_name, age, archived_at").eq("id", tok.athleteId).maybeSingle();
       if (!a || a.archived_at) return bad("That link isn't active anymore. Text us and we'll sort it out.", 404);
+      if (!open) return body.action === "sign" ? bad(NOT_OPEN, 423) : json({ athlete: { first_name: a.first_name, last_name: a.last_name, age: a.age }, signed: null, waiver: null, not_open: true });
       if (body.action === "sign") return await record(req, a, body, s, { method: "link" });
       const sig = s.version ? await latestSig(a.id, s.version) : null;
       return json({ athlete: { first_name: a.first_name, last_name: a.last_name, age: a.age }, signed: sig ? { signer_name: sig.signer_name, signed_at: sig.signed_at } : null, waiver: await waiverText(s.version) });
@@ -305,7 +314,7 @@ Deno.serve(async (req) => {
     }
 
     if (isStaff) {
-      if (body.action === "list") return json({ setting: s, waiver: s.version ? { version: s.version, status: (await waiverText(s.version))?.status } : null, athletes: await staffList(s), ...(await teamsForStaff(req, s)) });
+      if (body.action === "list") return json({ setting: s, open, waiver: s.version ? { version: s.version, status: (await waiverText(s.version))?.status } : null, athletes: await staffList(s), ...(await teamsForStaff(req, s)) });
       if (body.action === "team_add") {
         const name = clean(body.name, 60);
         if (name.length < 2) return bad("Type the team's name.");
@@ -321,7 +330,7 @@ Deno.serve(async (req) => {
         if (!data?.length) return bad("team not found", 404);
         return json({ active });
       }
-      if (body.action === "send") return await staffSend(req, user.id, String(body.athlete_id || ""));
+      if (body.action === "send") return open ? await staffSend(req, user.id, String(body.athlete_id || "")) : bad("Emails to families are off until the waiver is finished.", 423);
       if (body.action === "sign_link") return json({ url: await signUrl(appOrigin(req), String(body.athlete_id || "")) });
       if (body.action === "setting") {
         const required = String(body.required || "");
@@ -334,6 +343,10 @@ Deno.serve(async (req) => {
     }
 
     // ── family login ──
+    if (!open) {
+      if (body.action === "mine") return json({ setting: { ...s, required: "off" }, waiver: null, athletes: [], not_open: true });
+      if (body.action === "sign") return bad(NOT_OPEN, 423);
+    }
     if (body.action === "mine") {
       const { data: kids } = await admin.from("athletes").select("id, first_name, last_name, age, parent_id, user_id, app_signup_at")
         .or(`parent_id.eq.${user.id},user_id.eq.${user.id}`).is("archived_at", null).order("first_name");

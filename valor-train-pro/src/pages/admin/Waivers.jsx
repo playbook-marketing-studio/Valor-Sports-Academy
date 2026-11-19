@@ -72,9 +72,18 @@ export default function AdminWaivers() {
       {!d.setting.version && (
         <Card><CardContent className="flex gap-3 p-4 text-sm"><AlertTriangle className="h-5 w-5 shrink-0 text-warning" />The waiver isn't switched on yet. Nobody is asked to sign until it is.</CardContent></Card>
       )}
-      {d.waiver?.status === 'draft' && (
-        <Card className="border-yellow-400"><CardContent className="flex gap-3 p-4 text-sm"><AlertTriangle className="h-5 w-5 shrink-0 text-yellow-600" />
-          <div><b>Preview.</b> Two spots in sections 3 and 4 came through mixed up in the copy we got. They're highlighted on the waiver until Michael confirms the wording.</div></CardContent></Card>
+      {d.setting.version && !d.open && (
+        <Card className="border-2 border-danger-border bg-danger-surface"><CardContent className="flex gap-3 p-4 text-sm"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-danger" />
+          <div className="space-y-1.5">
+            <p className="font-display text-lg text-danger">Not working yet. Staff preview only.</p>
+            <p>Families can't see or sign the waiver yet. Nothing shows in their app, and emails, links, QR codes and team links all say it isn't ready.</p>
+            <p><b>Why:</b> two spots in the waiver text came through mixed up in the copy we got. Michael needs to confirm them:</p>
+            <ul className="list-disc space-y-0.5 pl-5">
+              <li>Section 3: the line about claims that Valor was negligent</li>
+              <li>The section 4 heading: governing law, venue, attorneys' fees</li>
+            </ul>
+            <p>They're highlighted in yellow on the waiver. Once Michael confirms, Omar switches it on for families.</p>
+          </div></CardContent></Card>
       )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -118,7 +127,7 @@ export default function AdminWaivers() {
               ) : (
                 <>
                   <Button variant="outline" size="sm" onClick={() => showQr(a)} disabled={busy === `qr${a.id}`}>{busy === `qr${a.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <><QrCode className="mr-1.5 h-4 w-4" />QR</>}</Button>
-                  <Button size="sm" onClick={() => send(a)} disabled={!a.email || busy === a.id} title={a.email ? '' : 'No email on file'}>{busy === a.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Mail className="mr-1.5 h-4 w-4" />{a.last_sent ? 'Resend' : 'Email link'}</>}</Button>
+                  <Button size="sm" onClick={() => send(a)} disabled={!d.open || !a.email || busy === a.id} title={!d.open ? 'Off until the waiver is finished' : a.email ? '' : 'No email on file'}>{busy === a.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Mail className="mr-1.5 h-4 w-4" />{a.last_sent ? 'Resend' : 'Email link'}</>}</Button>
                 </>
               )}
             </div>
