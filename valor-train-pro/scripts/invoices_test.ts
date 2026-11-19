@@ -130,6 +130,19 @@ try {
   r = await call({ action: "refund", id: d2 });
   check("refund refused for a staff login that isn't Corey/Michael", r.s === 403, r);
 
+  // bank transfer: stripped while Omar has it off, passed to Stripe once on
+  await admin.from("settings").update({ value: { ...cfgRow.value, bank_enabled: false } }).eq("key", "invoicing");
+  r = await call({ action: "save", contact_id: tc.id, lines: [lines[0]], due_date: due, pay_methods: ["card", "us_bank_account"] });
+  x = await row(r.d.id);
+  check("bank transfer is dropped while it's switched off", JSON.stringify(x.pay_methods) === '["card"]', x.pay_methods);
+  await admin.from("settings").update({ value: { ...cfgRow.value, bank_enabled: true } }).eq("key", "invoicing");
+  r = await call({ action: "save", contact_id: tc.id, lines: [lines[0]], due_date: due, pay_methods: ["card", "us_bank_account"] });
+  const db = r.d.id; r = await call({ action: "send", id: db });
+  x = await row(db);
+  const sb = invs[x.stripe_invoice_id];
+  check("bank transfer on: Stripe gets card + us_bank_account", r.s === 200 && sb.metadata["payment_settings[payment_method_types][0]"] === "card" && sb.metadata["payment_settings[payment_method_types][1]"] === "us_bank_account", sb?.metadata);
+  await admin.from("settings").update({ value: cfgRow.value }).eq("key", "invoicing");
+
   // void
   r = await call({ action: "save", contact_id: tc.id, lines: [lines[0]], due_date: due });
   const d3 = r.d.id; await call({ action: "send", id: d3 });
@@ -179,7 +192,7 @@ try {
   };
   const b1 = await mk("2026-11-02"), b2 = await mk("2026-11-04");
   r = await call({ action: "booked_days", contact_id: tc.id, from: "2026-11-01", to: "2026-11-06" });
-  const days = r.d.days || [];
+  const days = (r.d.days || []).filter((x: any) => blocks.includes(x.block_id)); // ignore the demo days left for Omar
   check("booked days lists the renter's approved blocks", days.length === 2 && days.every((x: any) => !x.billed), r.d);
   check("  2 hours full turf = $250, labeled", days[0]?.amount_cents === 25000 && days[0]?.hours === 2 && /^Full turf, Mon Nov 2, 8 to 10pm$/.test(days[0]?.label), days[0]);
   r = await call({ action: "save", contact_id: tc.id, lines: [{ description: days[0].label, quantity: 2, unit_cents: 12500, block_id: b1 }], due_date: due });

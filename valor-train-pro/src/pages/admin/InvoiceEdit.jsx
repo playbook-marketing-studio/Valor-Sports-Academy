@@ -27,6 +27,7 @@ export default function InvoiceEdit() {
   const [lines, setLines] = useState([blankLine()]);
   const [due, setDue] = useState('');
   const [memo, setMemo] = useState('');
+  const [bank, setBank] = useState(true);   // bank transfer (ACH) on this invoice, when Omar has it switched on
   const [busy, setBusy] = useState('');
   const [draftId, setDraftId] = useState(id || null);
 
@@ -41,6 +42,7 @@ export default function InvoiceEdit() {
         setLines(inv.lines.map((l) => ({ key: l.id, description: l.description, quantity: String(Number(l.quantity)), price: (l.unit_cents / 100).toFixed(2), block_id: l.block_id })));
         setDue(inv.due_date < todayYmd() ? addDays(todayYmd(), r.setting.due_days || 7) : inv.due_date);
         setMemo(inv.memo || '');
+        setBank((inv.pay_methods || []).includes('us_bank_account'));
         setStep(params.get('step') === 'review' ? 3 : 1);
       }
     }).catch((e) => setD({ error: e.message }));
@@ -56,7 +58,7 @@ export default function InvoiceEdit() {
     id: draftId || undefined,
     ...(who.contact_id ? { contact_id: who.contact_id } : { person: who.person }),
     lines: lines.map((l) => ({ description: l.description, quantity: Number(l.quantity), unit_cents: toCents(l.price), block_id: l.block_id })),
-    due_date: due, memo, pay_methods: ['card'],
+    due_date: due, memo, pay_methods: d.setting.bank_enabled && bank ? ['card', 'us_bank_account'] : ['card'],
   });
   const saveDraft = async (quiet) => {
     const r = await invoicesApi('save', payload());
@@ -123,7 +125,14 @@ export default function InvoiceEdit() {
           <div className="rounded-xl border border-border bg-card p-3 text-sm">
             <p className="font-semibold">How they can pay</p>
             <p className="mt-1 flex items-center gap-2"><Check className="h-4 w-4 text-success" />Card (on the Stripe pay page)</p>
-            <p className="mt-1 flex items-center gap-2 text-muted-foreground"><span className="inline-block h-4 w-4 rounded border border-border" />Bank transfer (off for now, Omar can turn it on)</p>
+            {d.setting.bank_enabled ? (
+              <label className="mt-1 flex cursor-pointer items-start gap-2">
+                <Checkbox className="mt-0.5" checked={bank} onCheckedChange={(v) => setBank(v === true)} />
+                <span>Bank transfer<span className="block text-xs text-muted-foreground">Cheaper for you on big invoices (0.8%, never more than $5). Takes about 4 business days to show as paid.</span></span>
+              </label>
+            ) : (
+              <p className="mt-1 flex items-center gap-2 text-muted-foreground"><span className="inline-block h-4 w-4 rounded border border-border" />Bank transfer (off for now, Omar can turn it on)</p>
+            )}
             <p className="mt-2 text-xs text-muted-foreground">Paid with cash or Venmo instead? Send it anyway, then mark it paid on the Invoicing page.</p>
           </div>
         </div>
@@ -146,7 +155,7 @@ export default function InvoiceEdit() {
             ))}
             {memo && <p className="px-3 py-2 text-sm text-muted-foreground">Note: {memo}</p>}
           </div>
-          <p className="text-sm text-muted-foreground">They get an email with a Pay button. They can pay by card on Stripe's page, no login needed. You'll see it under Waiting until it's paid.</p>
+          <p className="text-sm text-muted-foreground">They get an email with a Pay button. They can pay {d.setting.bank_enabled && bank ? 'by card or bank transfer' : 'by card'} on Stripe's page, no login needed. You'll see it under Waiting until it's paid.</p>
           {!canSend && <p className="rounded-xl border border-warning-border bg-warning-surface p-3 text-sm text-warning">This is the test version, so it can only be sent to a test contact. Save it as a draft for now.</p>}
         </div>
       )}
