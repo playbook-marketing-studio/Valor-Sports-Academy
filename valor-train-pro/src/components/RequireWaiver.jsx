@@ -23,39 +23,61 @@ export function useMyWaivers() {
 
 export const unsignedOf = (d) => (d?.waiver ? (d.athletes || []).filter((a) => !a.signature) : []);
 
+// "Not now" lasts until the app is closed: sessionStorage resets when the phone app or tab is reopened.
+const laterKey = (uid) => `vtp-waiver-later-${uid}`;
+const readLater = (uid) => { try { return sessionStorage.getItem(laterKey(uid)) === '1'; } catch { return false; } };
+const saveLater = (uid) => { try { sessionStorage.setItem(laterKey(uid), '1'); } catch { /* private mode: ask again next screen */ } };
+
 /**
- * settings.waiver.required = 'screen': a family login with an unsigned athlete gets the sign screen before
- * Home, workouts, nutrition and progress. Account (payments) and Messages stay open, so nobody is locked out of paying.
- * Staff, renters and view-as pass. If the check fails, the app opens (never block on our own error).
+ * Omar 11/19: never lock families out for an unsigned waiver.
+ * settings.waiver.required = 'prompt' (default): each time a family opens the app they get the sign screen for an
+ *   unsigned athlete, with "Not now" (then the app works as usual, incl. payments; Home keeps a reminder card).
+ * 'block': same screen, no "Not now" (kept off by default). 'off': nothing in the app.
+ * A new sign-up (athlete added in the app once the waiver is on, must_sign) always signs first: no "Not now".
+ * Account and Messages are never behind this. Staff, renters and view-as pass. If the check fails, the app opens.
  */
 export default function RequireWaiver() {
   const { user } = useAuth();
   const viewAs = useViewAs();
   const qc = useQueryClient();
   const { data, isLoading } = useMyWaivers();
+  const [later, setLater] = React.useState(() => (user ? readLater(user.id) : false));
   if (!user || user.role === 'admin' || user.role === 'renter' || viewAs.isActive) return <Outlet />;
   if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+  const mode = data?.setting?.required || 'prompt';
   const todo = unsignedOf(data);
-  if (data?.setting?.required !== 'screen' || todo.length === 0) return <Outlet />;
-  const a = todo[0];
+  const must = todo.filter((a) => a.must_sign || mode === 'block');
+  const ask = must.length ? must : (mode === 'prompt' && !later ? todo : []);
+  if (!ask.length) return <Outlet />;
+  const a = ask[0];
+  const canSkip = !must.length;
   const sign = async (p) => {
     await callFn('waiver', { body: { action: 'sign', athlete_id: a.id, ...p } });
     await qc.invalidateQueries({ queryKey: ['waiver-mine'] });
   };
+  const skip = () => { saveLater(user.id); setLater(true); };
   return (
     <div className="mx-auto max-w-xl space-y-5 py-4">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><FileSignature className="h-6 w-6" /></div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><FileSignature className="h-6 w-6" /></div>
+        {canSkip && <button type="button" onClick={skip} className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground">Not now</button>}
+      </div>
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-primary">{todo.length > 1 ? `1 of ${todo.length} waivers` : 'One quick thing'}</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-primary">{ask.length > 1 ? `1 of ${ask.length} waivers` : canSkip ? 'One quick thing' : 'Last step'}</p>
         <h1 className="mt-1 font-display text-3xl">Sign {a.first_name}'s waiver</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Every athlete at Valor needs a signed waiver on file. Read it through, then sign at the bottom. Your account and payments are still in <Link to="/account" className="text-primary underline">Account</Link>.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {canSkip
+            ? <>Every athlete at Valor needs a signed waiver on file. Read it through, then sign at the bottom. Busy right now? Tap Not now and we'll ask next time you open the app.</>
+            : <>Every athlete at Valor needs a signed waiver on file before they train. Read it through, then sign at the bottom. Your account and payments are in <Link to="/account" className="text-primary underline">Account</Link>.</>}
+        </p>
       </div>
       <SignWaiverForm key={a.id} waiver={data.waiver} athlete={a} defaultName={a.own_login ? [a.first_name, a.last_name].filter(Boolean).join(' ') : (user.full_name || '')} onSign={sign} />
+      {canSkip && <button type="button" onClick={skip} className="w-full text-center text-sm text-muted-foreground underline">Not now, take me to the app</button>}
     </div>
   );
 }
 
-/** settings.waiver.required = 'banner' (or a screen-mode family that skipped ahead): a reminder card on Home. */
+/** After "Not now": a reminder card on Home until every athlete on this login has signed. */
 export function WaiverBanner() {
   const { data } = useMyWaivers();
   const todo = unsignedOf(data);

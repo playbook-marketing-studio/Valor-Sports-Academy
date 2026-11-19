@@ -16,7 +16,7 @@
 //   {action:"send", athlete_id}                 → emails the parent the sign link (10 min throttle per athlete)
 //   {action:"sign_link", athlete_id}            → the private link (for the front-desk QR)
 //   {action:"copy", signature_id}
-//   {action:"setting", required}                → 'screen' | 'banner' | 'off'
+//   {action:"setting", required}                → 'prompt' (default) | 'block' | 'off'
 // Deploy: supabase functions deploy waiver --no-verify-jwt --project-ref gpotwyuttkkygvxzktep --use-api
 // ════════════════════════════════════════════════════════════════════════
 import { admin, appOrigin, bad, cors, json, userFromRequest } from "../_shared/common.ts";
@@ -46,11 +46,17 @@ async function readToken(t: string) {
 }
 const signUrl = async (origin: string, athleteId: string) => `${origin}/waiver/${await makeToken(athleteId)}`;
 
-type Setting = { version: string | null; required: "screen" | "banner" | "off" };
+// Omar 11/19: never lock families out. 'prompt' = the sign screen each time they open the app, with "Not now".
+// 'block' = no "Not now" (kept, off by default). 'off' = nothing in the app. Athletes added in the app on or after
+// signup_required_from (a new sign-up) always have to sign, whatever this says.
+type Setting = { version: string | null; required: "prompt" | "block" | "off"; signup_required_from: string | null };
+const LEGACY: Record<string, Setting["required"]> = { screen: "prompt", banner: "prompt" };
 async function setting(): Promise<Setting> {
   const { data } = await admin.from("settings").select("value").eq("key", "waiver").maybeSingle();
   const v = (data?.value || {}) as Partial<Setting>;
-  return { version: v.version || null, required: (["screen", "banner", "off"].includes(String(v.required)) ? v.required : "screen") as Setting["required"] };
+  const r = String(v.required || "");
+  const required = (["prompt", "block", "off"].includes(r) ? r : LEGACY[r] || "prompt") as Setting["required"];
+  return { version: v.version || null, required, signup_required_from: v.signup_required_from || null };
 }
 async function waiverText(version: string | null) {
   if (!version) return null;
@@ -232,7 +238,7 @@ Deno.serve(async (req) => {
       if (body.action === "sign_link") return json({ url: await signUrl(appOrigin(req), String(body.athlete_id || "")) });
       if (body.action === "setting") {
         const required = String(body.required || "");
-        if (!["screen", "banner", "off"].includes(required)) return bad("required must be screen, banner or off");
+        if (!["prompt", "block", "off"].includes(required)) return bad("required must be prompt, block or off");
         const { error } = await admin.from("settings").update({ value: { ...s, required }, updated_at: new Date().toISOString() }).eq("key", "waiver");
         if (error) return bad(error.message, 500);
         return json({ setting: { ...s, required } });
@@ -242,12 +248,14 @@ Deno.serve(async (req) => {
 
     // ── family login ──
     if (body.action === "mine") {
-      const { data: kids } = await admin.from("athletes").select("id, first_name, last_name, age, parent_id, user_id")
+      const { data: kids } = await admin.from("athletes").select("id, first_name, last_name, age, parent_id, user_id, app_signup_at")
         .or(`parent_id.eq.${user.id},user_id.eq.${user.id}`).is("archived_at", null).order("first_name");
       const out = [];
       for (const k of kids || []) {
         const sig = s.version ? await latestSig(k.id, s.version) : null;
-        out.push({ id: k.id, first_name: k.first_name, last_name: k.last_name, age: k.age, own_login: k.user_id === user.id, signature: sig });
+        // a new sign-up (athlete added in the app once the waiver is on) signs before using the app, no "Not now"
+        const must_sign = !sig && !!k.app_signup_at && !!s.signup_required_from && new Date(k.app_signup_at) >= new Date(s.signup_required_from);
+        out.push({ id: k.id, first_name: k.first_name, last_name: k.last_name, age: k.age, own_login: k.user_id === user.id, signature: sig, must_sign });
       }
       return json({ setting: s, waiver: await waiverText(s.version), athletes: out });
     }

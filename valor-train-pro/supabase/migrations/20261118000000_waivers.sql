@@ -66,12 +66,13 @@ drop policy if exists waiver_requests_read on public.waiver_requests;
 create policy waiver_requests_read on public.waiver_requests for select to authenticated using (public.is_admin());
 
 -- ── setting: which version families sign, and how hard the app asks ─────────
--- required: 'screen' = must-sign screen on the next login (Account and payments stay open)
---           'banner' = a reminder card on Home only
+-- required: 'prompt' = the sign screen each time they open the app, with "Not now" (Omar 11/19: never lock families out)
+--           'block'  = same screen with no "Not now" (kept, off by default; Account and payments still open)
 --           'off'    = nothing in the app (links and emails still work)
+-- signup_required_from: athletes added in the app (app_signup_at) on or after this time must sign before using the app.
 -- version null = waiver not switched on yet: the app asks nobody until a version is set (go-live switch).
 insert into public.settings (key, value)
-values ('waiver', '{"version": null, "required": "screen"}'::jsonb)
+values ('waiver', '{"version": null, "required": "prompt", "signup_required_from": null}'::jsonb)
 on conflict (key) do nothing;
 
 insert into public.waiver_texts (version, title, body, status, review_note)

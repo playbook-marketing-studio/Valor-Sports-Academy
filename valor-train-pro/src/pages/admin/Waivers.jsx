@@ -15,9 +15,9 @@ import { WaiverCopyDialog } from '@/components/waiver/WaiverDialogs';
 import { cn } from '@/lib/utils';
 
 const REQUIRED = {
-  screen: 'Sign screen on their next login',
-  banner: 'Reminder on Home only',
-  off: 'Nothing in the app',
+  prompt: 'Ask each time they open the app',
+  block: 'Lock the app until they sign',
+  off: "Don't ask in the app",
 };
 
 /** Who has signed, who hasn't, resend, front-desk QR, signed copies. Server: fn waiver (list/send/sign_link/copy/setting). */
@@ -82,11 +82,11 @@ export default function AdminWaivers() {
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Still need to sign</p><p className="font-display text-3xl">{inScope.length - signed.length}</p></CardContent></Card>
         <Card className="col-span-2 sm:col-span-1"><CardContent className="space-y-1.5 p-4">
           <p className="text-xs text-muted-foreground">If a family hasn't signed</p>
-          <Select value={d.setting.required} onValueChange={setRequired}>
+          <Select value={REQUIRED[d.setting.required] ? d.setting.required : 'prompt'} onValueChange={setRequired}>
             <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
             <SelectContent>{Object.entries(REQUIRED).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
           </Select>
-          <p className="text-[11px] text-muted-foreground">Account and payments always stay open.</p>
+          <p className="text-[11px] text-muted-foreground">{d.setting.required === 'block' ? 'Account and payments still stay open.' : 'They can tap Not now and still use everything, payments included.'} New sign-ups always sign first.</p>
         </CardContent></Card>
       </div>
 
