@@ -17,6 +17,13 @@
 //   {action:"sign_link", athlete_id}            → the private link (for the front-desk QR)
 //   {action:"copy", signature_id}
 //   {action:"setting", required}                → 'prompt' (default) | 'block' | 'off'
+//   {action:"team_add", name} / {action:"team_set", team_id, active}   → team sign links (below)
+// Team sign links (Omar 11/19/2026), for outside teams whose kids aren't in the app (Maniacs, Jr Bombers):
+//   {action:"team_link", tt}                    → team name + waiver text (no login)
+//   {action:"team_sign", tt, athlete_name, signer_name, signer_role, signer_email, agree:true, version}
+//   Nothing verifies who signed (anyone with the link can fill it out): stored as method 'team', no athlete_id,
+//   shown to staff as not verified. Limits: 15 signatures per IP per team per hour, 300 per team per day,
+//   staff can turn a team's link off. Same text hash, typed names, role, checkbox, time, IP, device, emailed copy.
 // Deploy: supabase functions deploy waiver --no-verify-jwt --project-ref gpotwyuttkkygvxzktep --use-api
 // ════════════════════════════════════════════════════════════════════════
 import { admin, appOrigin, bad, cors, json, userFromRequest } from "../_shared/common.ts";
@@ -133,6 +140,62 @@ async function record(req: Request, a: Record<string, any>, body: Record<string,
   return json({ signed: true, emailed, signature: { id: sig.id, signer_name, signer_role: role, signed_at: sig.signed_at, method: via.method } });
 }
 
+// ── team sign links ──
+const teamUrl = (origin: string, token: string) => `${origin}/waiver/team/${token}`;
+async function teamByToken(tt: string) {
+  if (!/^[A-Za-z0-9_-]{16,40}$/.test(tt)) return null;
+  const { data } = await admin.from("waiver_teams").select("id, name, active").eq("token", tt).maybeSingle();
+  return data;
+}
+async function recordTeam(req: Request, team: { id: string; name: string }, body: Record<string, unknown>, s: Setting) {
+  if (!s.version) return bad("The waiver isn't switched on yet.", 409);
+  const text = await waiverText(s.version);
+  if (!text) return bad("waiver text missing", 500);
+  if (String(body.version || "") !== s.version) return bad("The waiver was just updated. Reload the page and read the new version.", 409);
+  if (body.agree !== true) return bad("Check the box to agree.");
+  const signer_name = clean(body.signer_name);
+  if (signer_name.length < 3 || !/\s/.test(signer_name)) return bad("Type your full first and last name.");
+  const role = String(body.signer_role || "");
+  if (!["parent", "guardian", "athlete"].includes(role)) return bad("Pick who's signing.");
+  const athlete_name = role === "athlete" ? signer_name : clean(body.athlete_name);
+  if (athlete_name.length < 3 || !/\s/.test(athlete_name)) return bad("Type the athlete's first and last name.");
+  const signer_email = clean(body.signer_email, 120).toLowerCase();
+  if (!emailOk(signer_email)) return bad("Add your email so we can send you a copy.");
+  const ip = (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || null;
+  const hourAgo = new Date(Date.now() - 3600000).toISOString(), dayAgo = new Date(Date.now() - 86400000).toISOString();
+  const [{ count: fromIp }, { count: today }] = await Promise.all([
+    ip ? admin.from("waiver_signatures").select("id", { count: "exact", head: true }).eq("team_id", team.id).eq("ip", ip).gte("signed_at", hourAgo) : Promise.resolve({ count: 0 }),
+    admin.from("waiver_signatures").select("id", { count: "exact", head: true }).eq("team_id", team.id).gte("signed_at", dayAgo),
+  ]);
+  if ((fromIp || 0) >= 15 || (today || 0) >= 300) return bad(`Too many waivers from here for now. Try again later, or text us at ${VALOR.phone}.`, 429);
+  // the same kid, signed by the same email, on this version: already on file
+  const { data: dupe } = await admin.from("waiver_signatures").select("id, athlete_name, signer_name, signer_role, signed_at, method")
+    .eq("team_id", team.id).eq("version", s.version).ilike("athlete_name", athlete_name).ilike("signer_email", signer_email).limit(1);
+  if (dupe?.length) return json({ already: true, signature: dupe[0] });
+  const { data: sig, error } = await admin.from("waiver_signatures").insert({
+    athlete_id: null, team_id: team.id, version: text.version, body_sha256: text.body_sha256, athlete_name,
+    signer_name, signer_role: role, signer_email, signer_user_id: null,
+    method: "team", agreed: true, ip, user_agent: (req.headers.get("user-agent") || "").slice(0, 400) || null,
+  }).select("*").single();
+  if (error) return bad(error.message, 500);
+  let emailed = false;
+  try { emailed = await emailCopy(sig, text); } catch (e) { console.error("waiver copy email", e); }
+  return json({ signed: true, emailed, signature: { id: sig.id, athlete_name, signer_name, signer_role: role, signed_at: sig.signed_at, method: "team" } });
+}
+async function teamsForStaff(req: Request, s: Setting) {
+  const { data: teams } = await admin.from("waiver_teams").select("id, name, token, active, created_at, turned_off_at").order("created_at");
+  const { data: sigs } = (teams || []).length && s.version
+    ? await admin.from("waiver_signatures").select("id, team_id, athlete_name, signer_name, signer_role, signer_email, signed_at, method").not("team_id", "is", null).eq("version", s.version).order("signed_at", { ascending: false })
+    : { data: [] };
+  const origin = appOrigin(req);
+  const count: Record<string, number> = {}; (sigs || []).forEach((x) => { count[x.team_id] = (count[x.team_id] || 0) + 1; });
+  const name: Record<string, string> = {}; (teams || []).forEach((t) => { name[t.id] = t.name; });
+  return {
+    teams: (teams || []).map((t) => ({ id: t.id, name: t.name, active: t.active, url: teamUrl(origin, t.token), signed: count[t.id] || 0, created_at: t.created_at })),
+    team_signatures: (sigs || []).map((x) => ({ ...x, team: name[x.team_id] || "" })),
+  };
+}
+
 // ── staff ──
 async function staffList(s: Setting) {
   const { data: kids } = await admin.from("athletes")
@@ -203,6 +266,15 @@ Deno.serve(async (req) => {
   try {
     const s = await setting();
 
+    // ── team link: no login ──
+    if (body.tt !== undefined && (body.action === "team_link" || body.action === "team_sign")) {
+      const team = await teamByToken(String(body.tt));
+      if (!team) return bad("That link isn't right. Ask the coach for the team's link.", 404);
+      if (!team.active) return bad(`That team link was turned off. Text us at ${VALOR.phone}.`, 410);
+      if (body.action === "team_sign") return await recordTeam(req, team, body, s);
+      return json({ team: { name: team.name }, waiver: await waiverText(s.version) });
+    }
+
     // ── private link: no login ──
     if (body.t !== undefined && (body.action === "link" || body.action === "sign")) {
       const tok = await readToken(String(body.t));
@@ -233,7 +305,22 @@ Deno.serve(async (req) => {
     }
 
     if (isStaff) {
-      if (body.action === "list") return json({ setting: s, waiver: s.version ? { version: s.version, status: (await waiverText(s.version))?.status } : null, athletes: await staffList(s) });
+      if (body.action === "list") return json({ setting: s, waiver: s.version ? { version: s.version, status: (await waiverText(s.version))?.status } : null, athletes: await staffList(s), ...(await teamsForStaff(req, s)) });
+      if (body.action === "team_add") {
+        const name = clean(body.name, 60);
+        if (name.length < 2) return bad("Type the team's name.");
+        const token = b64url(crypto.getRandomValues(new Uint8Array(16)));
+        const { data, error } = await admin.from("waiver_teams").insert({ name, token, created_by: user.id }).select("id").single();
+        if (error) return bad(error.message, 500);
+        return json({ id: data.id, url: teamUrl(appOrigin(req), token) });
+      }
+      if (body.action === "team_set") {
+        const active = body.active === true;
+        const { data, error } = await admin.from("waiver_teams").update({ active, turned_off_at: active ? null : new Date().toISOString() }).eq("id", String(body.team_id || "")).select("id");
+        if (error) return bad(error.message, 500);
+        if (!data?.length) return bad("team not found", 404);
+        return json({ active });
+      }
       if (body.action === "send") return await staffSend(req, user.id, String(body.athlete_id || ""));
       if (body.action === "sign_link") return json({ url: await signUrl(appOrigin(req), String(body.athlete_id || "")) });
       if (body.action === "setting") {
@@ -243,7 +330,7 @@ Deno.serve(async (req) => {
         if (error) return bad(error.message, 500);
         return json({ setting: { ...s, required } });
       }
-      return bad("staff: use list, send, sign_link, copy or setting", 404);
+      return bad("staff: use list, send, sign_link, copy, setting, team_add or team_set", 404);
     }
 
     // ── family login ──

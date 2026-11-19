@@ -43,28 +43,31 @@ export function WaiverText({ waiver, className }) {
 
 /**
  * Read + sign. `athlete` = { first_name, last_name, age }. `askEmail` on the no-login link (we email the copy there).
+ * `askAthlete` (team link): no athlete on file, the signer types the athlete's name; `athlete` is ignored.
  * onSign(payload) returns a promise; errors show under the button.
  */
-export function SignWaiverForm({ waiver, athlete, askEmail = false, defaultName = '', onSign, bare = false }) {
-  const minor = athlete.age != null && athlete.age < 18;
+export function SignWaiverForm({ waiver, athlete = {}, askEmail = false, askAthlete = false, defaultName = '', onSign, bare = false }) {
+  const minor = !askAthlete && athlete.age != null && athlete.age < 18;
+  const [kid, setKid] = useState('');
   const [name, setName] = useState(defaultName);
   const [role, setRole] = useState(minor ? 'parent' : '');
   const [email, setEmail] = useState('');
   const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const who = [athlete.first_name, athlete.last_name].filter(Boolean).join(' ');
+  const who = askAthlete ? (kid.trim() || 'the athlete') : [athlete.first_name, athlete.last_name].filter(Boolean).join(' ');
 
   const submit = async (e) => {
     e.preventDefault();
     setError('');
     if (!role) return setError("Pick who's signing.");
+    if (askAthlete && role !== 'athlete' && kid.trim().split(/\s+/).length < 2) return setError("Type the athlete's first and last name.");
     if (name.trim().split(/\s+/).length < 2) return setError('Type your full first and last name.');
     if (askEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError('Add your email so we can send you a copy.');
     if (!agree) return setError('Check the box to agree.');
     setBusy(true);
     try {
-      await onSign({ signer_name: name.trim(), signer_role: role, signer_email: email.trim(), agree: true, version: waiver.version });
+      await onSign({ signer_name: name.trim(), signer_role: role, signer_email: email.trim(), agree: true, version: waiver.version, ...(askAthlete ? { athlete_name: role === 'athlete' ? name.trim() : kid.trim() } : {}) });
     } catch (err) {
       setError(err.message || 'Something went wrong. Try again.');
     } finally {
@@ -80,18 +83,26 @@ export function SignWaiverForm({ waiver, athlete, askEmail = false, defaultName 
         <WaiverText waiver={waiver} />
       </div>
       <div className="space-y-2">
-        <Label>Who's signing for {athlete.first_name}?</Label>
+        <Label>{askAthlete ? "Who's signing?" : `Who's signing for ${athlete.first_name}?`}</Label>
         <div className="grid gap-2">
           {roles.map((r) => (
             <button type="button" key={r} onClick={() => setRole(r)}
               className={cn('flex min-h-11 items-center gap-3 rounded-xl border px-4 text-left text-sm', role === r ? 'border-primary bg-primary/5 font-semibold' : 'border-border')}>
               <span className={cn('h-4 w-4 rounded-full border', role === r ? 'border-[5px] border-primary' : 'border-muted-foreground')} />
-              {r === 'athlete' ? `I'm ${athlete.first_name}, and I'm 18 or older` : `I'm ${athlete.first_name}'s ${r === 'parent' ? 'parent' : 'legal guardian'}`}
+              {askAthlete
+                ? (r === 'athlete' ? "I'm the athlete, and I'm 18 or older" : `I'm the athlete's ${r === 'parent' ? 'parent' : 'legal guardian'}`)
+                : (r === 'athlete' ? `I'm ${athlete.first_name}, and I'm 18 or older` : `I'm ${athlete.first_name}'s ${r === 'parent' ? 'parent' : 'legal guardian'}`)}
             </button>
           ))}
         </div>
         {minor && <p className="text-xs text-muted-foreground">{athlete.first_name} is under 18, so a parent or guardian signs.</p>}
       </div>
+      {askAthlete && role !== 'athlete' && (
+        <div className="space-y-1.5">
+          <Label htmlFor="wv-kid">Athlete's full name</Label>
+          <Input id="wv-kid" value={kid} onChange={(e) => setKid(e.target.value)} autoComplete="off" placeholder="First and last name" className="h-11 text-base" />
+        </div>
+      )}
       <div className="space-y-1.5">
         <Label htmlFor="wv-name">Your full name (this is your signature)</Label>
         <Input id="wv-name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" placeholder="First and last name" className="h-11 text-base" />
@@ -107,7 +118,7 @@ export function SignWaiverForm({ waiver, athlete, askEmail = false, defaultName 
         <span>I've read this waiver and agree to it{role && role !== 'athlete' ? ` on behalf of ${who}` : ''}. I understand I'm giving up substantial rights by signing it.</span>
       </label>
       {error && <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
-      <Button type="submit" size="lg" className="w-full" disabled={busy}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : `Sign ${athlete.first_name}'s waiver`}</Button>
+      <Button type="submit" size="lg" className="w-full" disabled={busy}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : (askAthlete ? 'Sign the waiver' : `Sign ${athlete.first_name}'s waiver`)}</Button>
     </form>
   );
 }

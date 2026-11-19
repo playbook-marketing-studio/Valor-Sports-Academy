@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Copy, Loader2, Mail, QrCode, Search } from 'lucide-react';
+import { AlertTriangle, Copy, Loader2, Mail, Plus, QrCode, Search } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { callFn, supabase } from '@/api/supabaseClient';
 import { Button } from '@/components/ui/button';
@@ -91,11 +91,12 @@ export default function AdminWaivers() {
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <SegmentedTabs value={tab} onChange={setTab} options={[{ value: 'todo', label: 'Needs a signature' }, { value: 'done', label: 'Signed' }, { value: 'all', label: 'All' }]} />
-        <div className="flex gap-2">
+        <SegmentedTabs value={tab} onChange={setTab} options={[{ value: 'todo', label: 'Needs a signature' }, { value: 'done', label: 'Signed' }, { value: 'all', label: 'All' }, { value: 'teams', label: `Teams${d.team_signatures?.length ? ` ${d.team_signatures.length}` : ''}` }]} />
+        {tab !== 'teams' && <div className="flex gap-2">
           <SegmentedTabs value={scope} onChange={setScope} options={[{ value: 'enrolled', label: 'Training now' }, { value: 'all', label: 'Everyone' }]} />
-        </div>
+        </div>}
       </div>
+      {tab === 'teams' ? <TeamWaivers d={d} reload={load} onQr={setQr} onCopy={setCopy} /> : <>
       <div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search athlete or parent" className="pl-9" /></div>
 
       <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
@@ -124,21 +125,91 @@ export default function AdminWaivers() {
           </div>
         ))}
       </div>
+      </>}
 
       <Dialog open={!!qr} onOpenChange={(o) => !o && setQr(null)}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>{qr?.name}'s waiver</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{qr?.team ? `${qr.name} team link` : `${qr?.name}'s waiver`}</DialogTitle></DialogHeader>
           {qr && (
             <div className="flex flex-col items-center gap-4 text-center">
               <div className="rounded-2xl bg-white p-4 shadow"><QRCodeSVG value={qr.url} size={240} level="M" /></div>
-              <p className="text-sm">Have the parent scan this with their phone camera and sign. No login needed.</p>
+              <p className="text-sm">{qr.team ? 'Text this link to the team, or print the QR for the door. Each parent types their athlete\'s name and signs. No login needed.' : 'Have the parent scan this with their phone camera and sign. No login needed.'}</p>
               <Button variant="outline" size="sm" onClick={() => { navigator.clipboard?.writeText(qr.url); toast({ title: 'Link copied' }); }}><Copy className="mr-1.5 h-4 w-4" />Copy link</Button>
-              <p className="text-[11px] text-muted-foreground">The link works for 60 days and only for this athlete.</p>
+              <p className="text-[11px] text-muted-foreground">{qr.team ? "One link for the whole team. It works until you turn it off. Nothing checks who signs, so anyone with the link can fill it out." : 'The link works for 60 days and only for this athlete.'}</p>
             </div>
           )}
         </DialogContent>
       </Dialog>
       <WaiverCopyDialog signatureId={copy} onClose={() => setCopy(null)} staff />
+    </div>
+  );
+}
+
+/** Team sign links (outside teams whose kids aren't in the app) and the signatures that came in through them. */
+function TeamWaivers({ d, reload, onQr, onCopy }) {
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState('');
+  const [q, setQ] = useState('');
+  const [team, setTeam] = useState('all');
+  const add = async () => {
+    setBusy('add');
+    try { const r = await callFn('waiver', { body: { action: 'team_add', name } }); setName(''); await reload(); onQr({ name: name.trim(), url: r.url, team: true }); }
+    catch (e) { toast({ title: 'Could not make the link', description: e.message }); } finally { setBusy(''); }
+  };
+  const toggle = async (t) => {
+    setBusy(t.id);
+    try { await callFn('waiver', { body: { action: 'team_set', team_id: t.id, active: !t.active } }); toast({ title: t.active ? `${t.name} link turned off` : `${t.name} link is on again` }); await reload(); }
+    catch (e) { toast({ title: 'That didn\'t work', description: e.message }); } finally { setBusy(''); }
+  };
+  const term = q.trim().toLowerCase();
+  const sigs = (d.team_signatures || []).filter((x) => (team === 'all' || x.team_id === team) && (!term || `${x.athlete_name} ${x.signer_name} ${x.team}`.toLowerCase().includes(term)));
+  return (
+    <div className="space-y-4">
+      <Card><CardContent className="space-y-3 p-4">
+        <p className="text-sm">For teams that use the gym but aren't in the app, like the Maniacs. Make one link per team, then text it to them or put the QR at the door. Each parent types their athlete's name and signs. No login needed.</p>
+        <p className="flex gap-2 rounded-lg border border-warning-border bg-warning-surface p-2.5 text-xs text-warning"><AlertTriangle className="h-4 w-4 shrink-0" />Nothing checks who signs a team link. Anyone with the link can fill it out, so these show as not verified.</p>
+        <div className="flex gap-2">
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Team name" onKeyDown={(e) => { if (e.key === 'Enter' && name.trim().length > 1) add(); }} />
+          <Button onClick={add} disabled={name.trim().length < 2 || busy === 'add'}>{busy === 'add' ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="mr-1.5 h-4 w-4" />Make link</>}</Button>
+        </div>
+        {(d.teams || []).length > 0 && (
+          <div className="divide-y divide-border rounded-xl border border-border">
+            {d.teams.map((t) => (
+              <div key={t.id} className="flex flex-wrap items-center gap-2 p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">{t.name}{!t.active && <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-[11px] font-normal text-muted-foreground">Off</span>}</p>
+                  <p className="text-xs text-muted-foreground">{t.signed} signed</p>
+                </div>
+                {t.active && <Button variant="outline" size="sm" onClick={() => onQr({ name: t.name, url: t.url, team: true })}><QrCode className="mr-1.5 h-4 w-4" />QR / link</Button>}
+                <Button variant="ghost" size="sm" disabled={busy === t.id} onClick={() => toggle(t)}>{busy === t.id ? <Loader2 className="h-4 w-4 animate-spin" /> : t.active ? 'Turn off' : 'Turn on'}</Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent></Card>
+
+      <div className="flex flex-col gap-2 sm:flex-row">
+        {(d.teams || []).length > 1 && (
+          <Select value={team} onValueChange={setTeam}>
+            <SelectTrigger className="sm:w-48"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="all">All teams</SelectItem>{d.teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+          </Select>
+        )}
+        <div className="relative flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Check a name at the door" className="pl-9" /></div>
+      </div>
+      <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
+        {sigs.length === 0 && <p className="p-6 text-center text-sm text-muted-foreground">{term ? 'No team waiver with that name.' : 'No team waivers signed yet.'}</p>}
+        {sigs.map((x) => (
+          <div key={x.id} className="flex items-center gap-3 p-4">
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold">{x.athlete_name} <span className="text-xs font-normal text-muted-foreground">· {x.team}</span></p>
+              <p className="truncate text-xs text-muted-foreground">Signed {fmtDate(x.signed_at)} by {x.signer_name}{x.signer_role === 'athlete' ? ' (the athlete)' : ''} · {x.signer_email}</p>
+              <p className="mt-1"><span className="rounded-full border border-warning-border bg-warning-surface px-2 py-0.5 text-[11px] font-semibold text-warning">Not verified · team link</span></p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => onCopy(x.id)}>View copy</Button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

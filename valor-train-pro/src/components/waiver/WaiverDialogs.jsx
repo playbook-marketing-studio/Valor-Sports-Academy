@@ -29,7 +29,7 @@ export function WaiverCopyDialog({ signatureId, onClose, staff = false }) {
               <p><b>Athlete:</b> {s.athlete_name}</p>
               <p><b>Signed by:</b> {s.signer_name} ({ROLE_LABEL[s.signer_role] || s.signer_role})</p>
               <p><b>When:</b> {fmtSigned(s.signed_at)} Pacific</p>
-              <p><b>How:</b> {s.method === 'app' ? 'In the app, signed in' : 'Private sign link'}{s.signer_email ? ` · ${s.signer_email}` : ''}</p>
+              <p><b>How:</b> {s.method === 'app' ? 'In the app, signed in' : s.method === 'team' ? 'Team link, no login (not verified)' : 'Private sign link'}{s.signer_email ? ` · ${s.signer_email}` : ''}</p>
               {staff && <p className="text-xs text-muted-foreground">IP {s.ip || 'n/a'} · {s.user_agent || 'device n/a'}</p>}
               <p className="text-xs text-muted-foreground">Version {s.version} · text fingerprint {String(s.body_sha256).slice(0, 12)} · record {String(s.id).slice(0, 8)}{s.emailed_at ? ` · copy emailed ${fmtDate(s.emailed_at)}` : ''}</p>
             </div>

@@ -50,6 +50,7 @@ import { SITE_ASSESSMENT_URL } from '@/lib/valor';
 import RequireRole from '@/components/RequireRole';
 import RequireWaiver from '@/components/RequireWaiver';
 import WaiverLink from '@/pages/public/WaiverLink';
+import WaiverTeamLink from '@/pages/public/WaiverTeamLink';
 import AdminWaivers from '@/pages/admin/Waivers';
 
 const AuthenticatedApp = () => {
@@ -90,6 +91,8 @@ const AuthenticatedApp = () => {
       <Route path="/paid" element={<Paid />} />
       {/* Private per-athlete waiver link (email / front-desk QR). Works without a login. */}
       <Route path="/waiver/:token" element={<WaiverLink />} />
+      {/* One link per outside team (Maniacs, Jr Bombers): the parent types the athlete's name. No login. */}
+      <Route path="/waiver/team/:token" element={<WaiverTeamLink />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route element={<AppLayout />}>
           {/* settings.waiver.required = 'screen': unsigned families sign before Home (Account + Messages stay open) */}
