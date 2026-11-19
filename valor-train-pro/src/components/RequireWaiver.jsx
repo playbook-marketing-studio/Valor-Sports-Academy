@@ -50,7 +50,7 @@ export default function RequireWaiver() {
         <h1 className="mt-1 font-display text-3xl">Sign {a.first_name}'s waiver</h1>
         <p className="mt-2 text-sm text-muted-foreground">Every athlete at Valor needs a signed waiver on file. Read it through, then sign at the bottom. Your account and payments are still in <Link to="/account" className="text-primary underline">Account</Link>.</p>
       </div>
-      <SignWaiverForm key={a.id} waiver={data.waiver} athlete={a} defaultName={a.own_login ? [a.first_name, a.last_name].filter(Boolean).join(' ') : (user.full_name || '')} onSign={sign} compactText />
+      <SignWaiverForm key={a.id} waiver={data.waiver} athlete={a} defaultName={a.own_login ? [a.first_name, a.last_name].filter(Boolean).join(' ') : (user.full_name || '')} onSign={sign} />
     </div>
   );
 }

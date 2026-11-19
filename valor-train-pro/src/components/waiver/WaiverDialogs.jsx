@@ -61,7 +61,7 @@ export function AthleteWaiverRow({ athleteId }) {
       <Dialog open={signing} onOpenChange={setSigning}>
         <DialogContent className="max-h-[92vh] max-w-xl overflow-y-auto">
           <DialogHeader><DialogTitle>Sign {a.first_name}'s waiver</DialogTitle></DialogHeader>
-          <SignWaiverForm waiver={data.waiver} athlete={a} compactText onSign={async (p) => {
+          <SignWaiverForm waiver={data.waiver} athlete={a} onSign={async (p) => {
             await callFn('waiver', { body: { action: 'sign', athlete_id: a.id, ...p } });
             await qc.invalidateQueries({ queryKey: ['waiver-mine'] });
             setSigning(false);

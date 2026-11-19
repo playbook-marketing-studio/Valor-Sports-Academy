@@ -27,11 +27,12 @@ export function WaiverText({ waiver, className }) {
       {flag && waiver.review_note && (
         <div className="flex gap-2 rounded-lg border border-yellow-400 bg-yellow-50 p-3 text-xs text-yellow-900 dark:bg-yellow-950 dark:text-yellow-100">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <div><b>Preview only, not live.</b> {waiver.review_note}</div>
+          <div><b>Preview only, not live.</b> The highlighted words are still being confirmed with Valor.
+            <details className="mt-1"><summary className="cursor-pointer underline">Why?</summary><p className="mt-1">{waiver.review_note}</p></details></div>
         </div>
       )}
-      <p className="font-display text-lg leading-tight">{waiver.title}</p>
       {waiver.body.split(/\n{2,}/).map((p, i) => {
+        if (i === 0) return <p key={i} className="font-display text-lg leading-tight"><Inline text={p} flag={flag} /></p>;
         if (p.startsWith('### ')) return <p key={i} className="pt-1 font-semibold"><Inline text={p.slice(4)} flag={flag} /></p>;
         if (p.startsWith('## ')) return <p key={i} className="pt-2 font-bold"><Inline text={p.slice(3)} flag={flag} /></p>;
         return <p key={i}><Inline text={p} flag={flag} /></p>;
@@ -44,7 +45,7 @@ export function WaiverText({ waiver, className }) {
  * Read + sign. `athlete` = { first_name, last_name, age }. `askEmail` on the no-login link (we email the copy there).
  * onSign(payload) returns a promise; errors show under the button.
  */
-export function SignWaiverForm({ waiver, athlete, askEmail = false, defaultName = '', onSign, compactText = false }) {
+export function SignWaiverForm({ waiver, athlete, askEmail = false, defaultName = '', onSign }) {
   const minor = athlete.age != null && athlete.age < 18;
   const [name, setName] = useState(defaultName);
   const [role, setRole] = useState(minor ? 'parent' : '');
@@ -74,7 +75,8 @@ export function SignWaiverForm({ waiver, athlete, askEmail = false, defaultName 
   const roles = minor ? ['parent', 'guardian'] : ['parent', 'guardian', 'athlete'];
   return (
     <form onSubmit={submit} className="space-y-5">
-      <div className={cn('overflow-y-auto rounded-xl border border-border bg-background p-4', compactText ? 'max-h-[45vh]' : 'max-h-[55vh]')} tabIndex={0} aria-label="Waiver text">
+      {/* the full text inline, no inner scroll box: one scroll on a phone */}
+      <div className="rounded-xl border border-border bg-background p-4" aria-label="Waiver text">
         <WaiverText waiver={waiver} />
       </div>
       <div className="space-y-2">

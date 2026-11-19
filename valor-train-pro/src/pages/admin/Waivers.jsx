@@ -77,10 +77,10 @@ export default function AdminWaivers() {
           <div><b>Preview.</b> Two spots in sections 3 and 4 came through mixed up in the copy we got. They're highlighted on the waiver until Michael confirms the wording.</div></CardContent></Card>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Signed</p><p className="font-display text-3xl">{signed.length}<span className="text-base text-muted-foreground"> / {inScope.length}</span></p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Still need to sign</p><p className="font-display text-3xl">{inScope.length - signed.length}</p></CardContent></Card>
-        <Card><CardContent className="space-y-1.5 p-4">
+        <Card className="col-span-2 sm:col-span-1"><CardContent className="space-y-1.5 p-4">
           <p className="text-xs text-muted-foreground">If a family hasn't signed</p>
           <Select value={d.setting.required} onValueChange={setRequired}>
             <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>

@@ -72,8 +72,9 @@ async function latestSig(athleteId: string, version: string) {
 
 // ── the waiver as email HTML (headings, paragraphs; review marks shown as plain words) ──
 function waiverHtml(body: string) {
-  return body.split(/\n{2,}/).map((p) => {
+  return body.split(/\n{2,}/).map((p, i) => {
     const t = esc(p.replace(/\[\[|\]\]/g, "").trim());
+    if (i === 0) return `<p style="font-weight:800;margin:6px 0 10px">${t}</p>`;
     if (p.startsWith("### ")) return `<p style="font-weight:700;margin:14px 0 4px">${t.slice(4)}</p>`;
     if (p.startsWith("## ")) return `<p style="font-weight:800;margin:18px 0 6px">${t.slice(3)}</p>`;
     return `<p style="margin:0 0 10px">${t}</p>`;
@@ -93,7 +94,7 @@ async function emailCopy(sig: Record<string, any>, text: { title: string; body: 
     text: `Thanks for signing. This is your copy of the Valor waiver for ${sig.athlete_name}, signed by ${sig.signer_name} on ${fmtWhen(sig.signed_at)}. Questions? Text us at ${VALOR.phone}.`,
     html: wrapHtml(subject, `<p>Thanks for signing. Here's your copy to keep.</p>${block}
       <div style="font-size:13px;line-height:1.5;color:#2b2822;border-top:1px solid #d8d2c4;padding-top:10px">
-        <p style="font-weight:800;margin:6px 0 10px">${esc(text.title)}</p>${waiverHtml(text.body)}</div>${block}`),
+        ${waiverHtml(text.body)}</div>${block}`),
   });
   await admin.from("waiver_signatures").update({ emailed_at: new Date().toISOString() }).eq("id", sig.id);
   return true;
