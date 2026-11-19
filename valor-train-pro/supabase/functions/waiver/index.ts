@@ -1,0 +1,263 @@
+// ════════════════════════════════════════════════════════════════════════
+// Edge Function · waiver  (Valor Train Pro, 11/18/2026) — the digital waiver.
+// One signed record per athlete per waiver version (settings.waiver.version; null = not switched on yet).
+// A parent/guardian signs for a minor, an adult athlete signs for themself. Proof kept: exact text hash, typed name,
+// role, checkbox, time, login/email, IP, user agent. The signer gets a copy by email (Valor Gmail).
+//
+// No login needed (private per-athlete link, emailed or shown as a QR at the front desk):
+//   {action:"link", t}                          → athlete first/last name, waiver text, signed or not
+//   {action:"sign", t, signer_name, signer_role, signer_email, agree:true, version}
+// Family login:
+//   {action:"mine"}                             → waiver text + setting + this login's athletes and their status
+//   {action:"sign", athlete_id, signer_name, signer_role, agree:true, version}
+//   {action:"copy", signature_id}               → a signed copy (theirs) with its text
+// Staff:
+//   {action:"list"}                             → every active athlete: signed or not, when, by whom, last email sent
+//   {action:"send", athlete_id}                 → emails the parent the sign link (10 min throttle per athlete)
+//   {action:"sign_link", athlete_id}            → the private link (for the front-desk QR)
+//   {action:"copy", signature_id}
+//   {action:"setting", required}                → 'screen' | 'banner' | 'off'
+// Deploy: supabase functions deploy waiver --no-verify-jwt --project-ref gpotwyuttkkygvxzktep --use-api
+// ════════════════════════════════════════════════════════════════════════
+import { admin, appOrigin, bad, cors, json, userFromRequest } from "../_shared/common.ts";
+import { btn, esc, mailConfigured, sendMail, VALOR, wrapHtml } from "../_shared/mail.ts";
+
+const enc = new TextEncoder();
+const LINK_DAYS = 60;
+const b64url = (b: Uint8Array) => btoa(String.fromCharCode(...b)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+
+async function hmac(payload: string) {
+  const secret = Deno.env.get("WAIVER_LINK_SECRET") || Deno.env.get("FAMILY_CLAIM_SECRET") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const key = await crypto.subtle.importKey("raw", enc.encode(`waiver:${secret}`), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return b64url(new Uint8Array(await crypto.subtle.sign("HMAC", key, enc.encode(payload)))).slice(0, 32);
+}
+/** athlete id + expiry (days since epoch), signed. Short enough for a QR code. */
+async function makeToken(athleteId: string) {
+  const exp = Math.floor(Date.now() / 86400000) + LINK_DAYS;
+  const body = `${athleteId.replace(/-/g, "")}.${exp.toString(36)}`;
+  return `${body}.${await hmac(body)}`;
+}
+async function readToken(t: string) {
+  const [hex, exp36, sig] = String(t || "").split(".");
+  if (!hex || !exp36 || !sig || !/^[0-9a-f]{32}$/.test(hex)) return null;
+  if (sig !== await hmac(`${hex}.${exp36}`)) return null;
+  if (parseInt(exp36, 36) < Math.floor(Date.now() / 86400000)) return { expired: true as const };
+  return { athleteId: `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}` };
+}
+const signUrl = async (origin: string, athleteId: string) => `${origin}/waiver/${await makeToken(athleteId)}`;
+
+type Setting = { version: string | null; required: "screen" | "banner" | "off" };
+async function setting(): Promise<Setting> {
+  const { data } = await admin.from("settings").select("value").eq("key", "waiver").maybeSingle();
+  const v = (data?.value || {}) as Partial<Setting>;
+  return { version: v.version || null, required: (["screen", "banner", "off"].includes(String(v.required)) ? v.required : "screen") as Setting["required"] };
+}
+async function waiverText(version: string | null) {
+  if (!version) return null;
+  const { data } = await admin.from("waiver_texts").select("version, title, body, body_sha256, status, review_note").eq("version", version).maybeSingle();
+  return data;
+}
+const fullName = (a: { first_name?: string; last_name?: string | null }) => [a.first_name, a.last_name].filter(Boolean).join(" ");
+const clean = (v: unknown, max = 80) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+const emailOk = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+const fmtWhen = (iso: string) => new Intl.DateTimeFormat("en-US", { timeZone: "America/Los_Angeles", dateStyle: "long", timeStyle: "short" }).format(new Date(iso)) + " Pacific";
+const ROLE = { parent: "Parent", guardian: "Legal guardian", athlete: "Athlete (18 or older)" } as Record<string, string>;
+
+/** The newest signature for this athlete on this version, or null. */
+async function latestSig(athleteId: string, version: string) {
+  const { data } = await admin.from("waiver_signatures").select("id, signer_name, signer_role, signed_at, method")
+    .eq("athlete_id", athleteId).eq("version", version).order("signed_at", { ascending: false }).limit(1);
+  return data?.[0] || null;
+}
+
+// ── the waiver as email HTML (headings, paragraphs; review marks shown as plain words) ──
+function waiverHtml(body: string) {
+  return body.split(/\n{2,}/).map((p) => {
+    const t = esc(p.replace(/\[\[|\]\]/g, "").trim());
+    if (p.startsWith("### ")) return `<p style="font-weight:700;margin:14px 0 4px">${t.slice(4)}</p>`;
+    if (p.startsWith("## ")) return `<p style="font-weight:800;margin:18px 0 6px">${t.slice(3)}</p>`;
+    return `<p style="margin:0 0 10px">${t}</p>`;
+  }).join("");
+}
+
+async function emailCopy(sig: Record<string, any>, text: { title: string; body: string }) {
+  if (!sig.signer_email || sig.signer_email.endsWith(".test") || !mailConfigured()) return false;  // *.test = test logins, never mailed
+  const subject = `Your signed Valor waiver for ${sig.athlete_name}`;
+  const block = `<div style="border:1px solid #d8d2c4;background:#fff;border-radius:12px;padding:14px 16px;margin:14px 0">
+    <p style="margin:0 0 4px"><b>Athlete:</b> ${esc(sig.athlete_name)}</p>
+    <p style="margin:0 0 4px"><b>Signed by:</b> ${esc(sig.signer_name)} (${esc(ROLE[sig.signer_role] || sig.signer_role)})</p>
+    <p style="margin:0 0 4px"><b>Signed:</b> ${esc(fmtWhen(sig.signed_at))}</p>
+    <p style="margin:0;font-size:13px;color:#6b665c">Waiver version ${esc(sig.version)} · record ${esc(String(sig.id).slice(0, 8))}</p></div>`;
+  await sendMail({
+    to: sig.signer_email, subject,
+    text: `Thanks for signing. This is your copy of the Valor waiver for ${sig.athlete_name}, signed by ${sig.signer_name} on ${fmtWhen(sig.signed_at)}. Questions? Text us at ${VALOR.phone}.`,
+    html: wrapHtml(subject, `<p>Thanks for signing. Here's your copy to keep.</p>${block}
+      <div style="font-size:13px;line-height:1.5;color:#2b2822;border-top:1px solid #d8d2c4;padding-top:10px">
+        <p style="font-weight:800;margin:6px 0 10px">${esc(text.title)}</p>${waiverHtml(text.body)}</div>${block}`),
+  });
+  await admin.from("waiver_signatures").update({ emailed_at: new Date().toISOString() }).eq("id", sig.id);
+  return true;
+}
+
+async function record(req: Request, a: Record<string, any>, body: Record<string, unknown>, s: Setting, via: { method: "app" | "link"; user?: { id: string; email?: string } }) {
+  if (!s.version) return bad("The waiver isn't switched on yet.", 409);
+  const text = await waiverText(s.version);
+  if (!text) return bad("waiver text missing", 500);
+  if (String(body.version || "") !== s.version) return bad("The waiver was just updated. Reload the page and read the new version.", 409);
+  if (body.agree !== true) return bad("Check the box to agree.");
+  const signer_name = clean(body.signer_name);
+  if (signer_name.length < 3 || !/\s/.test(signer_name)) return bad("Type your full first and last name.");
+  const role = String(body.signer_role || "");
+  if (!["parent", "guardian", "athlete"].includes(role)) return bad("Pick who's signing.");
+  if (role === "athlete" && a.age && a.age < 18) return bad(`A parent or guardian signs for athletes under 18.`);
+  const signer_email = (via.user?.email || clean(body.signer_email, 120)).toLowerCase();
+  if (via.method === "link" && !emailOk(signer_email)) return bad("Add your email so we can send you a copy.");
+  const existing = await latestSig(a.id, s.version);
+  if (existing) return json({ already: true, signature: existing });
+  const ip = (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || null;
+  const { data: sig, error } = await admin.from("waiver_signatures").insert({
+    athlete_id: a.id, version: text.version, body_sha256: text.body_sha256, athlete_name: fullName(a),
+    signer_name, signer_role: role, signer_email: signer_email || null, signer_user_id: via.user?.id || null,
+    method: via.method, agreed: true, ip, user_agent: (req.headers.get("user-agent") || "").slice(0, 400) || null,
+  }).select("*").single();
+  if (error) return bad(error.message, 500);
+  let emailed = false;
+  try { emailed = await emailCopy(sig, text); } catch (e) { console.error("waiver copy email", e); }
+  return json({ signed: true, emailed, signature: { id: sig.id, signer_name, signer_role: role, signed_at: sig.signed_at, method: via.method } });
+}
+
+// ── staff ──
+async function staffList(s: Setting) {
+  const { data: kids } = await admin.from("athletes")
+    .select("id, first_name, last_name, age, parent_name, parent_email, parent_id, user_id, is_example, archived_at")
+    .is("archived_at", null).order("first_name");
+  const ids = (kids || []).map((k) => k.id);
+  const [{ data: sigs }, { data: reqs }] = await Promise.all([
+    ids.length && s.version ? admin.from("waiver_signatures").select("id, athlete_id, signer_name, signer_role, signed_at, method").eq("version", s.version).in("athlete_id", ids).order("signed_at", { ascending: false }) : { data: [] },
+    ids.length ? admin.from("waiver_requests").select("athlete_id, sent_at, kind").in("athlete_id", ids).order("sent_at", { ascending: false }) : { data: [] },
+  ]);
+  const sigBy: Record<string, any> = {}; (sigs || []).forEach((x) => { if (!sigBy[x.athlete_id]) sigBy[x.athlete_id] = x; });
+  const reqBy: Record<string, any> = {}; const reqCount: Record<string, number> = {};
+  (reqs || []).forEach((x) => { if (!reqBy[x.athlete_id]) reqBy[x.athlete_id] = x; reqCount[x.athlete_id] = (reqCount[x.athlete_id] || 0) + 1; });
+  // login emails for kids whose family has a login but no parent_email on file
+  const owners = [...new Set((kids || []).filter((k) => !k.parent_email && k.parent_id).map((k) => k.parent_id))];
+  const { data: profs } = owners.length ? await admin.from("profiles").select("id, email").in("id", owners) : { data: [] };
+  const loginEmail: Record<string, string> = {}; (profs || []).forEach((p) => { loginEmail[p.id] = p.email; });
+  return (kids || []).map((k) => ({
+    id: k.id, name: fullName(k), age: k.age, is_example: k.is_example, parent_name: k.parent_name,
+    email: k.parent_email || loginEmail[k.parent_id] || null, has_login: !!(k.parent_id || k.user_id),
+    signature: sigBy[k.id] || null, last_sent: reqBy[k.id] || null, sent_count: reqCount[k.id] || 0,
+  }));
+}
+
+/** Who gets the "please sign" email for this kid: the parent email on file, else the family login's email. */
+async function contactFor(a: Record<string, any>) {
+  if (a.parent_email) return String(a.parent_email).trim().toLowerCase();
+  if (!a.parent_id) return null;
+  const { data } = await admin.from("profiles").select("email, role").eq("id", a.parent_id).maybeSingle();
+  return data && data.role !== "admin" ? String(data.email).toLowerCase() : null;
+}
+
+function pleaseSignEmail(first: string, parentFirst: string, link: string, reminder = false) {
+  const subject = reminder ? `Reminder: ${first}'s Valor waiver still needs a signature` : `Please sign ${first}'s Valor waiver`;
+  const hi = parentFirst ? `Hi ${esc(parentFirst)},` : "Hi there,";
+  const lead = reminder
+    ? `<p>Quick reminder, we still need a signed waiver for ${esc(first)}. It only takes a couple minutes.</p>`
+    : `<p>We moved our waiver into the Valor app. Every athlete needs a signed one on file with us, and it only takes a couple minutes.</p>`;
+  const html = wrapHtml(subject, `<p>${hi}</p>${lead}${btn(link, `Sign ${first}'s waiver`)}
+    <p>The link is just for ${esc(first)}. If you have more than one athlete at Valor, each one gets their own link.</p>
+    <p style="font-size:13px;color:#6b665c">Button not working? Copy this link into your browser:<br><span style="word-break:break-all">${esc(link)}</span></p>`,
+    `Questions? Text us at ${VALOR.phone}.`);
+  const text = `${parentFirst ? `Hi ${parentFirst},` : "Hi there,"} ${reminder ? `Quick reminder, we still need a signed waiver for ${first}.` : "We moved our waiver into the Valor app. Every athlete needs a signed one on file with us."} Sign here: ${link} Questions? Text us at ${VALOR.phone}.`;
+  return { subject, html, text };
+}
+
+async function staffSend(req: Request, staffId: string, athleteId: string) {
+  const { data: a } = await admin.from("athletes").select("*").eq("id", athleteId).maybeSingle();
+  if (!a || a.archived_at) return bad("athlete not found", 404);
+  const to = await contactFor(a);
+  if (!to) return bad("No parent email on file. Add one on the athlete page, or show them the QR code at the desk.", 409);
+  if (!mailConfigured()) return bad("Email isn't connected right now.", 503);
+  const { error: dup } = await admin.from("message_alerts").insert({ key: `waiver-send:${athleteId}:${Math.floor(Date.now() / 600000)}` });
+  if (dup?.code === "23505") return bad("Already sent in the last 10 minutes.", 429);
+  const link = await signUrl(appOrigin(req), athleteId);
+  const parentFirst = clean(a.parent_name, 80).split(" ")[0] || "";
+  const m = pleaseSignEmail(a.first_name, parentFirst, link);
+  await sendMail({ to, subject: m.subject, text: m.text, html: m.html });
+  await admin.from("waiver_requests").insert({ athlete_id: athleteId, email: to, kind: "resend", sent_by: staffId });
+  return json({ sent: true, to });
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (req.method !== "POST") return bad("POST only", 405);
+  let body: Record<string, unknown>;
+  try { body = await req.json(); } catch { return bad("invalid json"); }
+  try {
+    const s = await setting();
+
+    // ── private link: no login ──
+    if (body.t !== undefined && (body.action === "link" || body.action === "sign")) {
+      const tok = await readToken(String(body.t));
+      if (!tok) return bad("That link isn't right. Ask us for a new one.", 404);
+      if ("expired" in tok) return bad(`That link expired. Text us at ${VALOR.phone} and we'll send a new one.`, 410);
+      const { data: a } = await admin.from("athletes").select("id, first_name, last_name, age, archived_at").eq("id", tok.athleteId).maybeSingle();
+      if (!a || a.archived_at) return bad("That link isn't active anymore. Text us and we'll sort it out.", 404);
+      if (body.action === "sign") return await record(req, a, body, s, { method: "link" });
+      const sig = s.version ? await latestSig(a.id, s.version) : null;
+      return json({ athlete: { first_name: a.first_name, last_name: a.last_name, age: a.age }, signed: sig ? { signer_name: sig.signer_name, signed_at: sig.signed_at } : null, waiver: await waiverText(s.version) });
+    }
+
+    const user = await userFromRequest(req);
+    if (!user) return bad("sign in first", 401);
+    const { data: prof } = await admin.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    const isStaff = prof?.role === "admin";
+
+    if (body.action === "copy") {
+      const { data: sig } = await admin.from("waiver_signatures").select("*").eq("id", String(body.signature_id || "")).maybeSingle();
+      if (!sig) return bad("not found", 404);
+      if (!isStaff) {
+        const { data: a } = sig.athlete_id ? await admin.from("athletes").select("parent_id, user_id").eq("id", sig.athlete_id).maybeSingle() : { data: null };
+        if (!a || (a.parent_id !== user.id && a.user_id !== user.id)) return bad("not yours", 403);
+      }
+      const { data: text } = await admin.from("waiver_texts").select("version, title, body, status, review_note").eq("version", sig.version).maybeSingle();
+      const out = isStaff ? sig : { ...sig, ip: undefined, user_agent: undefined };
+      return json({ signature: out, waiver: text });
+    }
+
+    if (isStaff) {
+      if (body.action === "list") return json({ setting: s, waiver: s.version ? { version: s.version, status: (await waiverText(s.version))?.status } : null, athletes: await staffList(s) });
+      if (body.action === "send") return await staffSend(req, user.id, String(body.athlete_id || ""));
+      if (body.action === "sign_link") return json({ url: await signUrl(appOrigin(req), String(body.athlete_id || "")) });
+      if (body.action === "setting") {
+        const required = String(body.required || "");
+        if (!["screen", "banner", "off"].includes(required)) return bad("required must be screen, banner or off");
+        const { error } = await admin.from("settings").update({ value: { ...s, required }, updated_at: new Date().toISOString() }).eq("key", "waiver");
+        if (error) return bad(error.message, 500);
+        return json({ setting: { ...s, required } });
+      }
+      return bad("staff: use list, send, sign_link, copy or setting", 404);
+    }
+
+    // ── family login ──
+    if (body.action === "mine") {
+      const { data: kids } = await admin.from("athletes").select("id, first_name, last_name, age, parent_id, user_id")
+        .or(`parent_id.eq.${user.id},user_id.eq.${user.id}`).is("archived_at", null).order("first_name");
+      const out = [];
+      for (const k of kids || []) {
+        const sig = s.version ? await latestSig(k.id, s.version) : null;
+        out.push({ id: k.id, first_name: k.first_name, last_name: k.last_name, age: k.age, own_login: k.user_id === user.id, signature: sig });
+      }
+      return json({ setting: s, waiver: await waiverText(s.version), athletes: out });
+    }
+    if (body.action === "sign") {
+      const { data: a } = await admin.from("athletes").select("id, first_name, last_name, age, parent_id, user_id, archived_at").eq("id", String(body.athlete_id || "")).maybeSingle();
+      if (!a || a.archived_at || (a.parent_id !== user.id && a.user_id !== user.id)) return bad("not your athlete", 403);
+      return await record(req, a, body, s, { method: "app", user });
+    }
+    return bad("unknown action", 404);
+  } catch (e) {
+    console.error(e);
+    return bad("server error", 500);
+  }
+});
