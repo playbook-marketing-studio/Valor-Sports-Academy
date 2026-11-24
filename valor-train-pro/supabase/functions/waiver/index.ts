@@ -32,6 +32,11 @@
 // TEST ATHLETES (11/24/2026, so Michael and Corey can click through the real email -> sign -> done before go-live):
 // an athlete marked is_example gets the private link, the sign and the staff "send" email even while the text is a
 // draft. Real athletes stay locked. Delete the test athletes and their signatures after the test.
+// TEST SIGN-UPS (11/24/2026, Omar: "so they can test it by creating a new account from scratch"): a family login whose
+// email has "+test" before the @ (coreybibe30+test@gmail.com) gets the waiver in the app while it's a draft, and every
+// athlete it adds counts as a new sign-up (must sign, no Not now). Everyone else stays locked. Delete those test
+// accounts, their athletes and signatures after.
+const isTester = (email?: string | null) => /\+test[^@]*@/i.test(String(email || ""));
 // Deploy: supabase functions deploy waiver --no-verify-jwt --project-ref gpotwyuttkkygvxzktep --use-api
 // ════════════════════════════════════════════════════════════════════════
 import { admin, appOrigin, bad, cors, json, userFromRequest } from "../_shared/common.ts";
@@ -347,7 +352,8 @@ Deno.serve(async (req) => {
     }
 
     // ── family login ──
-    if (!open) {
+    const tester = !!s.version && isTester(user.email);
+    if (!open && !tester) {
       if (body.action === "mine") return json({ setting: { ...s, required: "off" }, waiver: null, athletes: [], not_open: true });
       if (body.action === "sign") return bad(NOT_OPEN, 423);
     }
@@ -358,7 +364,7 @@ Deno.serve(async (req) => {
       for (const k of kids || []) {
         const sig = s.version ? await latestSig(k.id, s.version) : null;
         // a new sign-up (athlete added in the app once the waiver is on) signs before using the app, no "Not now"
-        const must_sign = !sig && !!k.app_signup_at && !!s.signup_required_from && new Date(k.app_signup_at) >= new Date(s.signup_required_from);
+        const must_sign = !sig && !!k.app_signup_at && (tester || (!!s.signup_required_from && new Date(k.app_signup_at) >= new Date(s.signup_required_from)));
         out.push({ id: k.id, first_name: k.first_name, last_name: k.last_name, age: k.age, own_login: k.user_id === user.id, signature: sig, must_sign });
       }
       return json({ setting: s, waiver: await waiverText(s.version), athletes: out });
