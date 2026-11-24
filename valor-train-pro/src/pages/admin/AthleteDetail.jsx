@@ -291,6 +291,7 @@ function Payment({ athlete, cfg, recommendedKey }) {
   }, [athlete.id]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => () => clearInterval(poll.current), []);
+  useEffect(() => { if (cfg && window.location.hash === '#autopay') setTimeout(() => document.getElementById('autopay')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150); }, [cfg]);
   useEffect(() => { if (!key && cfg) setKey(defaultItem(cfg, recommendedKey)?.key || ''); }, [cfg, recommendedKey, key]);
 
   if (!cfg) return null;
@@ -356,7 +357,7 @@ function Payment({ athlete, cfg, recommendedKey }) {
   };
 
   return (
-    <Card>
+    <Card id="autopay" className="scroll-mt-4">
       <CardHeader className="pb-3"><CardTitle className="text-lg">3. Classes &amp; enrollment</CardTitle><p className="mt-1 text-xs text-muted-foreground">{(cfg.items || []).some(isMonthlyItem) ? 'A class pack paid once, or a monthly plan on autopay (charged on the 1st).' : 'One-time payment for a class or class pack.'} Workouts, nutrition and training plans are included while one is active.</p></CardHeader>
       <CardContent className="space-y-4">
         {cfg.placeholder && <p className="rounded-lg border border-warning-border bg-warning-surface px-3 py-2 text-xs text-warning">Prices and packs are placeholders: confirm with Corey.</p>}

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { EmptyState, PageHeader, SegmentedTabs } from '@/components/vtp';
 import { toast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
+import ComingUp from '@/pages/admin/ComingUp';
 import { EVERY, EVERY_SHORT, fmtTs, fmtYmd, invoicesApi, MODE, money, monthKey, monthLabel, PAID_HOW, SOURCE, STATUS, statusOf, TONE } from '@/lib/invoices';
 
 export function StatusPill({ status, className }) {
@@ -60,11 +61,12 @@ export default function AdminInvoicing() {
         { value: 'drafts', label: `Drafts${drafts.length ? ` ${drafts.length}` : ''}` },
         { value: 'waiting', label: `Waiting${waiting.length ? ` ${waiting.length}` : ''}` },
         { value: 'paid', label: 'Paid' },
+        { value: 'coming', label: 'Coming up' },
         { value: 'money', label: 'All money' },
         ...(d.repeats?.length || tab === 'repeats' ? [{ value: 'repeats', label: `Repeats${d.repeats?.length ? ` ${d.repeats.length}` : ''}` }] : []),
       ]} />
 
-      {tab === 'repeats' ? <Repeats list={d.repeats || []} onChanged={load} /> : tab === 'money' || tab === 'paid' ? <AllMoney key={tab} money={d.money} paidOnly={tab === 'paid'} onOpen={setOpen} onOpenPay={setOpenPay} /> : (
+      {tab === 'coming' ? <ComingUp /> : tab === 'repeats' ? <Repeats list={d.repeats || []} onChanged={load} /> : tab === 'money' || tab === 'paid' ? <AllMoney key={tab} money={d.money} paidOnly={tab === 'paid'} onOpen={setOpen} onOpenPay={setOpenPay} /> : (
         <InvoiceList list={tab === 'drafts' ? drafts : waiting} tab={tab} onOpen={setOpen} />
       )}
 
