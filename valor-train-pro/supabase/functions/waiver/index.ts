@@ -29,6 +29,9 @@
 // get no waiver at all (no sign screen, Home card or Account row; links and team links say "not ready yet"), and
 // every sign / email action is refused with 423. Staff still see the Waivers page, make team links, preview the text.
 // Publishing the confirmed text as status 'live' opens it, nothing else to change.
+// TEST ATHLETES (11/24/2026, so Michael and Corey can click through the real email -> sign -> done before go-live):
+// an athlete marked is_example gets the private link, the sign and the staff "send" email even while the text is a
+// draft. Real athletes stay locked. Delete the test athletes and their signatures after the test.
 // Deploy: supabase functions deploy waiver --no-verify-jwt --project-ref gpotwyuttkkygvxzktep --use-api
 // ════════════════════════════════════════════════════════════════════════
 import { admin, appOrigin, bad, cors, json, userFromRequest } from "../_shared/common.ts";
@@ -247,9 +250,10 @@ function pleaseSignEmail(first: string, parentFirst: string, link: string, remin
   return { subject, html, text };
 }
 
-async function staffSend(req: Request, staffId: string, athleteId: string) {
+async function staffSend(req: Request, staffId: string, athleteId: string, open: boolean) {
   const { data: a } = await admin.from("athletes").select("*").eq("id", athleteId).maybeSingle();
   if (!a || a.archived_at) return bad("athlete not found", 404);
+  if (!open && !a.is_example) return bad("Emails to families are off until the waiver is finished.", 423);
   const to = await contactFor(a);
   if (!to) return bad("No parent email on file. Add one on the athlete page, or show them the QR code at the desk.", 409);
   if (!mailConfigured()) return bad("Email isn't connected right now.", 503);
@@ -288,9 +292,9 @@ Deno.serve(async (req) => {
       const tok = await readToken(String(body.t));
       if (!tok) return bad("That link isn't right. Ask us for a new one.", 404);
       if ("expired" in tok) return bad(`That link expired. Text us at ${VALOR.phone} and we'll send a new one.`, 410);
-      const { data: a } = await admin.from("athletes").select("id, first_name, last_name, age, archived_at").eq("id", tok.athleteId).maybeSingle();
+      const { data: a } = await admin.from("athletes").select("id, first_name, last_name, age, archived_at, is_example").eq("id", tok.athleteId).maybeSingle();
       if (!a || a.archived_at) return bad("That link isn't active anymore. Text us and we'll sort it out.", 404);
-      if (!open) return body.action === "sign" ? bad(NOT_OPEN, 423) : json({ athlete: { first_name: a.first_name, last_name: a.last_name, age: a.age }, signed: null, waiver: null, not_open: true });
+      if (!open && !a.is_example) return body.action === "sign" ? bad(NOT_OPEN, 423) : json({ athlete: { first_name: a.first_name, last_name: a.last_name, age: a.age }, signed: null, waiver: null, not_open: true });
       if (body.action === "sign") return await record(req, a, body, s, { method: "link" });
       const sig = s.version ? await latestSig(a.id, s.version) : null;
       return json({ athlete: { first_name: a.first_name, last_name: a.last_name, age: a.age }, signed: sig ? { signer_name: sig.signer_name, signed_at: sig.signed_at } : null, waiver: await waiverText(s.version) });
@@ -330,7 +334,7 @@ Deno.serve(async (req) => {
         if (!data?.length) return bad("team not found", 404);
         return json({ active });
       }
-      if (body.action === "send") return open ? await staffSend(req, user.id, String(body.athlete_id || "")) : bad("Emails to families are off until the waiver is finished.", 423);
+      if (body.action === "send") return await staffSend(req, user.id, String(body.athlete_id || ""), open);
       if (body.action === "sign_link") return json({ url: await signUrl(appOrigin(req), String(body.athlete_id || "")) });
       if (body.action === "setting") {
         const required = String(body.required || "");
