@@ -17,13 +17,14 @@ export const DEFAULT_METRICS = [
 ];
 
 export async function loadSettings() {
-  const { data } = await supabase.from('settings').select('key, value').in('key', ['enrollment', 'assessment_metrics']);
+  const { data } = await supabase.from('settings').select('key, value').in('key', ['enrollment', 'assessment_metrics', 'class_schedule']);
   const map = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
   const e = map.enrollment || {};
   return {
     // One-time classes and class packs (Omar 9/23: no subscriptions). Content is included while one is active.
     enrollment: { placeholder: !!e.placeholder, note: e.note || '', items: Array.isArray(e.items) ? e.items : [], monthly: e.monthly || {} },
     metrics: Array.isArray(map.assessment_metrics) ? map.assessment_metrics : DEFAULT_METRICS,
+    classSchedule: map.class_schedule || null,
   };
 }
 

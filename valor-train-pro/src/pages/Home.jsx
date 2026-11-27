@@ -23,6 +23,10 @@ import { Button } from '@/components/ui/button';
 import { giftItem, oneTimeItems, pendingCode, promoLine } from '@/lib/gifts';
 import { money } from '@/lib/autopay';
 import { VALOR_EMAIL } from '@/lib/valor';
+import { callFn } from '@/api/supabaseClient';
+import { toast } from '@/components/ui/use-toast';
+import { describeClassDays, parseClassDays, perWeek, scheduleFrom } from '@/lib/classdays';
+import { cn } from '@/lib/utils';
 
 export default function Home() {
   const viewAs = useViewAs();
@@ -269,6 +273,12 @@ export default function Home() {
                   </div>
                   {/* already on a plan or a pack: add one-time classes on top (Black Friday 2026, Omar 11/27); autopay is untouched */}
                   {(paid || autopay || (enrolledNoPack && !hasMonthly)) && !viewAs.isActive && <AddClasses athlete={a} cfg={settings.enrollment} />}
+                  {/* which days they come (Corey 11/24): families pick, coaches see it on Today and the athlete page */}
+                  {(paid || autopay || enrolledNoPack) && (
+                    <ClassDays athlete={a} schedule={settings.classSchedule} readOnly={viewAs.isActive}
+                      perWeek={perWeek((settings.enrollment?.items || []).find((i) => i.key === autopay?.plan_key))}
+                      onSaved={(v) => setAthletes((ks) => ks.map((k) => (k.id === a.id ? { ...k, class_days: v } : k)))} />
+                  )}
                   {/* Payments sit on Home only until autopay is set up (Omar 11/11/2026). After that the plan, Update card and Cancel live under Account; Home only speaks up when a charge fails. */}
                   {autopay?.status === 'past_due' && (
                     <Link to={`${viewAs.basePath}/account`} className="flex items-start gap-2 rounded-lg border border-danger-border bg-danger-surface px-3 py-2 text-sm text-danger">
@@ -318,6 +328,65 @@ function GiftCard({ cfg }) {
       </span>
       <span className="shrink-0 rounded-full border border-primary px-4 py-2 text-sm font-bold text-primary">Give</span>
     </Link>
+  );
+}
+
+/** "Which days is X coming?": day chips (as many as the plan's times a week) + one class time. */
+function ClassDays({ athlete, schedule, perWeek: n, readOnly, onSaved }) {
+  const sched = scheduleFrom(schedule);
+  const cur = parseClassDays(athlete.class_days);
+  const [editing, setEditing] = useState(false);
+  const [days, setDays] = useState(cur.days.filter((d) => sched.days.includes(d)));
+  const [slot, setSlot] = useState(sched.slots.some((s) => s.key === cur.slot) ? cur.slot : '');
+  const [busy, setBusy] = useState(false);
+  const has = !!athlete.class_days;
+  if (readOnly) return has ? <p className="text-sm"><span className="font-semibold">Class days:</span> {describeClassDays(athlete.class_days, schedule)}</p> : null;
+  if (has && !editing) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+        <p><span className="font-semibold">Class days:</span> {describeClassDays(athlete.class_days, schedule)}</p>
+        <button type="button" onClick={() => setEditing(true)} className="text-xs font-medium text-primary hover:underline">Change days</button>
+      </div>
+    );
+  }
+  const max = n || sched.days.length;
+  const toggle = (d) => setDays((xs) => (xs.includes(d) ? xs.filter((x) => x !== d) : xs.length >= max ? [...xs.slice(1), d] : [...xs, d]));
+  const ready = days.length > 0 && (!n || days.length === n) && slot;
+  const save = async () => {
+    setBusy(true);
+    try {
+      const r = await callFn('class-days', { body: { athlete_id: athlete.id, days, slot } });
+      onSaved?.(r.class_days); setEditing(false);
+      toast({ title: 'Saved', description: `The coaches will see ${athlete.first_name} on ${describeClassDays(r.class_days, schedule)}.` });
+    } catch (e) {
+      toast({ title: 'Could not save the days', description: e.message });
+    } finally { setBusy(false); }
+  };
+  return (
+    <div className="space-y-3 rounded-lg border border-primary/50 bg-primary/5 p-3">
+      <div>
+        <p className="text-sm font-semibold">Which days is {athlete.first_name} coming?</p>
+        <p className="text-xs text-muted-foreground">{n ? `Pick ${n} day${n === 1 ? '' : 's'} a week` : 'Pick the days'} and a class time, so the coaches know who's coming. You can change it any time.</p>
+      </div>
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Class days">
+        {sched.days.map((d) => (
+          <button key={d} type="button" aria-pressed={days.includes(d)} onClick={() => toggle(d)}
+            className={cn('min-h-[40px] min-w-[56px] rounded-full border px-3 text-sm font-semibold', days.includes(d) ? 'border-primary bg-primary text-primary-foreground' : 'border-input bg-background hover:border-primary/60')}>{d}</button>
+        ))}
+      </div>
+      <div className="space-y-1.5" role="radiogroup" aria-label="Class time">
+        {sched.slots.map((s) => (
+          <button key={s.key} type="button" role="radio" aria-checked={slot === s.key} onClick={() => setSlot(s.key)}
+            className={cn('flex w-full items-center justify-between gap-3 rounded-xl border bg-background px-3 py-2 text-left text-sm', slot === s.key ? 'border-2 border-primary bg-primary/5' : 'border-border hover:border-primary/40')}>
+            <span className="font-semibold">{s.time}</span><span className="text-xs text-muted-foreground">{s.who}</span>
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <Button size="sm" disabled={!ready || busy} onClick={save}>{busy ? 'Saving…' : 'Save days'}</Button>
+        {has && <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>}
+      </div>
+    </div>
   );
 }
 

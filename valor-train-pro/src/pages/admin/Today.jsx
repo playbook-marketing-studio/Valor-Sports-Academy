@@ -10,6 +10,7 @@ import { photoPosition } from '@/lib/photos';
 import { askSms, askText, reqDay } from '@/lib/leads';
 import { StatTile } from '@/components/vtp';
 import { useUnreadCount } from '@/lib/messages';
+import { parseClassDays, scheduleFrom, todayKey } from '@/lib/classdays';
 
 const TZ = 'America/Los_Angeles';
 const ymd = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
@@ -48,6 +49,37 @@ const Row = ({ to, children, right }) => {
   return to ? <Link to={to} className="block transition hover:bg-muted/50">{inner}</Link> : inner;
 };
 const Empty = ({ children }) => <p className="px-4 py-5 text-sm text-muted-foreground">{children}</p>;
+
+/** Who's coming today, by class time, from each athlete's class days (families pick them in the app, staff can edit). */
+function ComingToday() {
+  const [rows, setRows] = useState(null);
+  const [sched, setSched] = useState(null);
+  useEffect(() => {
+    Promise.all([
+      supabase.from('athletes').select('id, first_name, last_name, class_days').is('archived_at', null).eq('is_example', false).not('class_days', 'is', null),
+      supabase.from('settings').select('value').eq('key', 'class_schedule').maybeSingle(),
+    ]).then(([{ data: ks }, { data: st }]) => { setSched(scheduleFrom(st?.value)); setRows(ks || []); });
+  }, []);
+  if (!rows || !sched) return null;
+  const day = todayKey();
+  const kids = rows.map((k) => ({ ...k, ...parseClassDays(k.class_days) })).filter((k) => k.days.includes(day));
+  const slots = [...sched.slots, { key: '', time: 'No time picked', who: '' }];
+  return (
+    <Section title="Coming today" count={kids.length || null}>
+      {!kids.length && <Empty>{day === 'Sat' || day === 'Sun' ? 'No classes on the weekend.' : 'Nobody has picked today yet. Families pick their days in the app, or set them on the athlete page.'}</Empty>}
+      {slots.map((sl) => {
+        const here = kids.filter((k) => (sl.key ? k.slot === sl.key : !sched.slots.some((x) => x.key === k.slot)));
+        if (!here.length) return null;
+        return (
+          <div key={sl.key || 'none'} className="px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{sl.time}{sl.who ? ` · ${sl.who}` : ''} · {here.length}</p>
+            <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm">{here.map((k) => <Link key={k.id} to={`/admin/athletes/${k.id}`} className="font-medium hover:underline">{athleteName(k)}</Link>)}</p>
+          </div>
+        );
+      })}
+    </Section>
+  );
+}
 
 /** Staff home: what needs doing today, in the order it happens at the gym. */
 export default function Today() {
@@ -121,6 +153,8 @@ export default function Today() {
         <StatTile to="/admin/log" icon={Dumbbell} label="Classes today" value={d.classes.length} />
         <StatTile to="/admin/log" icon={CalendarDays} label="Class visits this wk" value={d.visitsWeekCount} />
       </div>
+
+      <ComingToday />
 
       <Section title="Classes today" count={d.classes.length || null}>
         {d.classes.length ? d.classes.map((c) => (
