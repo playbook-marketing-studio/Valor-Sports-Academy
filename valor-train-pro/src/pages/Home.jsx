@@ -18,6 +18,11 @@ import { MessageCircle } from 'lucide-react';
 import { todayPT } from '@/lib/dates';
 import { useQueryClient } from '@tanstack/react-query';
 import { WaiverBanner } from '@/components/RequireWaiver';
+import { Gift, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { giftItem, oneTimeItems, pendingCode, promoLine } from '@/lib/gifts';
+import { money } from '@/lib/autopay';
+import { VALOR_EMAIL } from '@/lib/valor';
 
 export default function Home() {
   const viewAs = useViewAs();
@@ -95,6 +100,8 @@ export default function Home() {
           ]);
           setAssessments(as || []); setPayments(ps || []); setSettings(st); setSubs(sb || []);
           loadWeek(ids);
+        } else if (me.role !== 'admin') {
+          setSettings(await loadSettings());
         }
 
       } catch (e) {
@@ -127,12 +134,24 @@ export default function Home() {
       {!viewAs.isActive && <NewMessagesCard />}
       {!viewAs.isActive && <WaiverBanner />}
 
+      {/* a gift code they opened before signing in (GiftRedeem remembers it) */}
+      {!viewAs.isActive && user?.role !== 'admin' && pendingCode() && (
+        <Link to={`/gift/${pendingCode()}`} className="flex items-center gap-3 rounded-xl border border-primary/60 bg-primary/5 p-4 transition hover:bg-primary/10">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"><Gift className="h-5 w-5" /></span>
+          <span className="min-w-0 flex-1"><span className="block font-semibold">You have a gift to claim</span><span className="block text-sm text-muted-foreground">Add the classes to your athlete.</span></span>
+          <span className="shrink-0 rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Claim</span>
+        </Link>
+      )}
+
+      {!viewAs.isActive && user?.role !== 'admin' && !loading && <GiftCard cfg={settings.enrollment} />}
+
       {/* The move off UpperHand (10/21/2026): the login email says "tap Start autopay", so it's the first thing they see */}
       {!viewAs.isActive && hasMonthly && needsPlan.length > 0 && (
         <div className="space-y-3 rounded-xl border border-primary/60 bg-primary/5 p-4">
           <div>
             <h2 className="font-display text-2xl">Set up your monthly plan</h2>
             <p className="mt-1 text-sm text-muted-foreground">{needsPlan.every((a) => a.app_signup_at) ? `Pick a plan so ${needsPlan.map((a) => a.first_name).join(' and ')} can start training.` : `One step left: start autopay so ${needsPlan.map((a) => a.first_name).join(' and ')} keep${needsPlan.length === 1 ? 's' : ''} training.`} {firstMonthNote(needsPlan.every((a) => a.app_signup_at) ? monthlyFor(needsPlan[0], settings.enrollment?.monthly) : settings.enrollment?.monthly)}</p>
+            {promoLine(settings.enrollment) && <p className="mt-2 text-sm font-semibold text-primary">{promoLine(settings.enrollment)}</p>}
             {/* signed up in the app, no assessment yet: buying first is fine, the free assessment is still there (Omar 11/9) */}
             {needsPlan.some((a) => a.app_signup_at && !assessments.some((x) => x.athlete_id === a.id)) && (
               <p className="mt-1 text-sm text-muted-foreground">Haven't done your free assessment? <a href={SITE_ASSESSMENT_URL} className="font-medium text-primary hover:underline">Book it here</a>. The coach can switch your plan after.</p>
@@ -248,6 +267,8 @@ export default function Home() {
                       : <p>{lapsed ? `${a.first_name}'s classes are used up or expired. Buy more` : `Enroll ${a.first_name}`} to unlock workouts, nutrition and their training plan.</p>}
                     {!paid && (!enrolledNoPack || hasMonthly) && !autopay && !viewAs.isActive && <EnrollButton compact athlete={a} cfg={settings.enrollment} recommendedKey={as?.recommended_plan || suggestedPlanKey(a, settings.enrollment)} label={lapsed ? 'Buy more classes' : undefined} />}
                   </div>
+                  {/* already on a plan or a pack: add one-time classes on top (Black Friday 2026, Omar 11/27); autopay is untouched */}
+                  {(paid || autopay || (enrolledNoPack && !hasMonthly)) && !viewAs.isActive && <AddClasses athlete={a} cfg={settings.enrollment} />}
                   {/* Payments sit on Home only until autopay is set up (Omar 11/11/2026). After that the plan, Update card and Cancel live under Account; Home only speaks up when a charge fails. */}
                   {autopay?.status === 'past_due' && (
                     <Link to={`${viewAs.basePath}/account`} className="flex items-start gap-2 rounded-lg border border-danger-border bg-danger-surface px-3 py-2 text-sm text-danger">
@@ -263,10 +284,14 @@ export default function Home() {
         </div>
       )}
 
+      {!viewAs.isActive && user?.role !== 'admin' && !loading && (
+        <p className="text-center text-xs text-muted-foreground">Have a gift code? <Link to="/gift" className="font-medium text-primary hover:underline">Redeem it</Link> · Questions? Email <span className="font-medium text-foreground">{VALOR_EMAIL}</span></p>
+      )}
+
       <AthleteForm open={!!editing} onOpenChange={(o) => !o && setEditing(null)} mode="parent_edit" athlete={editing} onSaved={() => setReload((n) => n + 1)} />
 
       {/* signed up in the app with no athlete yet (Valor 11/9/2026): connect the kid on file, or add who's training */}
-      {athletes.length === 0 && !loading && !viewAs.isActive && user?.role !== 'admin' && <GetStarted onAdded={() => { setReload((n) => n + 1); qc.invalidateQueries({ queryKey: ['waiver-mine'] }); }} />}
+      {athletes.length === 0 && !loading && !viewAs.isActive && user?.role !== 'admin' && <GetStarted promo={promoLine(settings.enrollment)} onAdded={() => { setReload((n) => n + 1); qc.invalidateQueries({ queryKey: ['waiver-mine'] }); }} />}
       {athletes.length === 0 && !loading && viewAs.isActive && (
         <EmptyState
           photo="/images/photos/facility-wide.webp"
@@ -276,6 +301,41 @@ export default function Home() {
           href="sms:5099874612"
         />
       )}
+    </div>
+  );
+}
+
+/** "Give 3 classes as a gift": shown while a settings item is giftable (the Black Friday pass). */
+function GiftCard({ cfg }) {
+  const item = giftItem(cfg);
+  if (!item) return null;
+  return (
+    <Link to="/gift/buy" className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition hover:border-primary/50">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"><Gift className="h-5 w-5" /></span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold">Give {item.classes ? `${item.classes} classes` : 'classes'} as a gift</span>
+        <span className="block text-sm text-muted-foreground">{promoLine(cfg) || `${item.name} · ${money(item.amount_cents)}`} Get a voucher to save, text or email.</span>
+      </span>
+      <span className="shrink-0 rounded-full border border-primary px-4 py-2 text-sm font-bold text-primary">Give</span>
+    </Link>
+  );
+}
+
+/** A kid already on autopay or a pack: buy a one-time class pack on top. The plan and its card stay as they are. */
+function AddClasses({ athlete, cfg }) {
+  const [open, setOpen] = useState(false);
+  const items = oneTimeItems(cfg);
+  if (!items.length) return null;
+  if (!open) {
+    return (
+      <Button size="sm" variant="outline" className="gap-1" onClick={() => setOpen(true)}><Plus className="h-3.5 w-3.5" /> Add classes</Button>
+    );
+  }
+  return (
+    <div className="space-y-2 rounded-lg border border-border p-3">
+      <p className="text-sm font-semibold">Add classes for {athlete.first_name}</p>
+      <p className="text-xs text-muted-foreground">One-time, on top of {athlete.first_name}'s plan. The monthly plan and autopay stay the same, and the monthly classes get used first.</p>
+      <EnrollButton athlete={athlete} cfg={{ ...cfg, items }} recommendedKey={giftItem(cfg)?.key || items[0].key} />
     </div>
   );
 }

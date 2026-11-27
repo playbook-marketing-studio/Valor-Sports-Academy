@@ -54,6 +54,9 @@ import RequireWaiver from '@/components/RequireWaiver';
 import WaiverLink from '@/pages/public/WaiverLink';
 import WaiverTeamLink from '@/pages/public/WaiverTeamLink';
 import AdminWaivers from '@/pages/admin/Waivers';
+import GiftRedeem from '@/pages/public/GiftRedeem';
+import GiftBuy from '@/pages/GiftBuy';
+import GiftVoucher from '@/pages/GiftVoucher';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -95,6 +98,9 @@ const AuthenticatedApp = () => {
       <Route path="/waiver/:token" element={<WaiverLink />} />
       {/* One link per outside team (Maniacs, Jr Bombers): the parent types the athlete's name. No login. */}
       <Route path="/waiver/team/:token" element={<WaiverTeamLink />} />
+      {/* Gift codes (Black Friday 2026): the voucher's QR / the gift email land here. Works signed out. */}
+      <Route path="/gift" element={<GiftRedeem />} />
+      <Route path="/gift/:code" element={<GiftRedeem />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route element={<AppLayout />}>
           {/* settings.waiver.required = 'screen': unsigned families sign before Home (Account + Messages stay open) */}
@@ -108,6 +114,9 @@ const AuthenticatedApp = () => {
             <Route path="/messages" element={<Messages />} />
             <Route path="/account" element={<Account />} />
             <Route path="/connect" element={<Connect />} />
+            {/* buy classes as a gift, and the voucher after paying (also reopened from Account) */}
+            <Route path="/gift/buy" element={<GiftBuy />} />
+            <Route path="/gift/voucher/:id" element={<GiftVoucher />} />
             {/* included with enrollment: unpaid families get the enroll-and-pay screen */}
             <Route element={<RequireWaiver />}>
               <Route element={<RequireEnrollment />}>

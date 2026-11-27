@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { callFn } from '@/api/supabaseClient';
 import { Button } from '@/components/ui/button';
-import { VALOR_PHONE } from '@/lib/valor';
+import { VALOR_EMAIL } from '@/lib/valor';
 
 /** The "Connect my athlete" email link (fn family claim): proves this login owns the inbox, then links the kid on file. */
 export default function Connect() {
@@ -35,7 +35,7 @@ export default function Connect() {
         <>
           <h1 className="font-display text-3xl">That link didn't work</h1>
           <p className="text-sm text-muted-foreground">{state.error}</p>
-          <p className="text-sm text-muted-foreground">Still stuck? Call or text {VALOR_PHONE}.</p>
+          <p className="text-sm text-muted-foreground">Still stuck? Email <span className="font-medium text-foreground">{VALOR_EMAIL}</span>.</p>
           <Button asChild variant="outline"><Link to="/">Go to Home</Link></Button>
         </>
       )}

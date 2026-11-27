@@ -5,7 +5,7 @@ import { callFn } from '@/api/supabaseClient';
 import { Button } from '@/components/ui/button';
 import PublicLayout from './PublicLayout';
 import { SignWaiverForm, SignedNote } from '@/components/waiver/Waiver';
-import { VALOR_PHONE } from '@/lib/valor';
+import { VALOR_PHONE, VALOR_EMAIL } from '@/lib/valor';
 
 /** /waiver/team/:token — one link per outside team (texted, or a QR at the door). No login; the parent types the athlete's name. */
 export default function WaiverTeamLink() {
@@ -36,7 +36,7 @@ export default function WaiverTeamLink() {
       <PublicLayout title={state.done.already ? 'Already signed' : 'Waiver signed'} subtitle={`${sig?.athlete_name || 'Your athlete'} is all set for ${team}. Thanks!`}>
         <SignedNote signature={sig} emailed={state.done.emailed} email={state.done.email} />
         <Button className="mt-4 w-full" size="lg" variant="outline" onClick={() => { setState((s) => ({ ...s, done: null })); setRound((r) => r + 1); window.scrollTo(0, 0); }}>Sign for another athlete</Button>
-        <p className="mt-4 text-sm text-muted-foreground">Questions? Text us at <a className="text-primary" href={`sms:${VALOR_PHONE}`}>{VALOR_PHONE}</a>.</p>
+        <p className="mt-4 text-sm text-muted-foreground">Questions? Email <span className="text-primary">{VALOR_EMAIL}</span>.</p>
       </PublicLayout>
     );
   }

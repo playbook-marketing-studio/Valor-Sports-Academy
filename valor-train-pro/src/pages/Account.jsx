@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, Receipt, Wallet } from 'lucide-react';
+import { Gift, Loader2, Receipt, Wallet } from 'lucide-react';
+import { goodThrough } from '@/lib/gifts';
 import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 import { useViewAs } from '@/lib/ViewAsContext';
@@ -9,7 +10,7 @@ import { PageHeader, EmptyState } from '@/components/vtp';
 import EnrollButton from '@/components/EnrollButton';
 import AutopayCard from '@/components/AutopayCard';
 import { AthleteWaiverRow } from '@/components/waiver/WaiverDialogs';
-import { athleteName, classesLeft, countsAsEnrollment, loadSettings, VALOR_PHONE } from '@/lib/valor';
+import { athleteName, classesLeft, countsAsEnrollment, loadSettings, VALOR_EMAIL } from '@/lib/valor';
 import { currentSub, fmtDay, money, suggestedPlanKey } from '@/lib/autopay';
 
 const METHOD = { card: 'Card', cash: 'Cash', venmo: 'Venmo', other: 'Other' };
@@ -52,7 +53,12 @@ export default function Account() {
   }
   if (!state) return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   if (!state.kids.length) {
-    return <EmptyState icon={Wallet} title="No athlete on this login yet" message={`Your athlete shows up here once a coach links them to your login. Questions? Call or text ${VALOR_PHONE}.`} to="/" actionLabel="Back to home" />;
+    return (
+      <div className="space-y-6">
+        {!viewAs.isActive && <GiftsBought />}
+        <EmptyState icon={Wallet} title="No athlete on this login yet" message={`Your athlete shows up here once a coach links them to your login. Questions? Email ${VALOR_EMAIL}.`} to="/" actionLabel="Back to home" />
+      </div>
+    );
   }
   const cfg = state.settings?.enrollment;
   const commitment = cfg?.monthly?.commitment_months ?? 3;
@@ -60,6 +66,7 @@ export default function Account() {
   return (
     <div className="space-y-6">
       <PageHeader title="Account" subtitle="Your plan, payments and card for each athlete." />
+      {!viewAs.isActive && <GiftsBought />}
       {state.kids.map((a) => {
         const sub = currentSub(state.subs.filter((x) => x.athlete_id === a.id));
         const pays = state.pays.filter((x) => x.athlete_id === a.id && x.status !== 'pending');
@@ -115,7 +122,33 @@ export default function Account() {
           </Card>
         );
       })}
-      <p className="text-center text-xs text-muted-foreground">Questions about a charge? <Link to={viewAs.isActive ? '#' : '/messages'} className="underline">Message us</Link> or call or text <a href={`sms:${VALOR_PHONE.replace(/\D/g, '')}`} className="underline">{VALOR_PHONE}</a>.</p>
+      <p className="text-center text-xs text-muted-foreground">Questions about a charge? <Link to={viewAs.isActive ? '#' : '/messages'} className="underline">Message us</Link> or email <span className="font-medium text-foreground">{VALOR_EMAIL}</span>.</p>
     </div>
+  );
+}
+
+/** Gifts this login bought (fn gift), so a lost voucher is one tap away. Hidden when there are none. */
+function GiftsBought() {
+  const [gifts, setGifts] = useState([]);
+  useEffect(() => {
+    supabase.from('gifts').select('id, item_name, classes, to_name, status, expires_at, created_at').in('status', ['paid', 'claimed']).order('created_at', { ascending: false })
+      .then(({ data }) => setGifts(data || []));
+  }, []);
+  if (!gifts.length) return null;
+  return (
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-lg"><Gift className="h-5 w-5 text-primary" /> Gifts you bought</CardTitle></CardHeader>
+      <CardContent className="divide-y divide-border p-0">
+        {gifts.map((g) => (
+          <Link key={g.id} to={`/gift/voucher/${g.id}`} className="flex items-center justify-between gap-3 px-6 py-3 text-sm hover:bg-muted/50">
+            <span className="min-w-0">
+              <span className="block font-semibold">{g.classes ? `${g.classes} classes` : g.item_name}{g.to_name ? ` for ${g.to_name}` : ''}</span>
+              <span className="block text-xs text-muted-foreground">{g.status === 'claimed' ? 'Used' : `Not used yet · good through ${goodThrough(g.expires_at)}`}</span>
+            </span>
+            <span className="shrink-0 text-xs font-semibold text-primary">{g.status === 'claimed' ? 'View' : 'Open voucher'}</span>
+          </Link>
+        ))}
+      </CardContent>
+    </Card>
   );
 }

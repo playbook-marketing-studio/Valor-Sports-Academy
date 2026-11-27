@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react';
 import { callFn } from '@/api/supabaseClient';
 import PublicLayout from './PublicLayout';
 import { SignWaiverForm, SignedNote } from '@/components/waiver/Waiver';
-import { VALOR_PHONE } from '@/lib/valor';
+import { VALOR_PHONE, VALOR_EMAIL } from '@/lib/valor';
 
 /** /waiver/:token — the private per-athlete link (emailed, or a QR at the front desk). No login needed. */
 export default function WaiverLink() {
@@ -32,7 +32,7 @@ export default function WaiverLink() {
     return (
       <PublicLayout title={`${a.first_name}'s waiver is signed`} subtitle="You're all set. Thanks!">
         <SignedNote signature={state.done?.signature || state.signed} emailed={state.done?.emailed} email={state.done?.email} />
-        <p className="mt-4 text-sm text-muted-foreground">Need a copy or a change? Text us at <a className="text-primary" href={`sms:${VALOR_PHONE}`}>{VALOR_PHONE}</a>.</p>
+        <p className="mt-4 text-sm text-muted-foreground">Need a copy or a change? Email <span className="text-primary">{VALOR_EMAIL}</span>.</p>
       </PublicLayout>
     );
   }

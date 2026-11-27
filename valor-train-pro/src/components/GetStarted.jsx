@@ -6,14 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
-import { SITE_ASSESSMENT_URL, VALOR_PHONE } from '@/lib/valor';
+import { SITE_ASSESSMENT_URL, VALOR_EMAIL } from '@/lib/valor';
 
 /**
  * Home for a login with no athlete yet (someone who signed up in the app on their own, Valor 11/9/2026).
  *  - A kid on file with this email as the parent email: "Email me the link" proves the inbox, then the kid connects.
  *  - Otherwise "Who's training?": adds the athlete to this login, and Home's plan card + checkout show right away.
  */
-export default function GetStarted({ onAdded }) {
+export default function GetStarted({ onAdded, promo = '' }) {
   const [status, setStatus] = useState(null); // null loading | {match}
   const [sent, setSent] = useState(null); // email the link went to
   const [busy, setBusy] = useState(false);
@@ -83,6 +83,7 @@ function WhoIsTraining({ onAdded }) {
       <div>
         <h2 className="font-display text-2xl">Who's training?</h2>
         <p className="mt-1 text-sm text-muted-foreground">Add your athlete to pick a plan and pay right here. New to Valor? Your first assessment is free.</p>
+        {promo && <p className="mt-2 text-sm font-semibold text-primary">{promo}</p>}
       </div>
       <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Who is signing up">
         {[['athlete', "I'm the athlete"], ['parent', "I'm a parent"]].map(([k, l]) => (
@@ -111,7 +112,7 @@ function WhoIsTraining({ onAdded }) {
           <Button type="submit" className="w-full" disabled={busy || !f.first_name.trim()}>{busy ? 'One moment…' : 'Next: pick a plan'}</Button>
         </form>
       )}
-      <p className="text-xs text-muted-foreground">Want to try it first? <a href={SITE_ASSESSMENT_URL} className="font-medium text-primary hover:underline">Book a free assessment</a>. Questions? Call or text <a href={`sms:${VALOR_PHONE.replace(/\D/g, '')}`} className="font-medium text-primary hover:underline">{VALOR_PHONE}</a>.</p>
+      <p className="text-xs text-muted-foreground">Want to try it first? <a href={SITE_ASSESSMENT_URL} className="font-medium text-primary hover:underline">Book a free assessment</a>. Questions? Email <span className="font-medium text-foreground">{VALOR_EMAIL}</span>.</p>
     </div>
   );
 }

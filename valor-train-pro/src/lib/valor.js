@@ -4,6 +4,8 @@ import { addDaysYmd, weekdayOf, ymdPT } from './dates';
 
 export const SITE_ASSESSMENT_URL = 'https://www.valorsportsacademywa.com/assessment#book';
 export const VALOR_PHONE = '509-987-4612';
+// Families' contact for questions (Omar 11/27/2026: questions go to Valor by email; the phone stays on payment problems)
+export const VALOR_EMAIL = 'valorsportsacademywa@gmail.com';
 
 // Tests recorded at the assessment. Override with settings key "assessment_metrics" once Corey confirms the list.
 export const DEFAULT_METRICS = [

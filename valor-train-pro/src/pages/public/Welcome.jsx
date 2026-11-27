@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import PublicLayout from './PublicLayout';
-import { VALOR_PHONE } from '@/lib/valor';
+import { VALOR_EMAIL } from '@/lib/valor';
 
 /** Where the parent lands from the login link a coach sent. They set a password and go to the dashboard. */
 export default function Welcome() {
@@ -47,7 +47,7 @@ export default function Welcome() {
     return (
       <PublicLayout title="This link has expired" subtitle="Login links from a coach work once and for 24 hours.">
         {error && <p className="mb-3 text-sm text-destructive">{error}</p>}
-        <p className="text-sm">Ask your coach for a new one, or call or text <a className="text-primary" href={`tel:${VALOR_PHONE}`}>{VALOR_PHONE}</a>.</p>
+        <p className="text-sm">Ask your coach for a new one, or email <span className="text-primary">{VALOR_EMAIL}</span>.</p>
         <p className="mt-3 text-sm">Already set a password? <Link to="/login" className="text-primary hover:underline">Log in</Link></p>
       </PublicLayout>
     );
