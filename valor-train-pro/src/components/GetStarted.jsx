@@ -56,10 +56,10 @@ export default function GetStarted({ onAdded, promo = '' }) {
     );
   }
 
-  return <WhoIsTraining onAdded={onAdded} />;
+  return <WhoIsTraining onAdded={onAdded} promo={promo} />;
 }
 
-function WhoIsTraining({ onAdded }) {
+function WhoIsTraining({ onAdded, promo = '' }) {
   const [role, setRole] = useState('');
   const [f, setF] = useState({ first_name: '', last_name: '', age: '', sport: '', phone: '', parent_name: '', parent_phone: '' });
   const [busy, setBusy] = useState(false);
