@@ -27,7 +27,7 @@ const normCode = (v: unknown) => String(v ?? "").toUpperCase().replace(/[^A-Z0-9
 const fmtCode = (c: string) => `${c.slice(0, 4)}-${c.slice(4)}`;
 const money = (c: number) => `$${(c / 100).toFixed(c % 100 ? 2 : 0)}`;
 const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
-const fmtDay = (iso: string | null) => iso ? new Date(new Date(iso).getTime() - 1000).toLocaleDateString("en-US", { timeZone: "America/Los_Angeles", month: "short", day: "numeric", year: "numeric" }) : "";
+const fmtDay = (iso: string | null) => iso ? new Date(iso).toLocaleDateString("en-US", { timeZone: "America/Los_Angeles", month: "short", day: "numeric", year: "numeric" }) : "";
 
 function newCode() {
   const out: string[] = [];
@@ -39,12 +39,13 @@ function newCode() {
   return out.join("");
 }
 
-/** End of the item's expires_on day in Pacific time ("2027-01-31" → Feb 1 00:00 PT), else now + expires_days. */
+/** Last second of the item's expires_on day in Pacific time ("2027-01-31" → Jan 31 11:59:59pm PT, so every screen
+ *  that prints covers_until as a date says Jan 31), else now + expires_days. */
 function giftExpiry(item: Record<string, any>, from: Date) {
   if (typeof item.expires_on === "string" && /^\d{4}-\d{2}-\d{2}$/.test(item.expires_on)) {
     const [y, m, d] = item.expires_on.split("-").map(Number);
     const next = new Date(Date.UTC(y, m - 1, d + 1));
-    return ptToUtc(next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate(), 0).toISOString();
+    return new Date(ptToUtc(next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate(), 0).getTime() - 1000).toISOString();
   }
   const days = Number(item.expires_days) || 0;
   return days > 0 ? new Date(from.getTime() + days * 86400000).toISOString() : null;

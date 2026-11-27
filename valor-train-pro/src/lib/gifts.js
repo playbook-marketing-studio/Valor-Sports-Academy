@@ -11,10 +11,10 @@ export const promoLine = (cfg) => (cfg?.items || []).find((i) => i.promo)?.promo
 
 export const giftFn = (body) => callFn('gift', { body });
 
-/** "Good through Jan 31, 2027" from the gift's expiry (stored as the moment right after the last day). */
+/** "Jan 31, 2027" from the gift's expiry (the last second of that day, Pacific). */
 export function goodThrough(iso) {
   if (!iso) return '';
-  return new Date(new Date(iso).getTime() - 1000).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 // a code someone opened before signing in: Home offers it again after they log in or sign up
